@@ -187,8 +187,5 @@ export const useGripperInteraction = () => {
     prevGripperRef.current = joints.gripper;
   }, [joints, updateObject, completeObjective, positionChanged]);
 
-  return {
-    gripperPosition: calculateGripperPosition(joints),
-    grabbedObjectId: grabbedObjectIdRef.current,
-  };
+  return null;
 };

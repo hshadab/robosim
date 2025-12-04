@@ -3,7 +3,7 @@
  * Records time-series data for plotting with ring buffer
  */
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, startTransition } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { PlotDataPoint, PlotSeries, PlotConfig } from '../types';
 
@@ -135,7 +135,7 @@ export const useDataRecorder = (
 
   // Create ring buffers for each series
   const buffersRef = useRef<Map<string, RingBuffer<PlotDataPoint>>>(new Map());
-  const startTimeRef = useRef(Date.now());
+  const startTimeRef = useRef(0);
   const [series, setSeries] = useState<PlotSeries[]>([]);
 
   // Get active series definitions
@@ -159,18 +159,20 @@ export const useDataRecorder = (
       buffersRef.current.set(def.id, new RingBuffer(fullConfig.maxDataPoints));
     });
 
-    // Initialize series state
-    setSeries(
-      definitions.map((def) => ({
-        id: def.id,
-        label: def.label,
-        color: def.color,
-        data: [],
-        visible: true,
-      }))
-    );
+    // Initialize series state without blocking paint
+    startTransition(() => {
+      setSeries(
+        definitions.map((def) => ({
+          id: def.id,
+          label: def.label,
+          color: def.color,
+          data: [],
+          visible: true,
+        }))
+      );
+    });
 
-    startTimeRef.current = Date.now();
+    startTimeRef.current = performance.now();
   }, [mode, fullConfig.maxDataPoints, getSeriesDefinitions]);
 
   // Record data point
@@ -178,7 +180,7 @@ export const useDataRecorder = (
     if (!fullConfig.enabled) return;
 
     const state = useAppStore.getState();
-    const now = Date.now();
+    const now = performance.now();
     const time = now - startTimeRef.current;
     const definitions = getSeriesDefinitions();
 

@@ -668,10 +668,11 @@ Current position: Base ${currentJoints.base.toFixed(0)}°, Shoulder ${currentJoi
 // Wheeled robot responses
 async function simulateWheeledResponse(
   message: string,
-  _currentState: WheeledRobotState
+  currentState: WheeledRobotState
 ): Promise<LLMResponse> {
   await new Promise((r) => setTimeout(r, 800 + Math.random() * 500));
   const lowerMessage = message.toLowerCase();
+  const stateSummary = `Current heading ${currentState.heading.toFixed(0)}°, wheel speeds L${currentState.leftWheelSpeed} R${currentState.rightWheelSpeed}.`;
 
   if (lowerMessage.includes('forward') || lowerMessage.includes('drive')) {
     return {
@@ -840,7 +841,7 @@ void avoidObstacles() {
 
   return {
     action: 'error',
-    description: `I'm not sure how to "${message}". Try commands like "drive forward", "turn around", "follow line", "avoid obstacles", or "stop".`,
+    description: `I'm not sure how to "${message}". Try commands like "drive forward", "turn around", "follow line", "avoid obstacles", or "stop". ${stateSummary}`,
   };
 }
 
@@ -1031,10 +1032,11 @@ void descend() {
 // Humanoid robot responses
 async function simulateHumanoidResponse(
   message: string,
-  _currentState: HumanoidState
+  currentState: HumanoidState
 ): Promise<LLMResponse> {
   await new Promise((r) => setTimeout(r, 800 + Math.random() * 500));
   const lowerMessage = message.toLowerCase();
+  const balanceSummary = `Current balance: roll ${currentState.balance.x.toFixed(1)}°, pitch ${currentState.balance.z.toFixed(1)}°.`;
 
   if (lowerMessage.includes('wave') || lowerMessage.includes('hello')) {
     return {
@@ -1229,6 +1231,6 @@ void bow() {
 
   return {
     action: 'error',
-    description: `I'm not sure how to "${message}". Try commands like "wave hello", "walk forward", "do a squat", "raise arms", "stand on one leg", or "reset pose".`,
+    description: `I'm not sure how to "${message}". Try commands like "wave hello", "walk forward", "do a squat", "raise arms", "stand on one leg", or "reset pose". ${balanceSummary}`,
   };
 }

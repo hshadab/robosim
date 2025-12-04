@@ -73,34 +73,32 @@ const URDFLinkMesh: React.FC<{
   jointValues: Record<string, number>;
   scale: number;
 }> = ({ robot, linkName, tree, jointValues, scale }) => {
-  const node = tree.get(linkName);
-  if (!node) return null;
+  const node = useMemo(() => tree.get(linkName), [tree, linkName]);
 
-  const { link, joint } = node;
-
-  // Get child links
-  const childLinks = robot.joints
-    .filter((j) => j.parent === linkName)
-    .map((j) => j.child);
+  const childLinks = useMemo(
+    () => robot.joints.filter((j) => j.parent === linkName).map((j) => j.child),
+    [robot.joints, linkName]
+  );
 
   // Calculate joint transformation
   const jointMatrix = useMemo(() => {
-    if (!joint) return new THREE.Matrix4();
+    const jointRef = node?.joint;
+    if (!jointRef) return new THREE.Matrix4();
 
-    const originMatrix = urdfOriginToMatrix(joint.origin);
+    const originMatrix = urdfOriginToMatrix(jointRef.origin);
 
     // Apply joint rotation if it's a revolute/continuous joint
-    if ((joint.type === 'revolute' || joint.type === 'continuous') && joint.axis) {
-      const angle = jointValues[joint.name] || 0;
-      const axis = new THREE.Vector3(...joint.axis).normalize();
+    if ((jointRef.type === 'revolute' || jointRef.type === 'continuous') && jointRef.axis) {
+      const angle = jointValues[jointRef.name] || 0;
+      const axis = new THREE.Vector3(...jointRef.axis).normalize();
       const rotation = new THREE.Matrix4().makeRotationAxis(axis, angle);
       originMatrix.multiply(rotation);
     }
 
     // Apply prismatic joint translation
-    if (joint.type === 'prismatic' && joint.axis) {
-      const distance = jointValues[joint.name] || 0;
-      const axis = new THREE.Vector3(...joint.axis).normalize();
+    if (jointRef.type === 'prismatic' && jointRef.axis) {
+      const distance = jointValues[jointRef.name] || 0;
+      const axis = new THREE.Vector3(...jointRef.axis).normalize();
       const translation = new THREE.Matrix4().makeTranslation(
         axis.x * distance,
         axis.y * distance,
@@ -110,7 +108,7 @@ const URDFLinkMesh: React.FC<{
     }
 
     return originMatrix;
-  }, [joint, jointValues]);
+  }, [node?.joint, jointValues]);
 
   // Extract position and rotation from matrix
   const position = useMemo(() => {
@@ -125,6 +123,10 @@ const URDFLinkMesh: React.FC<{
     const euler = new THREE.Euler().setFromQuaternion(quat);
     return [euler.x, euler.y, euler.z] as [number, number, number];
   }, [jointMatrix]);
+
+  if (!node) return null;
+
+  const { link } = node;
 
   return (
     <group position={position} rotation={rotation}>

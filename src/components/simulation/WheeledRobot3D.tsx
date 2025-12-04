@@ -9,16 +9,7 @@ import { useFrame } from '@react-three/fiber';
 import { RoundedBox, Cylinder } from '@react-three/drei';
 import * as THREE from 'three';
 import type { WheeledRobotState, WheeledRobotConfig } from '../../types';
-
-// Default configuration for a small differential drive robot
-const DEFAULT_CONFIG: WheeledRobotConfig = {
-  wheelRadius: 0.025,       // 2.5cm radius wheels
-  wheelBase: 0.1,           // 10cm between wheels
-  maxSpeed: 0.3,            // 30cm/s max speed
-  bodyWidth: 0.12,          // 12cm wide
-  bodyLength: 0.15,         // 15cm long
-  bodyHeight: 0.05,         // 5cm tall
-};
+import { WHEELED_ROBOT_CONFIG } from './defaults';
 
 // PBR Material property configurations (not instances - to avoid disposal issues)
 const MATERIALS = {
@@ -193,7 +184,7 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
   state,
   config: configOverrides = {},
 }) => {
-  const config = { ...DEFAULT_CONFIG, ...configOverrides };
+  const config = { ...WHEELED_ROBOT_CONFIG, ...configOverrides };
   const groupRef = useRef<THREE.Group>(null);
 
   // Calculate wheel positions
@@ -328,5 +319,3 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
     </group>
   );
 };
-
-export { DEFAULT_CONFIG as WHEELED_ROBOT_CONFIG };

@@ -15,8 +15,9 @@ import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObject
 import { PhysicsArm } from './PhysicsArm';
 import { SensorVisualization3DLayer } from './SensorVisualization3D';
 import { WheeledRobot3D } from './WheeledRobot3D';
-import { Drone3D, DEFAULT_DRONE_STATE } from './Drone3D';
-import { Humanoid3D, DEFAULT_HUMANOID_STATE } from './Humanoid3D';
+import { Drone3D } from './Drone3D';
+import { Humanoid3D } from './Humanoid3D';
+import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
 
 interface RobotArm3DProps {
   joints: JointState;

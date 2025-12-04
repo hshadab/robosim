@@ -3,7 +3,7 @@
  * Simulates a 2D lidar scanner using raycasting
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { useAppStore } from '../stores/useAppStore';
@@ -23,10 +23,12 @@ export const useLidarSimulation = (
   onScan?: (reading: LidarReading) => void
 ) => {
   const { scene } = useThree();
-  const joints = useAppStore((state) => state.joints);
   const objects = useAppStore((state) => state.objects);
 
-  const fullConfig = { ...DEFAULT_LIDAR_CONFIG, ...config };
+  const fullConfig = useMemo(
+    () => ({ ...DEFAULT_LIDAR_CONFIG, ...config }),
+    [config]
+  );
   const raycaster = useRef(new THREE.Raycaster());
   const lastScanTime = useRef(0);
 
@@ -132,7 +134,7 @@ export const useLidarSimulation = (
       timestamp: Date.now(),
       scanComplete: true,
     };
-  }, [joints.base, objects, fullConfig, getScannableObjects]);
+  }, [objects, fullConfig, getScannableObjects]);
 
   // Run scans at specified rate
   useEffect(() => {

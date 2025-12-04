@@ -144,7 +144,7 @@ const ActiveChallengeDisplay: React.FC = () => {
     challengeState;
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
 
   // Timer effect
   useEffect(() => {
@@ -162,7 +162,7 @@ const ActiveChallengeDisplay: React.FC = () => {
         }
       };
     }
-  }, [challengeState.isTimerRunning, updateChallengeTimer]);
+  }, [challengeState.isTimerRunning, elapsedTime, updateChallengeTimer]);
 
   if (!activeChallenge) return null;
 

@@ -5,15 +5,14 @@
 
 import { useAppStore } from '../stores/useAppStore';
 import type { DroneState, ConsoleMessage } from '../types';
-import { DEFAULT_DRONE_STATE } from '../components/simulation/Drone3D';
+import { DEFAULT_DRONE_STATE } from '../components/simulation/defaults';
 
 // Track running state
 let isRunning = false;
 let shouldStop = false;
 
 export const createDroneAPI = (
-  addConsoleMessage: (msg: ConsoleMessage) => void,
-  _onStop?: () => void
+  addConsoleMessage: (msg: ConsoleMessage) => void
 ) => {
   const print = (...args: unknown[]) => {
     const message = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
@@ -404,7 +403,7 @@ export const runDroneCode = async (
     options.onConsoleMessage?.(msg);
   };
 
-  const api = createDroneAPI(addConsoleMessage, options.onStop);
+  const api = createDroneAPI(addConsoleMessage);
 
   try {
     options.onStart?.();

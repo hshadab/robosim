@@ -212,11 +212,11 @@ export const useSensorSimulation = (updateInterval: number = 50) => {
     velocity: { x: 0, y: 0, z: 0 } as Vector3D,
     imu: calculateIMU(joints),
     temperature: 25,
-    lastUpdate: Date.now(),
+    lastUpdate: 0,
   });
 
   const updateSensors = useCallback(() => {
-    const now = Date.now();
+    const now = performance.now();
     const deltaTime = Math.max(0.001, (now - prevState.current.lastUpdate) / 1000);
 
     // Calculate current state
@@ -298,6 +298,8 @@ export const useSensorSimulation = (updateInterval: number = 50) => {
 
   // Run simulation at specified interval
   useEffect(() => {
+    prevState.current.lastUpdate = performance.now();
+    updateSensors();
     const interval = setInterval(updateSensors, updateInterval);
     return () => clearInterval(interval);
   }, [updateSensors, updateInterval]);

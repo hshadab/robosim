@@ -22,8 +22,7 @@ export const DEFAULT_WHEELED_STATE: WheeledRobotState = {
 };
 
 export const createWheeledRobotAPI = (
-  addConsoleMessage: (msg: ConsoleMessage) => void,
-  _onStop?: () => void
+  addConsoleMessage: (msg: ConsoleMessage) => void
 ) => {
   const print = (...args: unknown[]) => {
     const message = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
@@ -330,7 +329,7 @@ export const runWheeledRobotCode = async (
     options.onConsoleMessage?.(msg);
   };
 
-  const api = createWheeledRobotAPI(addConsoleMessage, options.onStop);
+  const api = createWheeledRobotAPI(addConsoleMessage);
 
   try {
     options.onStart?.();

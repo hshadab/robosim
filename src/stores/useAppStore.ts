@@ -27,7 +27,7 @@ import {
   getEnvironmentTargetZones,
   CHALLENGES,
 } from '../config/environments';
-import { DEFAULT_HUMANOID_STATE } from '../components/simulation/Humanoid3D';
+import { DEFAULT_HUMANOID_STATE } from '../components/simulation/defaults';
 
 interface AppState {
   // Robot State

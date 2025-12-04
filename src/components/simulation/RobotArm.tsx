@@ -5,6 +5,205 @@ interface RobotArmProps {
   joints: JointState;
 }
 
+// Shared color palette for the SVG arm illustration
+const ROBOT_COLORS = {
+  aluminum: '#C8CED6',
+  aluminumDark: '#9BA4B0',
+  aluminumLight: '#E0E4EA',
+  aluminumEdge: '#A8B0BC',
+  servoBlue: '#1E5FAB',
+  servoBlueDark: '#164785',
+  servoBlueLight: '#2B74C4',
+  servoBlueAccent: '#3D8BE0',
+  servoHorn: '#1A1A1A',
+  servoLabel: '#E8E8E8',
+  basePlate: '#1A1A1A',
+  baseRing: '#2D2D2D',
+  bearing: '#3D3D3D',
+  bearingInner: '#505050',
+  gripperMetal: '#4A4A4A',
+  gripperPad: '#E65C00',
+  gripperPadDark: '#CC5200',
+  screw: '#6B6B6B',
+  screwHead: '#888888',
+  cable: '#1A1A1A',
+};
+
+type ServoProps = {
+  x: number;
+  y: number;
+  rotation?: number;
+  size?: number;
+  showHorn?: boolean;
+};
+
+const Servo: React.FC<ServoProps> = ({ x, y, rotation = 0, size = 1, showHorn = true }) => (
+  <g transform={`translate(${x}, ${y}) rotate(${rotation})`}>
+    <rect
+      x={-14 * size}
+      y={-20 * size}
+      width={28 * size}
+      height={40 * size}
+      rx={2}
+      fill={ROBOT_COLORS.servoBlue}
+      stroke={ROBOT_COLORS.servoBlueDark}
+      strokeWidth={1}
+    />
+    <rect
+      x={-12 * size}
+      y={-18 * size}
+      width={24 * size}
+      height={4 * size}
+      rx={1}
+      fill={ROBOT_COLORS.servoBlueLight}
+      opacity={0.6}
+    />
+    <line
+      x1={-14 * size}
+      y1={-8 * size}
+      x2={-14 * size}
+      y2={12 * size}
+      stroke={ROBOT_COLORS.servoBlueDark}
+      strokeWidth={1}
+    />
+    <line
+      x1={14 * size}
+      y1={-8 * size}
+      x2={14 * size}
+      y2={12 * size}
+      stroke={ROBOT_COLORS.servoBlueDark}
+      strokeWidth={1}
+    />
+    <rect
+      x={-10 * size}
+      y={-4 * size}
+      width={20 * size}
+      height={12 * size}
+      rx={1}
+      fill={ROBOT_COLORS.servoBlueDark}
+      opacity={0.5}
+    />
+    <text
+      x={0}
+      y={4 * size}
+      textAnchor="middle"
+      fill={ROBOT_COLORS.servoLabel}
+      fontSize={7 * size}
+      fontWeight="bold"
+      fontFamily="Arial, sans-serif"
+    >
+      LX-15D
+    </text>
+    {showHorn && (
+      <>
+        <circle
+          cx={0}
+          cy={-20 * size}
+          r={8 * size}
+          fill={ROBOT_COLORS.servoHorn}
+          stroke={ROBOT_COLORS.servoBlueDark}
+          strokeWidth={1}
+        />
+        <circle cx={0} cy={-20 * size} r={4 * size} fill={ROBOT_COLORS.screw} />
+        <circle cx={0} cy={-20 * size} r={2 * size} fill={ROBOT_COLORS.screwHead} />
+      </>
+    )}
+    <rect
+      x={-16 * size}
+      y={14 * size}
+      width={6 * size}
+      height={6 * size}
+      rx={1}
+      fill={ROBOT_COLORS.servoBlue}
+      stroke={ROBOT_COLORS.servoBlueDark}
+      strokeWidth={0.5}
+    />
+    <rect
+      x={10 * size}
+      y={14 * size}
+      width={6 * size}
+      height={6 * size}
+      rx={1}
+      fill={ROBOT_COLORS.servoBlue}
+      stroke={ROBOT_COLORS.servoBlueDark}
+      strokeWidth={0.5}
+    />
+    <circle cx={-13 * size} cy={17 * size} r={1.5 * size} fill={ROBOT_COLORS.servoBlueDark} />
+    <circle cx={13 * size} cy={17 * size} r={1.5 * size} fill={ROBOT_COLORS.servoBlueDark} />
+  </g>
+);
+
+type BracketProps = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width?: number;
+  hasHoles?: boolean;
+};
+
+const Bracket: React.FC<BracketProps> = ({ x1, y1, x2, y2, width = 24, hasHoles = true }) => {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+  return (
+    <g transform={`translate(${x1}, ${y1}) rotate(${(angle * 180) / Math.PI})`}>
+      <rect
+        x={0}
+        y={-width / 2}
+        width={length}
+        height={width}
+        rx={3}
+        fill={ROBOT_COLORS.aluminum}
+        stroke={ROBOT_COLORS.aluminumDark}
+        strokeWidth={1.5}
+      />
+      <rect
+        x={2}
+        y={-width / 2 + 1}
+        width={length - 4}
+        height={3}
+        rx={1}
+        fill={ROBOT_COLORS.aluminumLight}
+        opacity={0.7}
+      />
+      <rect
+        x={2}
+        y={width / 2 - 4}
+        width={length - 4}
+        height={3}
+        rx={1}
+        fill={ROBOT_COLORS.aluminumDark}
+        opacity={0.3}
+      />
+      {hasHoles && length > 50 && (
+        <>
+          <ellipse
+            cx={length * 0.35}
+            cy={0}
+            rx={Math.min(14, length * 0.12)}
+            ry={5}
+            fill={ROBOT_COLORS.aluminumDark}
+            opacity={0.4}
+          />
+          <ellipse
+            cx={length * 0.65}
+            cy={0}
+            rx={Math.min(14, length * 0.12)}
+            ry={5}
+            fill={ROBOT_COLORS.aluminumDark}
+            opacity={0.4}
+          />
+        </>
+      )}
+      <circle cx={4} cy={-width / 3} r={2} fill={ROBOT_COLORS.screw} />
+      <circle cx={4} cy={width / 3} r={2} fill={ROBOT_COLORS.screw} />
+      <circle cx={length - 4} cy={-width / 3} r={2} fill={ROBOT_COLORS.screw} />
+      <circle cx={length - 4} cy={width / 3} r={2} fill={ROBOT_COLORS.screw} />
+    </g>
+  );
+};
+
 export const RobotArm: React.FC<RobotArmProps> = ({ joints }) => {
   // Dimensions based on real xArm 1S proportions (154×140×426mm)
   const scale = 1.3;
@@ -43,239 +242,7 @@ export const RobotArm: React.FC<RobotArmProps> = ({ joints }) => {
     y: wristJoint.y - wristLength * scale * Math.cos(wristRad),
   };
 
-  // Realistic xArm 1S colors
-  const colors = {
-    // Aluminum brackets - sandblasted oxidized finish
-    aluminum: '#C8CED6',
-    aluminumDark: '#9BA4B0',
-    aluminumLight: '#E0E4EA',
-    aluminumEdge: '#A8B0BC',
-
-    // Hiwonder blue servos
-    servoBlue: '#1E5FAB',
-    servoBlueDark: '#164785',
-    servoBlueLight: '#2B74C4',
-    servoBlueAccent: '#3D8BE0',
-
-    // Servo details
-    servoHorn: '#1A1A1A',
-    servoLabel: '#E8E8E8',
-
-    // Base
-    basePlate: '#1A1A1A',
-    baseRing: '#2D2D2D',
-    bearing: '#3D3D3D',
-    bearingInner: '#505050',
-
-    // Gripper
-    gripperMetal: '#4A4A4A',
-    gripperPad: '#E65C00', // Orange rubber pads
-    gripperPadDark: '#CC5200',
-
-    // Hardware
-    screw: '#6B6B6B',
-    screwHead: '#888888',
-    cable: '#1A1A1A',
-  };
-
-  // Servo component with realistic details
-  const Servo = ({
-    x,
-    y,
-    rotation = 0,
-    size = 1,
-    showHorn = true,
-  }: {
-    x: number;
-    y: number;
-    rotation?: number;
-    size?: number;
-    showHorn?: boolean;
-  }) => (
-    <g transform={`translate(${x}, ${y}) rotate(${rotation})`}>
-      {/* Servo body */}
-      <rect
-        x={-14 * size}
-        y={-20 * size}
-        width={28 * size}
-        height={40 * size}
-        rx={2}
-        fill={colors.servoBlue}
-        stroke={colors.servoBlueDark}
-        strokeWidth={1}
-      />
-      {/* Top face highlight */}
-      <rect
-        x={-12 * size}
-        y={-18 * size}
-        width={24 * size}
-        height={4 * size}
-        rx={1}
-        fill={colors.servoBlueLight}
-        opacity={0.6}
-      />
-      {/* Side detail lines */}
-      <line
-        x1={-14 * size}
-        y1={-8 * size}
-        x2={-14 * size}
-        y2={12 * size}
-        stroke={colors.servoBlueDark}
-        strokeWidth={1}
-      />
-      <line
-        x1={14 * size}
-        y1={-8 * size}
-        x2={14 * size}
-        y2={12 * size}
-        stroke={colors.servoBlueDark}
-        strokeWidth={1}
-      />
-      {/* Label area */}
-      <rect
-        x={-10 * size}
-        y={-4 * size}
-        width={20 * size}
-        height={12 * size}
-        rx={1}
-        fill={colors.servoBlueDark}
-        opacity={0.5}
-      />
-      {/* LX text (LewanSoul servo model) */}
-      <text
-        x={0}
-        y={4 * size}
-        textAnchor="middle"
-        fill={colors.servoLabel}
-        fontSize={7 * size}
-        fontWeight="bold"
-        fontFamily="Arial, sans-serif"
-      >
-        LX-15D
-      </text>
-      {/* Output shaft */}
-      {showHorn && (
-        <>
-          <circle
-            cx={0}
-            cy={-20 * size}
-            r={8 * size}
-            fill={colors.servoHorn}
-            stroke={colors.servoBlueDark}
-            strokeWidth={1}
-          />
-          <circle cx={0} cy={-20 * size} r={4 * size} fill={colors.screw} />
-          <circle cx={0} cy={-20 * size} r={2 * size} fill={colors.screwHead} />
-        </>
-      )}
-      {/* Mounting tabs */}
-      <rect
-        x={-16 * size}
-        y={14 * size}
-        width={6 * size}
-        height={6 * size}
-        rx={1}
-        fill={colors.servoBlue}
-        stroke={colors.servoBlueDark}
-        strokeWidth={0.5}
-      />
-      <rect
-        x={10 * size}
-        y={14 * size}
-        width={6 * size}
-        height={6 * size}
-        rx={1}
-        fill={colors.servoBlue}
-        stroke={colors.servoBlueDark}
-        strokeWidth={0.5}
-      />
-      {/* Mounting holes */}
-      <circle cx={-13 * size} cy={17 * size} r={1.5 * size} fill={colors.servoBlueDark} />
-      <circle cx={13 * size} cy={17 * size} r={1.5 * size} fill={colors.servoBlueDark} />
-    </g>
-  );
-
-  // Aluminum bracket with realistic details
-  const Bracket = ({
-    x1,
-    y1,
-    x2,
-    y2,
-    width = 24,
-    hasHoles = true,
-  }: {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-    width?: number;
-    hasHoles?: boolean;
-  }) => {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-
-    return (
-      <g transform={`translate(${x1}, ${y1}) rotate(${(angle * 180) / Math.PI})`}>
-        {/* Main bracket body */}
-        <rect
-          x={0}
-          y={-width / 2}
-          width={length}
-          height={width}
-          rx={3}
-          fill={colors.aluminum}
-          stroke={colors.aluminumDark}
-          strokeWidth={1.5}
-        />
-        {/* Top edge highlight */}
-        <rect
-          x={2}
-          y={-width / 2 + 1}
-          width={length - 4}
-          height={3}
-          rx={1}
-          fill={colors.aluminumLight}
-          opacity={0.7}
-        />
-        {/* Bottom edge shadow */}
-        <rect
-          x={2}
-          y={width / 2 - 4}
-          width={length - 4}
-          height={3}
-          rx={1}
-          fill={colors.aluminumDark}
-          opacity={0.3}
-        />
-        {/* Lightening holes */}
-        {hasHoles && length > 50 && (
-          <>
-            <ellipse
-              cx={length * 0.35}
-              cy={0}
-              rx={Math.min(14, length * 0.12)}
-              ry={5}
-              fill={colors.aluminumDark}
-              opacity={0.4}
-            />
-            <ellipse
-              cx={length * 0.65}
-              cy={0}
-              rx={Math.min(14, length * 0.12)}
-              ry={5}
-              fill={colors.aluminumDark}
-              opacity={0.4}
-            />
-          </>
-        )}
-        {/* Mounting holes at ends */}
-        <circle cx={12} cy={0} r={3} fill={colors.aluminumDark} />
-        <circle cx={12} cy={0} r={1.5} fill={colors.screw} />
-        <circle cx={length - 12} cy={0} r={3} fill={colors.aluminumDark} />
-        <circle cx={length - 12} cy={0} r={1.5} fill={colors.screw} />
-      </g>
-    );
-  };
+  const colors = ROBOT_COLORS;
 
   // Gripper calculation
   const gripAngle = wristRad;

@@ -328,8 +328,10 @@ export class URDFParser {
 export const urdfGeometryToThree = (geometry: URDFGeometry): THREE.BufferGeometry => {
   switch (geometry.type) {
     case 'box':
-      const [sx, sy, sz] = geometry.size || [1, 1, 1];
-      return new THREE.BoxGeometry(sx, sy, sz);
+      {
+        const [sx, sy, sz] = geometry.size || [1, 1, 1];
+        return new THREE.BoxGeometry(sx, sy, sz);
+      }
 
     case 'cylinder':
       return new THREE.CylinderGeometry(

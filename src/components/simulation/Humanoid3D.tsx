@@ -8,83 +8,7 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { HumanoidState } from '../../types';
-
-// Robot dimensions (in meters, scaled for scene)
-const SCALE = 1;
-const DIMENSIONS = {
-  // Torso
-  torsoHeight: 0.25 * SCALE,
-  torsoWidth: 0.18 * SCALE,
-  torsoDepth: 0.12 * SCALE,
-
-  // Head
-  headRadius: 0.06 * SCALE,
-  neckHeight: 0.04 * SCALE,
-
-  // Arms
-  upperArmLength: 0.12 * SCALE,
-  upperArmRadius: 0.025 * SCALE,
-  lowerArmLength: 0.11 * SCALE,
-  lowerArmRadius: 0.02 * SCALE,
-  handLength: 0.05 * SCALE,
-
-  // Legs
-  hipWidth: 0.14 * SCALE,
-  upperLegLength: 0.18 * SCALE,
-  upperLegRadius: 0.035 * SCALE,
-  lowerLegLength: 0.17 * SCALE,
-  lowerLegRadius: 0.03 * SCALE,
-  footLength: 0.1 * SCALE,
-  footHeight: 0.03 * SCALE,
-  footWidth: 0.06 * SCALE,
-};
-
-// Calculate total leg height for proper standing position
-// torsoHeight/2 + hip joint (0.04) + upperLeg (0.18 + 0.04) + lowerLeg (0.17 + 0.04) + ankle (0.025) + foot (0.03)
-const STANDING_HEIGHT =
-  DIMENSIONS.torsoHeight / 2 + 0.04 +  // hip joint
-  DIMENSIONS.upperLegLength + 0.04 +    // upper leg + knee
-  DIMENSIONS.lowerLegLength + 0.04 +    // lower leg + ankle
-  DIMENSIONS.footHeight;                 // foot
-
-// Default humanoid state
-export const DEFAULT_HUMANOID_STATE: HumanoidState = {
-  position: { x: 0, y: STANDING_HEIGHT, z: 0 },
-  rotation: { x: 0, y: 0, z: 0 },
-
-  // Leg joints (degrees)
-  leftHipPitch: 0,
-  leftHipRoll: 0,
-  leftHipYaw: 0,
-  leftKnee: 0,
-  leftAnklePitch: 0,
-  leftAnkleRoll: 0,
-
-  rightHipPitch: 0,
-  rightHipRoll: 0,
-  rightHipYaw: 0,
-  rightKnee: 0,
-  rightAnklePitch: 0,
-  rightAnkleRoll: 0,
-
-  // Arm joints (degrees)
-  leftShoulderPitch: 0,
-  leftShoulderRoll: 0,
-  leftShoulderYaw: 0,
-  leftElbow: 0,
-  leftWrist: 0,
-
-  rightShoulderPitch: 0,
-  rightShoulderRoll: 0,
-  rightShoulderYaw: 0,
-  rightElbow: 0,
-  rightWrist: 0,
-
-  // State
-  isWalking: false,
-  walkPhase: 0,
-  balance: { x: 0, z: 0 },
-};
+import { HUMANOID_DIMENSIONS } from './defaults';
 
 // PBR Material property configurations (not instances - to avoid disposal issues)
 const MATERIALS = {
@@ -198,7 +122,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
     }
   });
 
-  const d = DIMENSIONS;
+  const d = HUMANOID_DIMENSIONS;
 
   // Calculate leg positions for walking
   const walkCycle = state.walkPhase;
@@ -442,29 +366,4 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
       </group>
     </group>
   );
-};
-
-// Humanoid configuration
-export const HUMANOID_CONFIG = {
-  name: 'Berkeley Humanoid Lite',
-  manufacturer: 'UC Berkeley',
-  height: 0.8,
-  weight: 16,
-  dof: 22,
-  description: 'Open-source, sub-$5000 humanoid robot with 3D-printed gearboxes',
-  joints: {
-    // Leg joints (per leg)
-    hipPitch: { min: -60, max: 60 },
-    hipRoll: { min: -30, max: 30 },
-    hipYaw: { min: -45, max: 45 },
-    knee: { min: 0, max: 120 },
-    anklePitch: { min: -45, max: 45 },
-    ankleRoll: { min: -20, max: 20 },
-    // Arm joints (per arm)
-    shoulderPitch: { min: -180, max: 60 },
-    shoulderRoll: { min: -90, max: 90 },
-    shoulderYaw: { min: -90, max: 90 },
-    elbow: { min: 0, max: 135 },
-    wrist: { min: -90, max: 90 },
-  },
 };

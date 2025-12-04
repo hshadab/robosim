@@ -9,15 +9,7 @@ import { useFrame } from '@react-three/fiber';
 import { RoundedBox, Cylinder, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DroneState, DroneConfig } from '../../types';
-
-// Default drone configuration
-const DEFAULT_CONFIG: DroneConfig = {
-  armLength: 0.08,        // 8cm from center to motor
-  bodySize: 0.06,         // 6cm body
-  maxThrottle: 0.5,       // 50cm/s max vertical speed
-  maxTilt: 30,            // 30 degree max tilt
-  propellerSize: 0.04,    // 4cm propeller radius
-};
+import { DRONE_CONFIG } from './defaults';
 
 // PBR Material property configurations (not instances - to avoid disposal issues)
 const MATERIALS = {
@@ -230,7 +222,7 @@ export const Drone3D: React.FC<Drone3DProps> = ({
   config: configOverrides = {},
   onStateChange,
 }) => {
-  const config = { ...DEFAULT_CONFIG, ...configOverrides };
+  const config = { ...DRONE_CONFIG, ...configOverrides };
   const groupRef = useRef<THREE.Group>(null);
   const posRef = useRef({ x: state.position.x, y: state.position.y, z: state.position.z });
 
@@ -435,17 +427,4 @@ export const Drone3D: React.FC<Drone3DProps> = ({
       )}
     </group>
   );
-};
-
-export { DEFAULT_CONFIG as DRONE_CONFIG };
-
-// Default drone state
-export const DEFAULT_DRONE_STATE: DroneState = {
-  position: { x: 0, y: 0.05, z: 0 },
-  rotation: { x: 0, y: 0, z: 0 },
-  velocity: { x: 0, y: 0, z: 0 },
-  throttle: 0,
-  armed: false,
-  flightMode: 'stabilize',
-  motorsRPM: [0, 0, 0, 0],
 };
