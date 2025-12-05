@@ -5,3 +5,4 @@ export { ChallengePanel } from './ChallengePanel';
 export { RobotSelector, RobotSelectorCompact } from './RobotSelector';
 export { DatasetRecorderPanel } from './DatasetRecorder';
 export { HandTrackingPanel } from './HandTrackingPanel';
+export { ShareButton } from './ShareButton';

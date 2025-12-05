@@ -12,7 +12,8 @@ import * as THREE from 'three';
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
 import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
-import { PhysicsArm } from './PhysicsArm';
+import { SO100Arm3D } from './SO100Arm3D';
+import { calculateSO100GripperPosition } from './SO100Kinematics';
 import { SensorVisualization3DLayer } from './SensorVisualization3D';
 import { WheeledRobot3D } from './WheeledRobot3D';
 import { Drone3D } from './Drone3D';
@@ -71,47 +72,14 @@ const distance3D = (
   );
 };
 
-// Calculate gripper tip position using forward kinematics
-const calculateGripperPosition = (joints: JointState): [number, number, number] => {
-  const baseRad = (joints.base * Math.PI) / 180;
-  const shoulderRad = (joints.shoulder * Math.PI) / 180;
-  const elbowRad = (joints.elbow * Math.PI) / 180;
-  const wristRad = (joints.wrist * Math.PI) / 180;
-
-  const baseHeight = 0.12;
-  const upperArm = 0.1;
-  const forearm = 0.088;
-  const wrist = 0.045;
-  const gripper = 0.05;
-
-  const angle1 = shoulderRad;
-  const angle2 = angle1 + elbowRad;
-  const angle3 = angle2 + wristRad;
-
-  let x = 0;
-  let y = baseHeight;
-  let z = 0;
-
-  x += upperArm * Math.sin(angle1) * Math.cos(-baseRad);
-  y += upperArm * Math.cos(angle1);
-  z += upperArm * Math.sin(angle1) * Math.sin(-baseRad);
-
-  x += forearm * Math.sin(angle2) * Math.cos(-baseRad);
-  y += forearm * Math.cos(angle2);
-  z += forearm * Math.sin(angle2) * Math.sin(-baseRad);
-
-  x += (wrist + gripper) * Math.sin(angle3) * Math.cos(-baseRad);
-  y += (wrist + gripper) * Math.cos(angle3);
-  z += (wrist + gripper) * Math.sin(angle3) * Math.sin(-baseRad);
-
-  return [x, y, z];
-};
+// Use SO-100 forward kinematics for gripper position
+const calculateGripperPosition = calculateSO100GripperPosition;
 
 // Get robot name based on type
 const getRobotName = (type: ActiveRobotType): string => {
   switch (type) {
     case 'arm':
-      return 'Hiwonder xArm 1S';
+      return 'SO-100 Robot Arm';
     case 'wheeled':
       return 'Differential Drive Robot';
     case 'drone':
@@ -137,10 +105,11 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   humanoid = DEFAULT_HUMANOID_STATE,
   onDroneStateChange,
 }) => {
+  // Disable sensor visualizations by default to reduce distraction
   const defaultSensorViz: SensorVisualization = {
-    showUltrasonicBeam: true,
-    showIRIndicators: true,
-    showDistanceLabels: true,
+    showUltrasonicBeam: false,
+    showIRIndicators: false,
+    showDistanceLabels: false,
   };
 
   const [contextLost, setContextLost] = useState(false);
@@ -324,7 +293,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
           {/* Render the appropriate robot based on type */}
           {activeRobotType === 'arm' && (
-            <PhysicsArm joints={joints} />
+            <SO100Arm3D joints={joints} />
           )}
 
           {activeRobotType === 'wheeled' && (

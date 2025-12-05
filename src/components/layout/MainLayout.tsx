@@ -1,65 +1,137 @@
 import React, { useState } from 'react';
-import { Header } from './Header';
 import { SimulationViewport, SensorPanel } from '../simulation';
 import { ChatPanel } from '../chat';
-import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, HandTrackingPanel } from '../controls';
+import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, HandTrackingPanel, ShareButton } from '../controls';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
-import { Bot, Code, Gamepad2, BookOpen, LogOut } from 'lucide-react';
+import { ApiKeySettings } from '../settings/ApiKeySettings';
+import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings } from 'lucide-react';
+import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useAppStore } from '../../stores/useAppStore';
+import { ROBOT_PROFILES } from '../../config/robots';
 
 type Tab = 'simulate' | 'code' | 'learn';
 
 export const MainLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('simulate');
+  const [showSettings, setShowSettings] = useState(false);
   const { user, logout } = useAuthStore();
+  const {
+    selectedRobotId,
+    setSelectedRobot,
+    setActiveRobotType,
+    simulation,
+    setSimulationStatus,
+    isAnimating,
+  } = useAppStore();
 
   const tabs = [
-    { id: 'simulate' as const, label: 'Simulate', icon: <Gamepad2 className="w-5 h-5" /> },
-    { id: 'code' as const, label: 'Code', icon: <Code className="w-5 h-5" /> },
-    { id: 'learn' as const, label: 'Learn', icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'simulate' as const, label: 'Simulate', icon: <Gamepad2 className="w-4 h-4" /> },
+    { id: 'code' as const, label: 'Code', icon: <Code className="w-4 h-4" /> },
+    { id: 'learn' as const, label: 'Learn', icon: <BookOpen className="w-4 h-4" /> },
   ];
+
+  const robotOptions = ROBOT_PROFILES.map((robot) => ({
+    value: robot.id,
+    label: `${robot.manufacturer} ${robot.name}`,
+    description: robot.description,
+  }));
+
+  const handleRobotChange = (robotId: string) => {
+    setSelectedRobot(robotId);
+    const profile = ROBOT_PROFILES.find((r) => r.id === robotId);
+    if (profile) {
+      setActiveRobotType(profile.type as 'arm' | 'wheeled' | 'drone');
+    }
+  };
+
+  const handleRun = () => setSimulationStatus('running');
+  const handleStop = () => setSimulationStatus('idle');
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col text-base">
-      {/* Top Bar with Logo, Tabs, and User */}
-      <header className="h-16 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700/50 flex items-center justify-between px-6">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
+      {/* Unified Header */}
+      <header className="h-12 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700/50 flex items-center justify-between px-4">
+        {/* Left: Logo + Tabs */}
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Bot className="w-8 h-8 text-blue-400" />
-            <span className="text-xl font-bold text-white">RoboSim</span>
+            <Bot className="w-6 h-6 text-blue-400" />
+            <span className="text-lg font-bold text-white">RoboSim</span>
+          </div>
+
+          <div className="flex items-center gap-0.5 bg-slate-900/50 rounded-md p-0.5 ml-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-md text-base font-medium transition ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Center: Robot Selector + Run/Stop (only for simulate/code tabs) */}
+        {(activeTab === 'simulate' || activeTab === 'code') && (
+          <div className="flex items-center gap-3">
+            <Select
+              options={robotOptions}
+              value={selectedRobotId}
+              onChange={handleRobotChange}
+              className="w-48"
+            />
+            {simulation.status === 'running' ? (
+              <Button
+                variant="danger"
+                size="sm"
+                leftIcon={<Square className="w-3.5 h-3.5" />}
+                onClick={handleStop}
+                disabled={isAnimating}
+              >
+                Stop
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Play className="w-3.5 h-3.5" />}
+                onClick={handleRun}
+                disabled={isAnimating}
+              >
+                Run
+              </Button>
+            )}
+          </div>
+        )}
 
-        {/* User Menu */}
-        <div className="flex items-center gap-4">
-          <span className="text-base text-slate-400">
+        {/* Right: Actions + User */}
+        <div className="flex items-center gap-3">
+          {(activeTab === 'simulate' || activeTab === 'code') && (
+            <>
+              <ShareButton />
+              <Button variant="ghost" size="sm" leftIcon={<Save className="w-4 h-4" />}>
+                Save
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+                <Settings className="w-4 h-4" />
+              </Button>
+              <div className="w-px h-6 bg-slate-700" />
+            </>
+          )}
+          <span className="text-sm text-slate-400">
             {user?.name || user?.email}
           </span>
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition text-base"
+            className="flex items-center gap-1 text-slate-400 hover:text-white transition text-sm"
           >
-            <LogOut className="w-5 h-5" />
-            Log out
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -70,53 +142,53 @@ export const MainLayout: React.FC = () => {
         {activeTab === 'code' && <CodeTab />}
         {activeTab === 'learn' && <LearnTab />}
       </div>
+
+      {/* Settings Modal */}
+      <ApiKeySettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 };
 
 const SimulateTab: React.FC = () => {
   return (
-    <>
-      <Header />
-      <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
-        <div className="h-full grid grid-cols-12 gap-4">
-          {/* Left Column: AI Assistant */}
-          <div className="col-span-3 flex flex-col gap-4">
-            <div className="flex-1 min-h-0">
-              <ChatPanel />
-            </div>
+    <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 48px)' }}>
+      <div className="h-full grid grid-cols-12 gap-4">
+        {/* Left Column: AI Assistant */}
+        <div className="col-span-3 flex flex-col gap-4">
+          <div className="flex-1 min-h-0">
+            <ChatPanel />
           </div>
+        </div>
 
-          {/* Middle Column: 3D Simulation */}
-          <div className="col-span-6 flex flex-col gap-4">
-            <div className="flex-1 min-h-0">
-              <SimulationViewport />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <EnvironmentSelector />
-              <SensorPanel />
-            </div>
+        {/* Middle Column: 3D Simulation */}
+        <div className="col-span-6 flex flex-col gap-4">
+          <div className="flex-1 min-h-0">
+            <SimulationViewport />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <EnvironmentSelector />
+            <SensorPanel />
+          </div>
+        </div>
 
-          {/* Right Column: Controls */}
-          <div className="col-span-3 flex flex-col gap-4 overflow-y-auto">
-            <JointControls />
-            <PresetButtons />
-            <HandTrackingPanel />
-            <DatasetRecorderPanel />
-            <div className="min-h-0 max-h-56 overflow-hidden">
-              <ChallengePanel />
-            </div>
+        {/* Right Column: Controls */}
+        <div className="col-span-3 flex flex-col gap-4 overflow-y-auto">
+          <JointControls />
+          <PresetButtons />
+          <HandTrackingPanel />
+          <DatasetRecorderPanel />
+          <div className="min-h-0 max-h-56 overflow-hidden">
+            <ChallengePanel />
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
 const CodeTab: React.FC = () => {
   return (
-    <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+    <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 48px)' }}>
       <div className="h-full grid grid-cols-12 gap-4">
         {/* Code Editor - takes most space */}
         <div className="col-span-6 h-full">
@@ -192,7 +264,7 @@ const LearnTab: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-8 overflow-auto" style={{ height: 'calc(100vh - 64px)' }}>
+    <div className="flex-1 p-8 overflow-auto" style={{ height: 'calc(100vh - 48px)' }}>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-3">Learn Robotics</h1>
         <p className="text-lg text-slate-400 mb-10">

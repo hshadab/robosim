@@ -476,24 +476,25 @@ export const DEFAULT_PIN_MAPPINGS: RobotPinMapping[] = [
     ],
   },
 
-  // xArm 1S with Arduino Uno (servo-based arm)
+  // SO-100 Robot Arm with Arduino Uno (STS3215 bus servos)
   {
-    robotId: 'xarm-1s',
+    robotId: 'so-100',
     hardwareKitId: 'arduino-uno',
-    name: 'Hiwonder xArm 1S - Arduino Uno',
-    description: 'Pin mapping for Hiwonder xArm 1S robotic arm using Arduino Uno with PCA9685',
+    name: 'SO-100 LeRobot Arm - Arduino Uno',
+    description: 'Pin mapping for SO-100 6-DOF robot arm using Arduino Uno with STS3215 bus servos',
     pinAssignments: [
-      { function: 'i2c_sda', pinId: 'A4', mode: 'i2c_sda', notes: 'PCA9685 servo driver' },
-      { function: 'i2c_scl', pinId: 'A5', mode: 'i2c_scl', notes: 'PCA9685 servo driver' },
+      { function: 'servo_bus_tx', pinId: 'D1', mode: 'uart_tx', notes: 'STS3215 bus TX' },
+      { function: 'servo_bus_rx', pinId: 'D0', mode: 'uart_rx', notes: 'STS3215 bus RX' },
     ],
     sensorConfigs: [],
     motorConfigs: [],
     servoConfigs: [
-      { servoId: 'base', pin: 'PCA9685_CH0', minPulseUs: 500, maxPulseUs: 2500, minAngle: -135, maxAngle: 135, defaultAngle: 0 },
-      { servoId: 'shoulder', pin: 'PCA9685_CH1', minPulseUs: 500, maxPulseUs: 2500, minAngle: -90, maxAngle: 90, defaultAngle: 0 },
-      { servoId: 'elbow', pin: 'PCA9685_CH2', minPulseUs: 500, maxPulseUs: 2500, minAngle: -135, maxAngle: 45, defaultAngle: 0 },
-      { servoId: 'wrist', pin: 'PCA9685_CH3', minPulseUs: 500, maxPulseUs: 2500, minAngle: -90, maxAngle: 90, defaultAngle: 0 },
-      { servoId: 'gripper', pin: 'PCA9685_CH4', minPulseUs: 500, maxPulseUs: 2500, minAngle: 0, maxAngle: 100, defaultAngle: 50 },
+      { servoId: 'shoulder_pan', pin: 'STS_ID1', minPulseUs: 500, maxPulseUs: 2500, minAngle: -180, maxAngle: 180, defaultAngle: 0 },
+      { servoId: 'shoulder_lift', pin: 'STS_ID2', minPulseUs: 500, maxPulseUs: 2500, minAngle: -90, maxAngle: 90, defaultAngle: 0 },
+      { servoId: 'elbow_flex', pin: 'STS_ID3', minPulseUs: 500, maxPulseUs: 2500, minAngle: -135, maxAngle: 135, defaultAngle: 0 },
+      { servoId: 'wrist_flex', pin: 'STS_ID4', minPulseUs: 500, maxPulseUs: 2500, minAngle: -90, maxAngle: 90, defaultAngle: 0 },
+      { servoId: 'wrist_roll', pin: 'STS_ID5', minPulseUs: 500, maxPulseUs: 2500, minAngle: -180, maxAngle: 180, defaultAngle: 0 },
+      { servoId: 'gripper', pin: 'STS_ID6', minPulseUs: 500, maxPulseUs: 2500, minAngle: 0, maxAngle: 100, defaultAngle: 50 },
     ],
   },
 

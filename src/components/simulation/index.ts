@@ -1,5 +1,7 @@
 export { RobotArm } from './RobotArm';
 export { RobotArm3D } from './RobotArm3D';
+export { SO100Arm3D } from './SO100Arm3D';
+export { calculateSO100GripperPosition, SO100_DIMS } from './SO100Kinematics';
 export { SimulationViewport } from './SimulationViewport';
 export { SensorPanel } from './SensorPanel';
 export { EnvironmentLayer } from './Environments';
