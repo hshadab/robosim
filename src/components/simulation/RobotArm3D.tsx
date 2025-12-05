@@ -79,7 +79,7 @@ const calculateGripperPosition = calculateSO100GripperPosition;
 const getRobotName = (type: ActiveRobotType): string => {
   switch (type) {
     case 'arm':
-      return 'SO-100 Robot Arm';
+      return 'SO-101 Robot Arm';
     case 'wheeled':
       return 'Differential Drive Robot';
     case 'drone':

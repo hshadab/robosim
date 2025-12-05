@@ -3,10 +3,10 @@ import type { RobotProfile } from '../types';
 export const ROBOT_PROFILES: RobotProfile[] = [
   {
     id: 'so-100',
-    name: 'SO-100',
+    name: 'SO-101',
     manufacturer: 'LeRobot',
     type: 'arm',
-    description: '6-DOF Open-Source Desktop Arm for AI/ML Research',
+    description: '6-DOF Open-Source Desktop Arm for AI/ML Research (SO-101)',
     limits: {
       base: { min: -180, max: 180 },       // shoulder_pan
       shoulder: { min: -90, max: 90 },      // shoulder_lift
@@ -91,13 +91,13 @@ export const DEFAULT_ROBOT_ID = 'so-100';
 
 export const getDefaultCode = (robotId: string): string => {
   if (robotId === 'so-100') {
-    return `// SO-100 Robot Arm Control Code
+    return `// SO-101 Robot Arm Control Code
 // LeRobot / The Robot Studio Open-Source Arm
 // https://github.com/TheRobotStudio/SO-ARM100
 
 // Move to home position
 await goHome();
-print("SO-100 arm ready!");
+print("SO-101 arm ready!");
 
 // Example: Wave hello
 await moveJoint('shoulder', 45);
