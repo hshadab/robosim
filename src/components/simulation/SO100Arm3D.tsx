@@ -77,7 +77,7 @@ const SO100Arm3DInner: React.FC<SO100ArmProps> = ({ joints }) => {
           rotation={[-Math.PI / 2, 0, 0]}
         />
 
-        {/* Motor holder tower - snaps onto base plate */}
+        {/* Motor holder tower */}
         <STLMesh
           file="base_motor_holder_so101_v1.stl"
           position={[0, 0, 0]}
@@ -94,115 +94,116 @@ const SO100Arm3DInner: React.FC<SO100ArmProps> = ({ joints }) => {
       </RigidBody>
 
       {/* ========== SHOULDER PAN (base rotation) ========== */}
-      <group position={[0, 0.058, 0]} rotation={[0, baseRot, 0]}>
+      {/* Sits directly on top of base - height matches base tower */}
+      <group position={[0, 0.065, 0]} rotation={[0, baseRot, 0]}>
 
-        {/* Shoulder bracket (rotation_pitch) - diamond lattice, sits on base servo */}
+        {/* Shoulder bracket - centered on base, not offset */}
         <STLMesh
           file="rotation_pitch_so101_v1.stl"
-          position={[0.030, 0, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
+          rotation={[-Math.PI / 2, 0, Math.PI]}
         />
 
-        {/* Motor holder at shoulder - attached to bracket */}
+        {/* Motor holder at shoulder */}
         <STLMesh
           file="motor_holder_so101_base_v1.stl"
-          position={[0.030, 0, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
+          rotation={[-Math.PI / 2, 0, Math.PI]}
         />
 
-        {/* Shoulder servo - horizontal, embedded in bracket */}
+        {/* Shoulder servo - horizontal */}
         <STLMesh
           file="sts3215_03a_v1.stl"
-          position={[0.005, 0.038, 0]}
-          rotation={[0, 0, -Math.PI / 2]}
+          position={[0, 0.025, 0.020]}
+          rotation={[Math.PI / 2, 0, 0]}
           material={MAT.servo}
         />
 
         {/* ========== SHOULDER LIFT ========== */}
-        <group position={[0, 0.040, 0]} rotation={[-shoulderRot, 0, 0]}>
+        <group position={[0, 0.025, 0.030]} rotation={[shoulderRot, 0, 0]}>
 
-          {/* Upper arm - "pants" shape, servo connection at bottom */}
+          {/* Upper arm - "pants" shape */}
           <STLMesh
             file="upper_arm_so101_v1.stl"
-            position={[0, 0.055, -0.018]}
-            rotation={[-Math.PI / 2, -Math.PI / 2, 0]}
+            position={[0, 0, 0.065]}
+            rotation={[Math.PI, 0, -Math.PI / 2]}
           />
 
-          {/* Elbow servo - embedded in upper arm top */}
+          {/* Elbow servo */}
           <STLMesh
             file="sts3215_03a_v1.stl"
-            position={[0, 0.100, 0.025]}
-            rotation={[0, 0, -Math.PI / 2]}
+            position={[0, 0, 0.120]}
+            rotation={[Math.PI / 2, 0, 0]}
             material={MAT.servo}
           />
 
           {/* ========== ELBOW FLEX ========== */}
-          <group position={[0, 0.105, 0.025]} rotation={[-elbowRot, 0, 0]}>
+          <group position={[0, 0, 0.125]} rotation={[elbowRot, 0, 0]}>
 
-            {/* Forearm (under_arm) - connects to elbow servo */}
+            {/* Forearm */}
             <STLMesh
               file="under_arm_so101_v1.stl"
-              position={[0, 0.052, -0.018]}
-              rotation={[-Math.PI / 2, -Math.PI / 2, 0]}
+              position={[0, 0, 0.055]}
+              rotation={[Math.PI, 0, -Math.PI / 2]}
             />
 
-            {/* Wrist motor holder - at end of forearm */}
+            {/* Wrist motor holder */}
             <STLMesh
               file="motor_holder_so101_wrist_v1.stl"
-              position={[0, 0.090, -0.018]}
-              rotation={[-Math.PI / 2, -Math.PI / 2, 0]}
+              position={[0, 0, 0.095]}
+              rotation={[Math.PI, 0, -Math.PI / 2]}
             />
 
-            {/* Wrist servo - embedded in holder */}
+            {/* Wrist servo */}
             <STLMesh
               file="sts3215_03a_v1.stl"
-              position={[0, 0.115, 0]}
-              rotation={[0, 0, -Math.PI / 2]}
+              position={[0, 0, 0.110]}
+              rotation={[Math.PI / 2, 0, 0]}
               material={MAT.servo}
             />
 
             {/* ========== WRIST FLEX ========== */}
-            <group position={[0, 0.120, 0]} rotation={[-wristRot, 0, 0]}>
+            <group position={[0, 0, 0.115]} rotation={[wristRot, 0, 0]}>
 
-              {/* Wrist roll/pitch bracket - connects to wrist servo */}
+              {/* Wrist roll/pitch bracket */}
               <STLMesh
                 file="wrist_roll_pitch_so101_v2.stl"
-                position={[0, 0.020, 0]}
-                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, 0, 0.025]}
+                rotation={[0, 0, 0]}
               />
 
-              {/* Wrist roll servo - inside bracket */}
+              {/* Wrist roll servo */}
               <STLMesh
                 file="sts3215_03a_no_horn_v1.stl"
-                position={[0, 0.035, -0.025]}
+                position={[0, 0.025, 0.040]}
                 rotation={[0, 0, 0]}
                 material={MAT.servo}
               />
 
               {/* ========== GRIPPER ASSEMBLY ========== */}
-              <group position={[0, 0.050, -0.015]}>
+              <group position={[0, 0.020, 0.060]}>
 
-                {/* Gripper follower - base of gripper */}
+                {/* Gripper follower */}
                 <STLMesh
                   file="wrist_roll_follower_so101_v1.stl"
-                  position={[0, 0.010, 0]}
-                  rotation={[-Math.PI / 2, 0, 0]}
+                  position={[0, 0, 0.012]}
+                  rotation={[0, 0, 0]}
                 />
 
-                {/* Gripper servo - drives jaw */}
+                {/* Gripper servo */}
                 <STLMesh
                   file="sts3215_03a_v1.stl"
-                  position={[0, 0.022, 0.015]}
-                  rotation={[-Math.PI / 2, 0, 0]}
+                  position={[0, 0.015, 0.025]}
+                  rotation={[0, 0, 0]}
                   material={MAT.servo}
                 />
 
                 {/* Moving jaw */}
-                <group position={[0, 0.040, 0.020]} rotation={[gripperOpen, 0, 0]}>
+                <group position={[0, 0.025, 0.045]} rotation={[-gripperOpen, 0, 0]}>
                   <STLMesh
                     file="moving_jaw_so101_v1.stl"
-                    position={[0, 0.015, 0]}
-                    rotation={[-Math.PI / 2, 0, 0]}
+                    position={[0, 0, 0.020]}
+                    rotation={[0, 0, 0]}
                   />
                 </group>
               </group>
