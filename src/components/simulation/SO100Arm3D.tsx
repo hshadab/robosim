@@ -39,7 +39,8 @@ const SERVO = {
   length: 0.048,
 };
 
-// SO-101 dimensions (meters) - based on STL analysis
+// SO-101 dimensions (meters) - based on actual STL file analysis
+// Scaled to ~65% for simulation viewport while maintaining accurate proportions
 const D = {
   // Base_SO101
   baseOuterRadius: 0.048,
@@ -56,15 +57,22 @@ const D = {
   shoulderDepth: 0.038,
   shoulderWallThick: 0.006,
 
-  // Upper_arm_SO101
-  upperArmLength: 0.095,
-  upperArmWidth: 0.035,
-  upperArmThick: 0.014,
+  // Upper_arm_SO101 - from STL analysis (142mm x 67mm x 24mm actual)
+  // Scaled proportionally for simulation
+  upperArmLength: 0.092,        // ~142mm scaled
+  upperArmWidth: 0.044,         // ~67mm scaled (total Z span)
+  upperArmThick: 0.016,         // ~24mm scaled (Y thickness)
+  upperArmProngWidth: 0.007,    // ~10mm scaled (each prong)
+  upperArmGapWidth: 0.010,      // ~15mm scaled (cutout gap)
+  upperArmBridgeWidth: 0.012,   // ~18mm scaled (center bridge)
 
-  // Under_arm_SO101 (forearm)
-  forearmLength: 0.095,
-  forearmWidth: 0.032,
-  forearmThick: 0.012,
+  // Under_arm_SO101 (forearm) - from STL analysis (131mm x 64mm x 24mm actual)
+  forearmLength: 0.085,         // ~131mm scaled
+  forearmWidth: 0.042,          // ~64mm scaled
+  forearmThick: 0.016,          // ~24mm scaled
+  forearmProngWidth: 0.007,     // ~10mm scaled
+  forearmGapWidth: 0.006,       // ~9mm scaled
+  forearmBridgeWidth: 0.017,    // ~26mm scaled
 
   // Wrist_Roll_Pitch_SO101
   wristBlockWidth: 0.030,
@@ -465,42 +473,54 @@ export const SO100Arm3D: React.FC<SO100ArmProps> = ({ joints }) => {
           rotation={[shoulderRot, 0, 0]}
         >
           {/* ==================== UPPER_ARM_SO101 ==================== */}
-          {/* Two-pronged "pants" shape with oval cutout */}
+          {/* Accurate two-pronged shape from STL analysis */}
+          {/* Structure: [left prong] [gap] [center bridge] [gap] [right prong] */}
           <group position={[0, D.upperArmLength / 2 + 0.008, 0]}>
-            {/* Left prong */}
+            {/* Left outer prong - from STL: positioned at outer Z edge */}
             <RoundedBox
-              args={[0.010, D.upperArmLength, D.upperArmThick]}
-              radius={0.003}
-              position={[-D.upperArmWidth / 2 + 0.005, 0, 0]}
+              args={[D.upperArmProngWidth, D.upperArmLength * 0.85, D.upperArmThick]}
+              radius={0.002}
+              position={[-D.upperArmWidth / 2 + D.upperArmProngWidth / 2, 0, 0]}
               castShadow
               receiveShadow
             >
               <meshStandardMaterial {...M.white} />
             </RoundedBox>
 
-            {/* Right prong */}
+            {/* Right outer prong */}
             <RoundedBox
-              args={[0.010, D.upperArmLength, D.upperArmThick]}
-              radius={0.003}
-              position={[D.upperArmWidth / 2 - 0.005, 0, 0]}
+              args={[D.upperArmProngWidth, D.upperArmLength * 0.85, D.upperArmThick]}
+              radius={0.002}
+              position={[D.upperArmWidth / 2 - D.upperArmProngWidth / 2, 0, 0]}
               castShadow
               receiveShadow
             >
               <meshStandardMaterial {...M.white} />
             </RoundedBox>
 
-            {/* Top connecting bar (where prongs meet) */}
+            {/* Center bridge - thicker solid section in middle */}
             <RoundedBox
-              args={[D.upperArmWidth, 0.022, D.upperArmThick]}
-              radius={0.003}
-              position={[0, -D.upperArmLength / 2 + 0.011, 0]}
+              args={[D.upperArmBridgeWidth, D.upperArmLength * 0.5, D.upperArmThick]}
+              radius={0.002}
+              position={[0, 0, 0]}
               castShadow
               receiveShadow
             >
               <meshStandardMaterial {...M.white} />
             </RoundedBox>
 
-            {/* Bottom connecting bar */}
+            {/* Top connecting bar (servo mount end) - solid across full width */}
+            <RoundedBox
+              args={[D.upperArmWidth, 0.020, D.upperArmThick]}
+              radius={0.003}
+              position={[0, -D.upperArmLength / 2 + 0.010, 0]}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial {...M.white} />
+            </RoundedBox>
+
+            {/* Bottom connecting bar (elbow end) */}
             <RoundedBox
               args={[D.upperArmWidth, 0.016, D.upperArmThick]}
               radius={0.003}
@@ -510,43 +530,47 @@ export const SO100Arm3D: React.FC<SO100ArmProps> = ({ joints }) => {
               <meshStandardMaterial {...M.white} />
             </RoundedBox>
 
-            {/* Center bridge (thinner) */}
-            <mesh position={[0, 0, 0]}>
-              <boxGeometry args={[D.upperArmWidth * 0.5, D.upperArmLength * 0.3, D.upperArmThick * 0.7]} />
+            {/* Diagonal reinforcement ribs connecting prongs to center */}
+            <mesh position={[-D.upperArmWidth / 4, -D.upperArmLength * 0.15, 0]} rotation={[0, 0, 0.3]}>
+              <boxGeometry args={[0.004, D.upperArmLength * 0.25, D.upperArmThick * 0.6]} />
+              <meshStandardMaterial {...M.whiteShade} />
+            </mesh>
+            <mesh position={[D.upperArmWidth / 4, -D.upperArmLength * 0.15, 0]} rotation={[0, 0, -0.3]}>
+              <boxGeometry args={[0.004, D.upperArmLength * 0.25, D.upperArmThick * 0.6]} />
               <meshStandardMaterial {...M.whiteShade} />
             </mesh>
 
-            {/* Dot-matrix holes at top (servo mounting) */}
+            {/* Dot-matrix holes at top (servo mounting - 2x3 grid) */}
             {[-1, 0, 1].map((x) =>
               [-1, 1].map((y) => (
                 <mesh
                   key={`ua-dot-${x}-${y}`}
-                  position={[x * 0.008, -D.upperArmLength / 2 + 0.011 + y * 0.006, D.upperArmThick / 2 + 0.001]}
+                  position={[x * 0.010, -D.upperArmLength / 2 + 0.010 + y * 0.005, D.upperArmThick / 2 + 0.001]}
                 >
-                  <cylinderGeometry args={[0.0018, 0.0018, 0.003, 8]} />
+                  <cylinderGeometry args={[0.002, 0.002, 0.003, 8]} />
                   <meshStandardMaterial {...M.whiteShade} />
                 </mesh>
               ))
             )}
 
-            {/* Screw holes along the arm */}
-            {[-0.3, 0, 0.3].map((pos, i) => (
-              <mesh key={`ua-screw-${i}`} position={[D.upperArmWidth / 2 - 0.005, pos * D.upperArmLength * 0.7, D.upperArmThick / 2 + 0.001]}>
-                <cylinderGeometry args={[0.0012, 0.0012, 0.002, 6]} />
+            {/* Screw holes along the prongs */}
+            {[-0.35, 0, 0.35].map((pos, i) => (
+              <mesh key={`ua-screw-${i}`} position={[D.upperArmWidth / 2 - D.upperArmProngWidth / 2, pos * D.upperArmLength * 0.7, D.upperArmThick / 2 + 0.001]}>
+                <cylinderGeometry args={[0.0015, 0.0015, 0.003, 6]} />
                 <meshStandardMaterial {...M.chrome} />
               </mesh>
             ))}
-            {[-0.3, 0, 0.3].map((pos, i) => (
-              <mesh key={`ua-screw2-${i}`} position={[-D.upperArmWidth / 2 + 0.005, pos * D.upperArmLength * 0.7, D.upperArmThick / 2 + 0.001]}>
-                <cylinderGeometry args={[0.0012, 0.0012, 0.002, 6]} />
+            {[-0.35, 0, 0.35].map((pos, i) => (
+              <mesh key={`ua-screw2-${i}`} position={[-D.upperArmWidth / 2 + D.upperArmProngWidth / 2, pos * D.upperArmLength * 0.7, D.upperArmThick / 2 + 0.001]}>
+                <cylinderGeometry args={[0.0015, 0.0015, 0.003, 6]} />
                 <meshStandardMaterial {...M.chrome} />
               </mesh>
             ))}
 
             {/* Wire bundle running along upper arm (external routing) */}
             <WireBundle
-              start={[D.upperArmWidth / 2 + 0.004, -D.upperArmLength / 2 + 0.015, D.upperArmThick / 2 - 0.002]}
-              end={[D.upperArmWidth / 2 + 0.004, D.upperArmLength / 2 - 0.010, D.upperArmThick / 2 - 0.002]}
+              start={[D.upperArmWidth / 2 + 0.003, -D.upperArmLength / 2 + 0.015, D.upperArmThick / 2 - 0.002]}
+              end={[D.upperArmWidth / 2 + 0.003, D.upperArmLength / 2 - 0.010, D.upperArmThick / 2 - 0.002]}
             />
           </group>
 
@@ -592,31 +616,42 @@ export const SO100Arm3D: React.FC<SO100ArmProps> = ({ joints }) => {
             </group>
 
             {/* ==================== UNDER_ARM_SO101 (Forearm) ==================== */}
-            {/* Two-pronged shape like upper arm */}
+            {/* Accurate two-pronged shape from STL analysis */}
             <group position={[0, 0.026 + D.forearmLength / 2, 0]}>
-              {/* Left prong */}
+              {/* Left outer prong */}
               <RoundedBox
-                args={[0.009, D.forearmLength, D.forearmThick]}
-                radius={0.003}
-                position={[-D.forearmWidth / 2 + 0.0045, 0, 0]}
+                args={[D.forearmProngWidth, D.forearmLength * 0.82, D.forearmThick]}
+                radius={0.002}
+                position={[-D.forearmWidth / 2 + D.forearmProngWidth / 2, 0, 0]}
                 castShadow
                 receiveShadow
               >
                 <meshStandardMaterial {...M.white} />
               </RoundedBox>
 
-              {/* Right prong */}
+              {/* Right outer prong */}
               <RoundedBox
-                args={[0.009, D.forearmLength, D.forearmThick]}
-                radius={0.003}
-                position={[D.forearmWidth / 2 - 0.0045, 0, 0]}
+                args={[D.forearmProngWidth, D.forearmLength * 0.82, D.forearmThick]}
+                radius={0.002}
+                position={[D.forearmWidth / 2 - D.forearmProngWidth / 2, 0, 0]}
                 castShadow
                 receiveShadow
               >
                 <meshStandardMaterial {...M.white} />
               </RoundedBox>
 
-              {/* Top connecting bar */}
+              {/* Center bridge - wider than upper arm per STL */}
+              <RoundedBox
+                args={[D.forearmBridgeWidth, D.forearmLength * 0.45, D.forearmThick]}
+                radius={0.002}
+                position={[0, 0, 0]}
+                castShadow
+                receiveShadow
+              >
+                <meshStandardMaterial {...M.white} />
+              </RoundedBox>
+
+              {/* Top connecting bar (elbow end) */}
               <RoundedBox
                 args={[D.forearmWidth, 0.018, D.forearmThick]}
                 radius={0.003}
@@ -626,7 +661,7 @@ export const SO100Arm3D: React.FC<SO100ArmProps> = ({ joints }) => {
                 <meshStandardMaterial {...M.white} />
               </RoundedBox>
 
-              {/* Bottom connecting bar */}
+              {/* Bottom connecting bar (wrist end) */}
               <RoundedBox
                 args={[D.forearmWidth, 0.014, D.forearmThick]}
                 radius={0.003}
@@ -636,22 +671,26 @@ export const SO100Arm3D: React.FC<SO100ArmProps> = ({ joints }) => {
                 <meshStandardMaterial {...M.white} />
               </RoundedBox>
 
-              {/* Center bridge */}
-              <mesh position={[0, 0, 0]}>
-                <boxGeometry args={[D.forearmWidth * 0.45, D.forearmLength * 0.25, D.forearmThick * 0.65]} />
+              {/* Diagonal reinforcement ribs */}
+              <mesh position={[-D.forearmWidth / 4, -D.forearmLength * 0.12, 0]} rotation={[0, 0, 0.25]}>
+                <boxGeometry args={[0.003, D.forearmLength * 0.22, D.forearmThick * 0.55]} />
+                <meshStandardMaterial {...M.whiteShade} />
+              </mesh>
+              <mesh position={[D.forearmWidth / 4, -D.forearmLength * 0.12, 0]} rotation={[0, 0, -0.25]}>
+                <boxGeometry args={[0.003, D.forearmLength * 0.22, D.forearmThick * 0.55]} />
                 <meshStandardMaterial {...M.whiteShade} />
               </mesh>
 
-              {/* Screw holes */}
-              {[-0.25, 0.25].map((pos, i) => (
-                <mesh key={`fa-screw-${i}`} position={[D.forearmWidth / 2 - 0.0045, pos * D.forearmLength * 0.7, D.forearmThick / 2 + 0.001]}>
-                  <cylinderGeometry args={[0.0012, 0.0012, 0.002, 6]} />
+              {/* Screw holes along prongs */}
+              {[-0.3, 0, 0.3].map((pos, i) => (
+                <mesh key={`fa-screw-${i}`} position={[D.forearmWidth / 2 - D.forearmProngWidth / 2, pos * D.forearmLength * 0.65, D.forearmThick / 2 + 0.001]}>
+                  <cylinderGeometry args={[0.0015, 0.0015, 0.003, 6]} />
                   <meshStandardMaterial {...M.chrome} />
                 </mesh>
               ))}
-              {[-0.25, 0.25].map((pos, i) => (
-                <mesh key={`fa-screw2-${i}`} position={[-D.forearmWidth / 2 + 0.0045, pos * D.forearmLength * 0.7, D.forearmThick / 2 + 0.001]}>
-                  <cylinderGeometry args={[0.0012, 0.0012, 0.002, 6]} />
+              {[-0.3, 0, 0.3].map((pos, i) => (
+                <mesh key={`fa-screw2-${i}`} position={[-D.forearmWidth / 2 + D.forearmProngWidth / 2, pos * D.forearmLength * 0.65, D.forearmThick / 2 + 0.001]}>
+                  <cylinderGeometry args={[0.0015, 0.0015, 0.003, 6]} />
                   <meshStandardMaterial {...M.chrome} />
                 </mesh>
               ))}
