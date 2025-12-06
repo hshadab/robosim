@@ -778,6 +778,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                 <li className="hover:text-white cursor-pointer">Hardware Export</li>
                 <li className="hover:text-white cursor-pointer">Dataset Recording</li>
                 <li className="hover:text-white cursor-pointer">Sensor Noise Models</li>
+                <li className="hover:text-white cursor-pointer">Robot Vision</li>
               </ul>
             </div>
             <div>

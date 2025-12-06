@@ -63,6 +63,15 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Real-time Toggle** - Enable/disable noise without restarting
 - **UI Panel** - Intuitive controls in the Tools sidebar
 
+### Robot Vision (Camera Simulation)
+- **RGB Image Capture** - Capture frames from 3D viewport
+- **Blob Detection** - Color-based object detection with connected components
+- **Color Presets** - Red, Green, Blue, Yellow, Orange, Purple filters
+- **HSV Filtering** - Industry-standard hue/saturation/value thresholds
+- **Real-time Processing** - Configurable capture rate (1-30 FPS)
+- **Visual Overlay** - Bounding boxes and centroids displayed on feed
+- **Image Processing** - Edge detection, blur, brightness/contrast utilities
+
 ### Code Editor
 - Built-in JavaScript code editor
 - Robot API for programmatic control
@@ -368,6 +377,7 @@ src/
 │   ├── robotContext.ts        # Central state aggregator + event bus
 │   ├── semanticState.ts       # Natural language state translation
 │   ├── sensorNoise.ts         # Realistic sensor noise models
+│   ├── visionSimulation.ts    # Camera capture and blob detection
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation
