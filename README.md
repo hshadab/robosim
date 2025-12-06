@@ -27,11 +27,21 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 
 ### Advanced Arm Controls (SO-101)
 - **Inverse Kinematics** - Click-to-move in 3D space with reachability preview
+- **Numerical IK Solver** - Jacobian-based solver with damped least squares and CCD methods
 - **Keyboard Teleoperation** - WASD + arrow keys for real-time control
 - **Gamepad Support** - Full controller support with analog sticks
 - **Task Templates** - Pre-programmed pick & place, stacking, and demo sequences
 - **Trajectory Planning** - Smooth cubic/quintic interpolated motion paths
 - **Workspace Visualization** - Semi-transparent dome showing reachable area
+
+### Numerical Inverse Kinematics
+- **Damped Least Squares (DLS)** - Singularity-robust Jacobian pseudo-inverse method
+- **Cyclic Coordinate Descent (CCD)** - Fast iterative solver for chain kinematics
+- **Multi-Start Optimization** - Try multiple initial configurations to find best solution
+- **Trajectory Generation** - Smooth interpolated paths through IK waypoints
+- **Manipulability Analysis** - Real-time measure of dexterity and singularity detection
+- **Configurable Parameters** - Damping factor, step size, convergence tolerance
+- **Joint Limit Handling** - Respects joint limits with configurable safety margins
 
 ### Real-time Monitoring
 - **Joint Trajectory Graph** - Live plotting of all joint positions over time
@@ -399,6 +409,7 @@ src/
 │   ├── visionSimulation.ts    # Camera capture and blob detection
 │   ├── statePersistence.ts    # Save/load state with IndexedDB
 │   ├── multiRobot.ts          # Multi-robot instance management
+│   ├── numericalIK.ts         # Jacobian-based inverse kinematics solver
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation

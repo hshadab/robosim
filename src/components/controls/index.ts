@@ -16,3 +16,4 @@ export { SensorRealismPanel } from './SensorRealismPanel';
 export { VisionPanel } from './VisionPanel';
 export { SaveLoadPanel } from './SaveLoadPanel';
 export { MultiRobotPanel } from './MultiRobotPanel';
+export { NumericalIKPanel } from './NumericalIKPanel';

@@ -783,6 +783,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                 <li className="hover:text-white cursor-pointer">Robot Vision</li>
                 <li className="hover:text-white cursor-pointer">State Persistence</li>
                 <li className="hover:text-white cursor-pointer">Multi-Robot Swarms</li>
+                <li className="hover:text-white cursor-pointer">Numerical IK Solver</li>
               </ul>
             </div>
             <div>
