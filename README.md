@@ -85,6 +85,145 @@ The application will be available at `http://localhost:5173`
 npm run build
 ```
 
+## Technical Approach: Accurate Robot Models
+
+This section documents the methodology used to create physically accurate robot simulations from real robot specifications.
+
+### Step 1: Source Official Robot Data
+
+For accurate simulations, start with official manufacturer data:
+
+- **URDF files** - Unified Robot Description Format from the robot's official repository
+- **STL meshes** - 3D geometry files linked in the URDF
+- **Joint limits** - From URDF `<limit>` tags (converted from radians to degrees)
+- **Gear ratios** - From manufacturer documentation (e.g., LeRobot docs for SO-101)
+
+For SO-101, we use:
+```
+public/models/so101/
+├── so101.urdf           # Official URDF from TheRobotStudio/SO-ARM100
+└── meshes/
+    ├── base_link.stl
+    ├── shoulder_link.stl
+    ├── upper_arm_link.stl
+    ├── forearm_link.stl
+    ├── wrist_link.stl
+    ├── gripper_link.stl
+    └── sts3215_*.stl    # Servo motor meshes
+```
+
+### Step 2: URDF Parsing with urdf-loader
+
+Use the `urdf-loader` library to parse URDF and load STL meshes:
+
+```typescript
+import URDFLoader from 'urdf-loader';
+
+const loader = new URDFLoader();
+loader.packages = '/models/so101';  // Base path for mesh loading
+
+// Custom STL loader with materials
+loader.loadMeshCb = (path, manager, onComplete) => {
+  const stlLoader = new STLLoader(manager);
+  stlLoader.load(path, (geometry) => {
+    const isServo = path.includes('sts3215');
+    const material = isServo ? SERVO_MATERIAL : PRINTED_MATERIAL;
+    const mesh = new THREE.Mesh(geometry, material);
+    onComplete(mesh);
+  });
+};
+
+loader.load('/models/so101/so101.urdf', (robot) => {
+  // Robot is now a Three.js object with articulated joints
+  robot.rotation.x = -Math.PI / 2;  // Z-up (URDF) to Y-up (Three.js)
+});
+```
+
+### Step 3: Apply Realistic Materials
+
+Differentiate between 3D-printed parts and servo motors:
+
+```typescript
+// 3D printed plastic (PLA/PETG)
+const PRINTED_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#F5F0E6',  // Off-white filament
+  metalness: 0.0,
+  roughness: 0.4,
+});
+
+// STS3215 servo motors
+const SERVO_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#1a1a1a',  // Black plastic housing
+  metalness: 0.2,
+  roughness: 0.3,
+});
+```
+
+### Step 4: Joint Control via URDF
+
+The urdf-loader provides `setJointValue()` for each joint:
+
+```typescript
+// Map UI names to URDF joint names
+const JOINT_MAP = {
+  base: 'shoulder_pan',
+  shoulder: 'shoulder_lift',
+  elbow: 'elbow_flex',
+  wrist: 'wrist_flex',
+  wristRoll: 'wrist_roll',
+  gripper: 'gripper',
+};
+
+// Update joints (convert degrees to radians)
+robot.joints[JOINT_MAP.shoulder].setJointValue((angle * Math.PI) / 180);
+```
+
+### Step 5: Self-Collision Prevention
+
+Since URDF models are purely kinematic (no inter-link collision), we implement software constraints to prevent impossible poses:
+
+```typescript
+// src/lib/selfCollision.ts
+export function preventSelfCollision(joints: JointState, robotId: string): JointState {
+  if (robotId !== 'so-101') return joints;
+
+  const corrected = { ...joints };
+
+  // Shoulder+Elbow constraint: prevent arm folding through base
+  // More shoulder tilt = less elbow can fold back
+  if (corrected.shoulder > 40) {
+    const minSum = -10;
+    if (corrected.shoulder + corrected.elbow < minSum) {
+      corrected.elbow = minSum - corrected.shoulder;
+    }
+  }
+
+  return corrected;
+}
+```
+
+This is applied in the Zustand store whenever joints are updated.
+
+### Step 6: Physics Integration
+
+Wrap the URDF model in Rapier physics:
+
+```typescript
+<RigidBody type="fixed" colliders={false}>
+  <CuboidCollider args={[0.06, 0.04, 0.06]} position={[0, 0.04, 0]} />
+  <primitive object={robot} />
+</RigidBody>
+```
+
+The base is fixed, and the arm moves kinematically (driven by joint angles rather than physics forces).
+
+### Benefits of This Approach
+
+1. **Accuracy** - Real dimensions, joint limits, and gear ratios from manufacturer
+2. **Visual fidelity** - Actual 3D geometry, not approximations
+3. **Hardware compatibility** - Same joint names/limits as real hardware
+4. **Maintainability** - Update by replacing URDF/STL files from upstream
+
 ## Project Structure
 
 ```
