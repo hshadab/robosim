@@ -1,11 +1,17 @@
 /**
  * Sensor Simulation Hook
  * Simulates realistic sensor values based on robot state and environment
+ * Includes configurable noise models for sim-to-real transfer
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { SensorReading, JointState, Vector3D, IMUReading, TouchSensors } from '../types';
+import {
+  quickNoise,
+  quickBooleanNoise,
+  quickVectorNoise,
+} from '../lib/sensorNoise';
 
 // Calculate gripper position using forward kinematics
 const calculateGripperPosition = (joints: JointState): Vector3D => {
@@ -156,9 +162,8 @@ const calculateUltrasonic = (
     }
   }
 
-  // Add some noise
-  const noise = (Math.random() - 0.5) * 0.5;
-  return Math.max(2, Math.min(100, minDistance + noise));
+  // Apply realistic noise model
+  return quickNoise(minDistance, 'ultrasonic', 2, 100);
 };
 
 // Simulate IR sensors (detect objects below threshold)
@@ -193,10 +198,11 @@ const calculateIRSensors = (
     return false;
   };
 
+  // Apply noise to boolean IR readings
   return {
-    left: checkDetection(leftPos.x, leftPos.z),
-    center: checkDetection(0, 0),
-    right: checkDetection(rightPos.x, rightPos.z),
+    left: quickBooleanNoise(checkDetection(leftPos.x, leftPos.z), 'ir'),
+    center: quickBooleanNoise(checkDetection(0, 0), 'ir'),
+    right: quickBooleanNoise(checkDetection(rightPos.x, rightPos.z), 'ir'),
   };
 };
 
@@ -247,40 +253,70 @@ export const useSensorSimulation = (updateInterval: number = 50) => {
     const ultrasonic = calculateUltrasonic(currentPosition, objects);
     const irSensors = calculateIRSensors(currentPosition, joints.base, objects);
 
-    // Build sensor reading
+    // Apply noise to GPS position
+    const noisyGps = quickVectorNoise(currentPosition, 'gps');
+
+    // Apply noise to accelerometer
+    const noisyAccel = quickVectorNoise(acceleration, 'accelerometer');
+
+    // Apply noise to gyroscope
+    const noisyGyro = quickVectorNoise(gyroscope, 'gyroscope');
+
+    // Apply noise to IMU
+    const noisyIMU = {
+      roll: quickNoise(currentIMU.roll, 'imu', -180, 180),
+      pitch: quickNoise(currentIMU.pitch, 'imu', -180, 180),
+      yaw: quickNoise(currentIMU.yaw, 'imu', -180, 180),
+    };
+
+    // Apply noise to touch sensors
+    const noisyTouch: TouchSensors = {
+      gripperLeft: quickBooleanNoise(touchSensors.gripperLeft, 'touch'),
+      gripperRight: quickBooleanNoise(touchSensors.gripperRight, 'touch'),
+      base: quickBooleanNoise(touchSensors.base, 'touch'),
+    };
+
+    // Apply noise to temperature
+    const noisyTemp = quickNoise(temperature, 'temperature', 20, 85);
+
+    // Apply noise to battery
+    const baseBattery = 85 + Math.random() * 5;
+    const noisyBattery = quickNoise(baseBattery, 'battery', 0, 100);
+
+    // Build sensor reading with noise applied
     const sensors: SensorReading = {
-      // Distance sensors
+      // Distance sensors (noise already applied in calculate functions)
       ultrasonic: Math.round(ultrasonic * 10) / 10,
       leftIR: irSensors.left,
       centerIR: irSensors.center,
       rightIR: irSensors.right,
 
-      // Power (simulated)
-      battery: 85 + Math.random() * 5,
+      // Power
+      battery: Math.round(noisyBattery * 10) / 10,
 
-      // Extended sensors
+      // Extended sensors with noise
       gps: {
-        x: Math.round(currentPosition.x * 1000) / 1000,
-        y: Math.round(currentPosition.y * 1000) / 1000,
-        z: Math.round(currentPosition.z * 1000) / 1000,
+        x: Math.round(noisyGps.x * 1000) / 1000,
+        y: Math.round(noisyGps.y * 1000) / 1000,
+        z: Math.round(noisyGps.z * 1000) / 1000,
       },
       accelerometer: {
-        x: Math.round(acceleration.x * 100) / 100,
-        y: Math.round(acceleration.y * 100) / 100,
-        z: Math.round(acceleration.z * 100) / 100,
+        x: Math.round(noisyAccel.x * 100) / 100,
+        y: Math.round(noisyAccel.y * 100) / 100,
+        z: Math.round(noisyAccel.z * 100) / 100,
       },
       gyroscope: {
-        x: Math.round(gyroscope.x * 10) / 10,
-        y: Math.round(gyroscope.y * 10) / 10,
-        z: Math.round(gyroscope.z * 10) / 10,
+        x: Math.round(noisyGyro.x * 10) / 10,
+        y: Math.round(noisyGyro.y * 10) / 10,
+        z: Math.round(noisyGyro.z * 10) / 10,
       },
       imu: {
-        roll: Math.round(currentIMU.roll * 10) / 10,
-        pitch: Math.round(currentIMU.pitch * 10) / 10,
-        yaw: Math.round(currentIMU.yaw * 10) / 10,
+        roll: Math.round(noisyIMU.roll * 10) / 10,
+        pitch: Math.round(noisyIMU.pitch * 10) / 10,
+        yaw: Math.round(noisyIMU.yaw * 10) / 10,
       },
-      touchSensors,
-      temperature: Math.round(temperature * 10) / 10,
+      touchSensors: noisyTouch,
+      temperature: Math.round(noisyTemp * 10) / 10,
     };
 
     setSensors(sensors);

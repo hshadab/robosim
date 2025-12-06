@@ -74,6 +74,7 @@ export const PolicyBrowserPanel: React.FC = () => {
   // Initial search
   useEffect(() => {
     handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load a policy

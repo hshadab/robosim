@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { SimulationViewport, SensorPanel } from '../simulation';
 import { ChatPanel } from '../chat';
-import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel, PolicyBrowserPanel } from '../controls';
+import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel, PolicyBrowserPanel, SensorRealismPanel } from '../controls';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
-import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, PanelRightOpen, PanelRightClose, ChevronDown, ChevronRight, Sliders, Brain, Database, Cpu, Activity, Hand, BarChart3, ListChecks, Wifi } from 'lucide-react';
+import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, PanelRightOpen, PanelRightClose, ChevronDown, ChevronRight, Sliders, Brain, Database, Cpu, Activity, Hand, BarChart3, ListChecks, Wifi, Radio } from 'lucide-react';
 import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
@@ -240,6 +240,11 @@ const SimulateTab: React.FC = () => {
                 {/* Sensors */}
                 <CollapsiblePanel title="Sensors" icon={<Activity className="w-4 h-4" />}>
                   <SensorPanel />
+                </CollapsiblePanel>
+
+                {/* Sensor Realism (Noise Models) */}
+                <CollapsiblePanel title="Sensor Realism" icon={<Radio className="w-4 h-4" />}>
+                  <SensorRealismPanel />
                 </CollapsiblePanel>
 
                 {/* Trajectory Graph */}

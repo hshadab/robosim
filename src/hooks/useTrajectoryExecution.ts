@@ -157,8 +157,9 @@ export const useTrajectoryExecution = (): UseTrajectoryExecutionResult => {
 
   // Cleanup on unmount
   useEffect(() => {
+    const executor = executorRef.current;
     return () => {
-      executorRef.current.stop();
+      executor.stop();
     };
   }, []);
 

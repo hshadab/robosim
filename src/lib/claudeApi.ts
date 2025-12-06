@@ -597,6 +597,7 @@ await moveJoint('base', 0);`,
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function simulateWheeledResponse(message: string, _state: WheeledRobotState): ClaudeResponse {
   if (message.includes('forward') || message.includes('drive')) {
     return {
@@ -699,6 +700,7 @@ takeoff(0.5);`,
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function simulateHumanoidResponse(message: string, _state: HumanoidState): ClaudeResponse {
   if (message.includes('wave') || message.includes('hello')) {
     return {

@@ -147,6 +147,7 @@ const DEFAULT_FEATURES: Record<string, FeatureInfo> = {
 /**
  * Convert RoboSim episodes to LeRobot tabular format
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function episodesToTabular(episodes: Episode[], _fps: number): {
   rows: LeRobotRow[];
   stats: LeRobotStats;

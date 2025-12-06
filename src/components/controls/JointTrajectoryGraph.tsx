@@ -57,7 +57,7 @@ export const JointTrajectoryGraph: React.FC<JointTrajectoryGraphProps> = ({
   const { activeRobotType } = useAppStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dataRef = useRef<DataPoint[]>([]);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
 
   const [expanded, setExpanded] = useState(true);

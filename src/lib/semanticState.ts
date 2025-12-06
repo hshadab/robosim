@@ -77,6 +77,7 @@ function formatDistance(cm: number): string {
 }
 
 // Generate semantic description for arm robot
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function describeArmState(joints: JointState, _sensors: SensorReading): string {
   const lines: string[] = [];
 

@@ -145,11 +145,14 @@ export const AdvancedControlsPanel: React.FC<AdvancedControlsPanelProps> = ({
     window.addEventListener('gamepadconnected', handleGamepadConnected);
     window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
 
-    // Check for already connected gamepads
-    const gamepads = navigator.getGamepads();
-    setGamepadConnected(gamepads.some((gp) => gp !== null));
+    // Check for already connected gamepads - use timeout to avoid sync setState in effect
+    const checkGamepads = setTimeout(() => {
+      const gamepads = navigator.getGamepads();
+      setGamepadConnected(gamepads.some((gp) => gp !== null));
+    }, 0);
 
     return () => {
+      clearTimeout(checkGamepads);
       window.removeEventListener('gamepadconnected', handleGamepadConnected);
       window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected);
     };

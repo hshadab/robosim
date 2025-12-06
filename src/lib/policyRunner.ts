@@ -183,6 +183,7 @@ export class PolicyRunner {
    */
   private async runInference(
     jointPositions: number[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _imageObservation?: ImageData | Float32Array
   ): Promise<number[][]> {
     if (!this.session) {

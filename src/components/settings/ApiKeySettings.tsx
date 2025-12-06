@@ -15,10 +15,14 @@ export const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ isOpen, onClose 
 
   useEffect(() => {
     if (isOpen) {
-      const existingKey = getClaudeApiKey();
-      setHasKey(!!existingKey);
-      setApiKey(existingKey || '');
-      setSaved(false);
+      // Use timeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        const existingKey = getClaudeApiKey();
+        setHasKey(!!existingKey);
+        setApiKey(existingKey || '');
+        setSaved(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 

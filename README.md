@@ -49,6 +49,20 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - Lidar visualization (2D minimap and 3D rays)
 - Robot camera view (picture-in-picture)
 
+### Sensor Noise Models (Sim-to-Real Transfer)
+- **Configurable Realism Levels** - None, Low, Medium, High, Extreme
+- **Noise Types Supported**:
+  - Gaussian noise (configurable standard deviation)
+  - Systematic bias
+  - Quantization (discrete sensor resolution)
+  - Dropout (random sensor failures)
+  - Lag/latency simulation
+  - Jitter (timing variations)
+  - Spike artifacts (sudden large errors)
+- **Per-Sensor Profiles** - Realistic defaults for ultrasonic, IR, IMU, accelerometer, gyroscope, encoder, temperature, battery, GPS, touch, and lidar
+- **Real-time Toggle** - Enable/disable noise without restarting
+- **UI Panel** - Intuitive controls in the Tools sidebar
+
 ### Code Editor
 - Built-in JavaScript code editor
 - Robot API for programmatic control
@@ -353,6 +367,7 @@ src/
 ├── lib/                 # Robot APIs and utilities
 │   ├── robotContext.ts        # Central state aggregator + event bus
 │   ├── semanticState.ts       # Natural language state translation
+│   ├── sensorNoise.ts         # Realistic sensor noise models
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation
