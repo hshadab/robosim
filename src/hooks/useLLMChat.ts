@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
-import { callClaudeAPI, getClaudeApiKey, type FullRobotState } from '../lib/claudeApi';
+import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 
 // System prompts for different robot types
@@ -52,6 +52,7 @@ export const useLLMChat = () => {
   const {
     joints,
     addMessage,
+    messages,
     setLLMLoading,
     setJoints,
     setIsAnimating,
@@ -194,9 +195,17 @@ export const useLLMChat = () => {
           isAnimating: isAnimatingRef.current,
         };
 
+        // Build conversation history from stored messages
+        const conversationHistory: ConversationMessage[] = messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+
         // Use Claude API (falls back to simulation if no API key)
         const apiKey = getClaudeApiKey();
-        const response = await callClaudeAPI(message, activeRobotType, fullState, apiKey || undefined);
+        const response = await callClaudeAPI(message, activeRobotType, fullState, apiKey || undefined, conversationHistory);
 
         if (response.action === 'error') {
           addMessage({
@@ -262,7 +271,7 @@ export const useLLMChat = () => {
         setLLMLoading(false);
       }
     },
-    [addMessage, setLLMLoading, executeArmSequence, executeWheeledAction, executeDroneAction, executeHumanoidAction, setCode, activeRobotType]
+    [addMessage, messages, setLLMLoading, executeArmSequence, executeWheeledAction, executeDroneAction, executeHumanoidAction, setCode, activeRobotType]
   );
 
   return { sendMessage };

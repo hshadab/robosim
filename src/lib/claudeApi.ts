@@ -91,11 +91,17 @@ Important:
 `;
 }
 
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export async function callClaudeAPI(
   message: string,
   robotType: ActiveRobotType,
   fullState: FullRobotState,
-  apiKey?: string
+  apiKey?: string,
+  conversationHistory: ConversationMessage[] = []
 ): Promise<ClaudeResponse> {
   // Get current state based on robot type for demo mode
   const currentState = robotType === 'arm' ? fullState.joints :
@@ -105,10 +111,23 @@ export async function callClaudeAPI(
 
   // If no API key, use the demo mode with simulated responses
   if (!apiKey) {
-    return simulateClaudeResponse(message, robotType, currentState);
+    return simulateClaudeResponse(message, robotType, currentState, conversationHistory);
   }
 
   try {
+    // Build messages array with conversation history (last 10 messages for context)
+    const recentHistory = conversationHistory.slice(-10);
+    const messages = [
+      ...recentHistory.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      })),
+      {
+        role: 'user' as const,
+        content: message,
+      },
+    ];
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -121,12 +140,7 @@ export async function callClaudeAPI(
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         system: buildSystemPrompt(robotType, fullState),
-        messages: [
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
+        messages,
       }),
     });
 
@@ -179,18 +193,64 @@ export async function callClaudeAPI(
 async function simulateClaudeResponse(
   message: string,
   robotType: ActiveRobotType,
-  currentState: unknown
+  currentState: unknown,
+  conversationHistory: ConversationMessage[] = []
 ): Promise<ClaudeResponse> {
   // Add realistic delay
   await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
 
   const lowerMessage = message.toLowerCase();
 
+  // Check for context from conversation history
+  const lastAssistantMessage = conversationHistory
+    .filter(m => m.role === 'assistant')
+    .pop()?.content?.toLowerCase() || '';
+
+  // Handle follow-up commands like "again", "more", "continue"
+  if (lowerMessage.includes('again') || lowerMessage === 'repeat') {
+    const lastUserMessage = conversationHistory
+      .filter(m => m.role === 'user')
+      .slice(-2, -1)[0]?.content;
+    if (lastUserMessage) {
+      return simulateClaudeResponse(lastUserMessage, robotType, currentState, []);
+    }
+  }
+
+  if (lowerMessage.includes('more') || lowerMessage.includes('further') || lowerMessage.includes('continue')) {
+    // Continue the last action direction
+    if (lastAssistantMessage.includes('left')) {
+      return simulateClaudeResponse('move left more', robotType, currentState, []);
+    }
+    if (lastAssistantMessage.includes('right')) {
+      return simulateClaudeResponse('move right more', robotType, currentState, []);
+    }
+    if (lastAssistantMessage.includes('up') || lastAssistantMessage.includes('rais')) {
+      return simulateClaudeResponse('raise up more', robotType, currentState, []);
+    }
+    if (lastAssistantMessage.includes('down') || lastAssistantMessage.includes('lower')) {
+      return simulateClaudeResponse('lower down more', robotType, currentState, []);
+    }
+  }
+
   // Common patterns across all robot types
-  if (lowerMessage.includes('help') || lowerMessage.includes('what can')) {
+  if (lowerMessage.includes('help') || lowerMessage.includes('what can') || lowerMessage === '?') {
     return {
       action: 'explain',
       description: getHelpText(robotType),
+    };
+  }
+
+  // Status/state queries
+  if (lowerMessage.includes('where') || lowerMessage.includes('status') || lowerMessage.includes('position')) {
+    return describeState(robotType, currentState);
+  }
+
+  // Undo command
+  if (lowerMessage.includes('undo') || lowerMessage.includes('go back')) {
+    return {
+      action: 'move',
+      joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 50 },
+      description: "Returning to neutral position. (Full undo requires API key for context tracking)",
     };
   }
 
@@ -209,6 +269,30 @@ async function simulateClaudeResponse(
         description: 'Unknown robot type',
       };
   }
+}
+
+// Describe current state
+function describeState(robotType: ActiveRobotType, state: unknown): ClaudeResponse {
+  if (robotType === 'arm') {
+    const joints = state as JointState;
+    const baseDir = joints.base > 10 ? 'left' : joints.base < -10 ? 'right' : 'center';
+    const shoulderPos = joints.shoulder > 20 ? 'raised' : joints.shoulder < -20 ? 'lowered' : 'level';
+    const gripperState = joints.gripper > 70 ? 'open' : joints.gripper < 30 ? 'closed' : 'partially open';
+
+    return {
+      action: 'explain',
+      description: `Current arm state:
+• Base: ${joints.base.toFixed(0)}° (facing ${baseDir})
+• Shoulder: ${joints.shoulder.toFixed(0)}° (${shoulderPos})
+• Elbow: ${joints.elbow.toFixed(0)}°
+• Wrist: ${joints.wrist.toFixed(0)}°
+• Gripper: ${joints.gripper.toFixed(0)}% (${gripperState})`,
+    };
+  }
+  return {
+    action: 'explain',
+    description: `Current ${robotType} state: ${JSON.stringify(state, null, 2)}`,
+  };
 }
 
 function getHelpText(robotType: ActiveRobotType): string {
@@ -249,8 +333,8 @@ function parseAmount(message: string): number {
 function simulateArmResponse(message: string, state: JointState): ClaudeResponse {
   const amount = parseAmount(message);
 
-  // Movement commands
-  if (message.includes('left')) {
+  // Movement commands - base rotation
+  if (message.includes('left') && !message.includes('elbow')) {
     const target = Math.min(state.base + amount, 135);
     return {
       action: 'move',
@@ -259,7 +343,7 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
       code: `await moveJoint('base', ${target});`,
     };
   }
-  if (message.includes('right')) {
+  if (message.includes('right') && !message.includes('elbow')) {
     const target = Math.max(state.base - amount, -135);
     return {
       action: 'move',
@@ -268,7 +352,9 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
       code: `await moveJoint('base', ${target});`,
     };
   }
-  if (message.includes('up') || message.includes('raise')) {
+
+  // Shoulder commands
+  if (message.includes('up') || message.includes('raise') || message.includes('lift')) {
     const target = Math.min(state.shoulder + amount, 90);
     return {
       action: 'move',
@@ -287,8 +373,68 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
     };
   }
 
+  // Elbow commands
+  if (message.includes('bend') || message.includes('fold') || message.includes('elbow')) {
+    if (message.includes('straight') || message.includes('extend')) {
+      return {
+        action: 'move',
+        joints: { elbow: 0 },
+        description: 'Straightening elbow',
+        code: `await moveJoint('elbow', 0);`,
+      };
+    }
+    const target = Math.max(state.elbow - amount, -135);
+    return {
+      action: 'move',
+      joints: { elbow: target },
+      description: `Bending elbow to ${target}°`,
+      code: `await moveJoint('elbow', ${target});`,
+    };
+  }
+
+  // Extend/reach forward
+  if (message.includes('extend') || message.includes('reach') || message.includes('forward')) {
+    return {
+      action: 'move',
+      joints: { shoulder: 45, elbow: -30 },
+      description: 'Extending arm forward',
+      code: `await moveJoint('shoulder', 45);\nawait moveJoint('elbow', -30);`,
+    };
+  }
+
+  // Retract
+  if (message.includes('retract') || message.includes('pull back')) {
+    return {
+      action: 'move',
+      joints: { shoulder: 0, elbow: -90 },
+      description: 'Retracting arm',
+      code: `await moveJoint('shoulder', 0);\nawait moveJoint('elbow', -90);`,
+    };
+  }
+
+  // Wrist commands
+  if (message.includes('wrist') || message.includes('rotate') || message.includes('twist')) {
+    if (message.includes('roll') || message.includes('spin')) {
+      const target = state.wristRoll > 0 ? -90 : 90;
+      return {
+        action: 'move',
+        joints: { wristRoll: target },
+        description: `Rolling wrist to ${target}°`,
+        code: `await moveJoint('wristRoll', ${target});`,
+      };
+    }
+    const wristAmount = message.includes('up') ? amount : -amount;
+    const target = Math.max(-90, Math.min(90, state.wrist + wristAmount));
+    return {
+      action: 'move',
+      joints: { wrist: target },
+      description: `Tilting wrist to ${target}°`,
+      code: `await moveJoint('wrist', ${target});`,
+    };
+  }
+
   // Gripper
-  if (message.includes('open')) {
+  if (message.includes('open') || message.includes('release') || message.includes('let go')) {
     return {
       action: 'move',
       joints: { gripper: 100 },
@@ -296,7 +442,7 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
       code: `await openGripper();`,
     };
   }
-  if (message.includes('close') || message.includes('grab')) {
+  if (message.includes('close') || message.includes('grab') || message.includes('grip') || message.includes('hold')) {
     return {
       action: 'move',
       joints: { gripper: 0 },
@@ -305,8 +451,8 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
     };
   }
 
-  // Presets
-  if (message.includes('wave') || message.includes('hello')) {
+  // Presets and sequences
+  if (message.includes('wave') || message.includes('hello') || message.includes('hi')) {
     return {
       action: 'sequence',
       joints: [
@@ -316,7 +462,7 @@ function simulateArmResponse(message: string, state: JointState): ClaudeResponse
         { wrist: 45 },
         { wrist: 0 },
       ],
-      description: 'Waving hello!',
+      description: 'Waving hello! 👋',
       code: `// Wave animation
 await moveJoint('shoulder', 50);
 await moveJoint('elbow', -60);
@@ -329,16 +475,16 @@ for (let i = 0; i < 2; i++) {
     };
   }
 
-  if (message.includes('home') || message.includes('reset')) {
+  if (message.includes('home') || message.includes('reset') || message.includes('zero') || message.includes('neutral')) {
     return {
       action: 'move',
-      joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, gripper: 50 },
+      joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 50 },
       description: 'Moving to home position',
       code: `await goHome();`,
     };
   }
 
-  if (message.includes('pick')) {
+  if (message.includes('pick') || message.includes('grab something')) {
     return {
       action: 'sequence',
       joints: [
@@ -356,9 +502,98 @@ await moveJoint('shoulder', 20);`,
     };
   }
 
+  if (message.includes('place') || message.includes('put down') || message.includes('drop')) {
+    return {
+      action: 'sequence',
+      joints: [
+        { shoulder: -20, elbow: -100 },
+        { gripper: 100 },
+        { shoulder: 20, elbow: -30 },
+      ],
+      description: 'Placing object down',
+      code: `await moveJoint('shoulder', -20);
+await moveJoint('elbow', -100);
+await openGripper();
+await moveJoint('shoulder', 20);`,
+    };
+  }
+
+  if (message.includes('scan') || message.includes('look around') || message.includes('search')) {
+    return {
+      action: 'sequence',
+      joints: [
+        { base: 60, shoulder: 30 },
+        { base: -60 },
+        { base: 0, shoulder: 0 },
+      ],
+      description: 'Scanning the area',
+      code: `// Scan pattern
+await moveJoint('base', 60);
+await moveJoint('shoulder', 30);
+await wait(500);
+await moveJoint('base', -60);
+await wait(500);
+await moveJoint('base', 0);`,
+    };
+  }
+
+  if (message.includes('dance') || message.includes('celebrate')) {
+    return {
+      action: 'sequence',
+      joints: [
+        { shoulder: 45, elbow: -45 },
+        { base: 30, wrist: 30 },
+        { base: -30, wrist: -30 },
+        { base: 30, wrist: 30 },
+        { base: 0, wrist: 0, shoulder: 0, elbow: 0 },
+      ],
+      description: 'Dancing! 🎉',
+      code: `// Dance sequence`,
+    };
+  }
+
+  if (message.includes('point') || message.includes('show')) {
+    const direction = message.includes('left') ? 60 : message.includes('right') ? -60 : 0;
+    return {
+      action: 'move',
+      joints: { base: direction, shoulder: 30, elbow: 0, gripper: 0 },
+      description: `Pointing ${direction > 0 ? 'left' : direction < 0 ? 'right' : 'forward'}`,
+      code: `await moveJoint('base', ${direction});\nawait moveJoint('shoulder', 30);`,
+    };
+  }
+
+  if (message.includes('nod') || message.includes('yes')) {
+    return {
+      action: 'sequence',
+      joints: [
+        { shoulder: 20 },
+        { shoulder: -10 },
+        { shoulder: 20 },
+        { shoulder: 0 },
+      ],
+      description: 'Nodding yes',
+      code: `// Nod sequence`,
+    };
+  }
+
+  if (message.includes('shake') || message.includes('no')) {
+    return {
+      action: 'sequence',
+      joints: [
+        { base: 20 },
+        { base: -20 },
+        { base: 20 },
+        { base: 0 },
+      ],
+      description: 'Shaking no',
+      code: `// Shake head sequence`,
+    };
+  }
+
+  // If nothing matched, suggest help
   return {
     action: 'explain',
-    description: getHelpText('arm'),
+    description: `I'm not sure how to "${message}". ` + getHelpText('arm'),
   };
 }
 
