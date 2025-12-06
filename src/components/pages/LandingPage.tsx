@@ -140,8 +140,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore }) => {
   const robots = [
     {
       id: 'arm',
-      name: 'Robot Arm',
-      sign: 'Pick & Place\nAutomation',
+      name: 'SO-101 Arm',
+      sign: '6-DOF Open Source\nLeRobot Ready',
       color: 'from-blue-500 to-blue-600',
       shadowColor: 'shadow-blue-500/30',
       bgColor: 'bg-blue-500/10',
@@ -354,7 +354,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore }) => {
           {[
             { title: 'AI CODING', desc: 'Describe in English, get working code', color: 'border-blue-500', textColor: 'text-blue-400' },
             { title: 'REAL PHYSICS', desc: 'Rapier engine for realistic simulation', color: 'border-purple-500', textColor: 'text-purple-400' },
-            { title: 'HARDWARE EXPORT', desc: 'Arduino, ESP32, Raspberry Pi', color: 'border-green-500', textColor: 'text-green-400' },
+            { title: 'HARDWARE EXPORT', desc: 'LeRobot Python, Arduino, ESP32', color: 'border-green-500', textColor: 'text-green-400' },
           ].map((feature) => (
             <div
               key={feature.title}
