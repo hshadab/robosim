@@ -25,10 +25,10 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
 
   const robots = [
     {
-      name: '6-DOF Robot Arm',
-      desc: 'Industrial-style articulated arm with gripper. Control base rotation, shoulder, elbow, wrist, and gripper.',
-      joints: ['Base (-135° to 135°)', 'Shoulder (-90° to 90°)', 'Elbow (-135° to 0°)', 'Wrist (-90° to 90°)', 'Gripper (0-100%)'],
-      useCases: ['Pick and place', 'Assembly tasks', 'Sorting objects', 'Writing/drawing'],
+      name: 'SO-101 Robot Arm (6-DOF)',
+      desc: 'Open-source desktop arm from The Robot Studio. Realistic 3D model from official URDF with STS3215 servo motors (1/345 gear ratio). Export to LeRobot Python for real hardware.',
+      joints: ['Base/Shoulder Pan (±110°)', 'Shoulder Lift (±100°)', 'Elbow Flex (±97°)', 'Wrist Flex (±95°)', 'Wrist Roll (-157° to 163°)', 'Gripper (0-100%)'],
+      useCases: ['Pick and place', 'LeRobot teleoperation', 'AI/ML research', 'Imitation learning'],
       color: 'blue'
     },
     {
@@ -46,9 +46,9 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
       color: 'purple'
     },
     {
-      name: 'Bipedal Humanoid',
-      desc: '12-DOF humanoid with arms and legs. Walking gaits, balance, and manipulation.',
-      joints: ['Hip pitch/roll', 'Knee', 'Ankle', 'Shoulder', 'Elbow'],
+      name: 'Berkeley Humanoid Lite (22-DOF)',
+      desc: 'Open-source bipedal robot inspired by Berkeley Humanoid. 0.8m tall, 16kg. Arms, legs, and torso articulation.',
+      joints: ['Hip pitch/roll/yaw', 'Knee', 'Ankle pitch/roll', 'Shoulder', 'Elbow', 'Wrist'],
       useCases: ['Walking patterns', 'Balance control', 'Human-robot interaction', 'Gesture recognition'],
       color: 'orange'
     },
@@ -86,6 +86,12 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
   ];
 
   const exportOptions = [
+    {
+      platform: 'LeRobot Python (SO-101)',
+      desc: 'Export to HuggingFace LeRobot framework with FeetechMotorsBus for real SO-101 hardware.',
+      format: '.py',
+      icon: <Bot className="w-5 h-5" />
+    },
     {
       platform: 'Arduino (ATmega328p)',
       desc: 'Export C++ code with Servo library. Compatible with Arduino Uno, Nano, Mega.',

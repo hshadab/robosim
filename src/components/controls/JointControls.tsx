@@ -28,6 +28,7 @@ export const JointControls: React.FC = () => {
       shoulder: '#8B5CF6',
       elbow: '#06B6D4',
       wrist: '#10B981',
+      wristRoll: '#14B8A6',
       gripper: '#F97316',
     };
 
@@ -36,6 +37,7 @@ export const JointControls: React.FC = () => {
       shoulder: 'Shoulder',
       elbow: 'Elbow',
       wrist: 'Wrist',
+      wristRoll: 'Wrist Roll',
       gripper: 'Gripper',
     };
 

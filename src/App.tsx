@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { MainLayout } from './components/layout';
-import { LandingPage, LearnMorePage } from './components/pages';
+import { LandingPage, LearnMorePage, HowToUsePage } from './components/pages';
 import { useLoadSharedState } from './hooks/useLoadSharedState';
 import { useAuthStore } from './stores/useAuthStore';
 
-type MarketingPage = 'landing' | 'learn-more';
+type MarketingPage = 'landing' | 'learn-more' | 'how-to-use';
 
 function App() {
   const { isAuthenticated, login } = useAuthStore();
@@ -26,10 +26,19 @@ function App() {
         />
       );
     }
+    if (marketingPage === 'how-to-use') {
+      return (
+        <HowToUsePage
+          onBack={() => setMarketingPage('landing')}
+          onGetStarted={handleGetStarted}
+        />
+      );
+    }
     return (
       <LandingPage
         onLogin={handleGetStarted}
         onLearnMore={() => setMarketingPage('learn-more')}
+        onHowToUse={() => setMarketingPage('how-to-use')}
       />
     );
   }

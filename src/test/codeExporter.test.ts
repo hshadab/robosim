@@ -4,8 +4,8 @@ import { ROBOT_PROFILES } from '../config/robots';
 
 describe('Code Exporter', () => {
   describe('exportCode', () => {
-    it('should export Arduino code for so-100 with arduino-uno', () => {
-      const robot = ROBOT_PROFILES.find(r => r.id === 'so-100');
+    it('should export Arduino code for so-101 with arduino-uno', () => {
+      const robot = ROBOT_PROFILES.find(r => r.id === 'so-101');
       if (!robot) throw new Error('Robot not found');
 
       const result = exportCode(
@@ -18,7 +18,7 @@ describe('Code Exporter', () => {
         robot,
         {
           language: 'arduino',
-          robotId: 'so-100',
+          robotId: 'so-101',
           hardwareKitId: 'arduino-uno',
           includeComments: true,
           includeSetupInstructions: true,
@@ -26,7 +26,7 @@ describe('Code Exporter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.filename).toBe('robosim_so-100_arduino.ino');
+      expect(result.filename).toBe('robosim_so-101_arduino.ino');
       expect(result.code).toContain('#include <Arduino.h>');
       expect(result.code).toContain('#include <Servo.h>');
       expect(result.code).toContain('void setup()');
@@ -92,7 +92,7 @@ describe('Code Exporter', () => {
     });
 
     it('should fail for unsupported kit', () => {
-      const robot = ROBOT_PROFILES.find(r => r.id === 'so-100');
+      const robot = ROBOT_PROFILES.find(r => r.id === 'so-101');
       if (!robot) throw new Error('Robot not found');
 
       const result = exportCode(
@@ -100,7 +100,7 @@ describe('Code Exporter', () => {
         robot,
         {
           language: 'arduino',
-          robotId: 'so-100',
+          robotId: 'so-101',
           hardwareKitId: 'nonexistent-kit',
           includeComments: false,
           includeSetupInstructions: false,
@@ -112,7 +112,7 @@ describe('Code Exporter', () => {
     });
 
     it('should parse loop constructs', () => {
-      const robot = ROBOT_PROFILES.find(r => r.id === 'so-100');
+      const robot = ROBOT_PROFILES.find(r => r.id === 'so-101');
       if (!robot) throw new Error('Robot not found');
 
       const result = exportCode(
@@ -125,7 +125,7 @@ describe('Code Exporter', () => {
         robot,
         {
           language: 'arduino',
-          robotId: 'so-100',
+          robotId: 'so-101',
           hardwareKitId: 'arduino-uno',
           includeComments: false,
           includeSetupInstructions: false,
@@ -138,12 +138,15 @@ describe('Code Exporter', () => {
   });
 
   describe('getSupportedExports', () => {
-    it('should return supported exports for so-100', () => {
-      const exports = getSupportedExports('so-100');
+    it('should return supported exports for so-101', () => {
+      const exports = getSupportedExports('so-101');
 
       expect(exports.length).toBeGreaterThan(0);
-      expect(exports[0].kitId).toBe('arduino-uno');
-      expect(exports[0].languages).toContain('arduino');
+      // LeRobot is now the first option for SO-101
+      expect(exports[0].kitId).toBe('lerobot');
+      expect(exports[0].languages).toContain('lerobot');
+      // Arduino should also be available
+      expect(exports.some(e => e.kitId === 'arduino-uno')).toBe(true);
     });
 
     it('should return supported exports for elegoo-smart-car-v4', () => {

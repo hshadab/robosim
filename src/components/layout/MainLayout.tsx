@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SimulationViewport, SensorPanel } from '../simulation';
 import { ChatPanel } from '../chat';
-import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, HandTrackingPanel, ShareButton } from '../controls';
+import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel } from '../controls';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
 import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings } from 'lucide-react';
@@ -150,6 +150,8 @@ export const MainLayout: React.FC = () => {
 };
 
 const SimulateTab: React.FC = () => {
+  const { setControlMode, setShowWorkspace } = useAppStore();
+
   return (
     <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 48px)' }}>
       <div className="h-full grid grid-cols-12 gap-4">
@@ -169,14 +171,22 @@ const SimulateTab: React.FC = () => {
             <EnvironmentSelector />
             <SensorPanel />
           </div>
+          <JointTrajectoryGraph height={150} />
         </div>
 
         {/* Right Column: Controls */}
         <div className="col-span-3 flex flex-col gap-4 overflow-y-auto">
           <JointControls />
           <PresetButtons />
+          <AdvancedControlsPanel
+            onModeChange={setControlMode}
+            onShowWorkspace={setShowWorkspace}
+          />
+          <TaskTemplatesPanel />
+          <SerialConnectionPanel />
           <HandTrackingPanel />
           <DatasetRecorderPanel />
+          <DatasetPlayerPanel />
           <div className="min-h-0 max-h-56 overflow-hidden">
             <ChallengePanel />
           </div>

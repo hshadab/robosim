@@ -126,19 +126,7 @@ export const getEnvironmentObjects = (envId: string): SimObject[] => {
       ];
     case 'empty':
     default:
-      return [
-        {
-          id: 'demo-cube',
-          type: 'cube',
-          position: [0.12, 0.015, 0],
-          rotation: [0, 0, 0],
-          scale: 0.03,
-          color: '#3B82F6',
-          isGrabbable: true,
-          isGrabbed: false,
-          isInTargetZone: false,
-        },
-      ];
+      return [];
   }
 };
 

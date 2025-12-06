@@ -36,7 +36,7 @@ export interface HardwareKit {
   documentationUrl?: string;
   pins: HardwarePin[];
   supportedProtocols: ('I2C' | 'SPI' | 'UART' | 'PWM' | 'ADC' | 'DAC' | 'WiFi' | 'Bluetooth' | 'BLE')[];
-  programmingLanguages: ('arduino' | 'micropython' | 'circuitpython' | 'c')[];
+  programmingLanguages: ('arduino' | 'micropython' | 'circuitpython' | 'c' | 'lerobot')[];
   libraries: HardwareLibrary[];
 }
 
@@ -476,12 +476,12 @@ export const DEFAULT_PIN_MAPPINGS: RobotPinMapping[] = [
     ],
   },
 
-  // SO-100 Robot Arm with Arduino Uno (STS3215 bus servos)
+  // SO-101 Robot Arm with Arduino Uno (STS3215 bus servos)
   {
-    robotId: 'so-100',
+    robotId: 'so-101',
     hardwareKitId: 'arduino-uno',
-    name: 'SO-100 LeRobot Arm - Arduino Uno',
-    description: 'Pin mapping for SO-100 6-DOF robot arm using Arduino Uno with STS3215 bus servos',
+    name: 'SO-101 LeRobot Arm - Arduino Uno',
+    description: 'Pin mapping for SO-101 6-DOF robot arm using Arduino Uno with STS3215 bus servos',
     pinAssignments: [
       { function: 'servo_bus_tx', pinId: 'D1', mode: 'uart_tx', notes: 'STS3215 bus TX' },
       { function: 'servo_bus_rx', pinId: 'D0', mode: 'uart_rx', notes: 'STS3215 bus RX' },

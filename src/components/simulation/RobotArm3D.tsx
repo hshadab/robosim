@@ -12,13 +12,14 @@ import * as THREE from 'three';
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
 import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
-import { SO100Arm3D } from './SO100Arm3D';
-import { calculateSO100GripperPosition } from './SO100Kinematics';
+import { SO101Arm3D } from './SO101Arm3D';
+import { calculateSO101GripperPosition } from './SO101Kinematics';
 import { SensorVisualization3DLayer } from './SensorVisualization3D';
 import { WheeledRobot3D } from './WheeledRobot3D';
 import { Drone3D } from './Drone3D';
 import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
+import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
 
 interface RobotArm3DProps {
   joints: JointState;
@@ -32,6 +33,10 @@ interface RobotArm3DProps {
   drone?: DroneState;
   humanoid?: HumanoidState;
   onDroneStateChange?: (state: Partial<DroneState>) => void;
+  // Advanced controls
+  clickToMoveEnabled?: boolean;
+  showWorkspace?: boolean;
+  onJointsChange?: (joints: JointState) => void;
 }
 
 // Default wheeled robot state
@@ -72,8 +77,8 @@ const distance3D = (
   );
 };
 
-// Use SO-100 forward kinematics for gripper position
-const calculateGripperPosition = calculateSO100GripperPosition;
+// Use SO-101 forward kinematics for gripper position
+const calculateGripperPosition = calculateSO101GripperPosition;
 
 // Get robot name based on type
 const getRobotName = (type: ActiveRobotType): string => {
@@ -104,6 +109,9 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   drone = DEFAULT_DRONE_STATE,
   humanoid = DEFAULT_HUMANOID_STATE,
   onDroneStateChange,
+  clickToMoveEnabled = false,
+  showWorkspace = false,
+  onJointsChange,
 }) => {
   // Disable sensor visualizations by default to reduce distraction
   const defaultSensorViz: SensorVisualization = {
@@ -293,7 +301,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
           {/* Render the appropriate robot based on type */}
           {activeRobotType === 'arm' && (
-            <SO100Arm3D joints={joints} />
+            <SO101Arm3D joints={joints} />
           )}
 
           {activeRobotType === 'wheeled' && (
@@ -338,6 +346,20 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
             visualization={sensorVisualization || defaultSensorViz}
             joints={joints}
           />
+        )}
+
+        {/* Click-to-move and workspace visualization (for arm) */}
+        {activeRobotType === 'arm' && (
+          <>
+            <WorkspaceVisualization visible={showWorkspace} />
+            {clickToMoveEnabled && onJointsChange && (
+              <ClickToMove
+                joints={joints}
+                onMove={onJointsChange}
+                enabled={clickToMoveEnabled}
+              />
+            )}
+          </>
         )}
       </Canvas>
 

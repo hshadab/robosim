@@ -9,7 +9,14 @@ export interface JointState {
   shoulder: number;
   elbow: number;
   wrist: number;
+  wristRoll: number;
   gripper: number;
+}
+
+// Gear ratio configuration for servo motors
+export interface GearRatio {
+  ratio: string;           // e.g., "1/345" for 1:345 reduction
+  motorType?: string;      // e.g., "STS3215"
 }
 
 export interface RobotProfile {
@@ -21,6 +28,7 @@ export interface RobotProfile {
   imageUrl?: string;
   limits: Record<keyof JointState, JointLimits>;
   defaultPosition: JointState;
+  gearRatios?: Record<string, GearRatio>;  // Optional gear ratio info per joint
 }
 
 // Common Types

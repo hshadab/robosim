@@ -23,7 +23,7 @@ Respond with a JSON object in this exact format:
   "action": "move" | "sequence" | "code" | "explain",
   "description": "Human-readable explanation of what you're doing",
   "code": "Optional: Arduino/JavaScript code for this action",
-  "joints": { "base": 0, "shoulder": 0, "elbow": 0, "wrist": 0, "gripper": 50 },
+  "joints": { "base": 0, "shoulder": 0, "elbow": 0, "wrist": 0, "wristRoll": 0, "gripper": 50 },
   "duration": 1000
 }
 

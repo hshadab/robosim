@@ -53,7 +53,7 @@ describe('Hardware Kits Configuration', () => {
     it('should have mappings for common robot/kit combinations', () => {
       const mappingKeys = DEFAULT_PIN_MAPPINGS.map(m => `${m.robotId}:${m.hardwareKitId}`);
 
-      expect(mappingKeys).toContain('so-100:arduino-uno');
+      expect(mappingKeys).toContain('so-101:arduino-uno');
       expect(mappingKeys).toContain('elegoo-smart-car-v4:arduino-uno');
     });
 
@@ -89,8 +89,8 @@ describe('Hardware Kits Configuration', () => {
   });
 
   describe('getHardwareKitsForRobot', () => {
-    it('should return kits with mappings for so-100', () => {
-      const kits = getHardwareKitsForRobot('so-100');
+    it('should return kits with mappings for so-101', () => {
+      const kits = getHardwareKitsForRobot('so-101');
 
       expect(kits.length).toBeGreaterThan(0);
       expect(kits.some(k => k.id === 'arduino-uno')).toBe(true);
@@ -110,15 +110,15 @@ describe('Hardware Kits Configuration', () => {
 
   describe('getPinMapping', () => {
     it('should return mapping for valid robot/kit combination', () => {
-      const mapping = getPinMapping('so-100', 'arduino-uno');
+      const mapping = getPinMapping('so-101', 'arduino-uno');
 
       expect(mapping).not.toBeUndefined();
-      expect(mapping?.robotId).toBe('so-100');
+      expect(mapping?.robotId).toBe('so-101');
       expect(mapping?.hardwareKitId).toBe('arduino-uno');
     });
 
     it('should return undefined for invalid combination', () => {
-      const mapping = getPinMapping('so-100', 'nonexistent-kit');
+      const mapping = getPinMapping('so-101', 'nonexistent-kit');
       expect(mapping).toBeUndefined();
     });
   });
