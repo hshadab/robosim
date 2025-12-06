@@ -101,6 +101,22 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Enable/Disable** - Toggle individual robot visibility and updates
 - **Swarm Robotics Ready** - Foundation for multi-agent coordination
 
+### AI Environment Generator (Gemini Integration)
+- **AI-Generated Backgrounds** - Create custom scene backdrops using natural language
+  - Presets: Warehouse, Garden, Laboratory, Space Station, Cartoon Workshop
+  - Styles: Realistic, Cartoon, Abstract, Minimalist
+  - Moods: Bright, Dark, Warm, Cool
+- **AI-Generated Textures** - Create floor and wall textures with tiling support
+  - Seamless textures for realistic surfaces
+  - Materials: Concrete, Wood, Metal, Custom descriptions
+- **AI-Generated Objects** - Create interactive objects the robot can manipulate
+  - Shapes: Cube, Sphere, Cylinder
+  - Styles: Realistic, Cartoon
+  - Physics-enabled for picking and placing
+- **Google Gemini API** - Powered by Gemini 2.0 Flash image generation
+- **Scene Integration** - Apply generated content directly to 3D viewport
+- **Download Option** - Save generated images for external use
+
 ### Code Editor
 - Built-in JavaScript code editor
 - Robot API for programmatic control
@@ -392,6 +408,7 @@ src/
 │   │   ├── AdvancedControlsPanel.tsx  # IK, keyboard, gamepad modes
 │   │   ├── TaskTemplatesPanel.tsx     # Pick & place sequences
 │   │   ├── PolicyBrowserPanel.tsx     # HuggingFace policy loader
+│   │   ├── AIEnvironmentPanel.tsx     # AI-generated environments and objects
 │   │   ├── JointTrajectoryGraph.tsx   # Real-time plotting
 │   │   ├── SerialConnectionPanel.tsx  # Hardware connection
 │   │   └── ...
@@ -410,6 +427,7 @@ src/
 │   ├── statePersistence.ts    # Save/load state with IndexedDB
 │   ├── multiRobot.ts          # Multi-robot instance management
 │   ├── numericalIK.ts         # Jacobian-based inverse kinematics solver
+│   ├── aiImageGeneration.ts   # Gemini AI image generation for environments
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation
