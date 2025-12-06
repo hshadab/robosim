@@ -4,11 +4,45 @@ import { ChatPanel } from '../chat';
 import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel, PolicyBrowserPanel } from '../controls';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
-import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings } from 'lucide-react';
+import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, PanelRightOpen, PanelRightClose, ChevronDown, ChevronRight, Sliders, Brain, Database, Cpu, Activity, Hand, BarChart3, ListChecks, Wifi } from 'lucide-react';
 import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
 import { ROBOT_PROFILES } from '../../config/robots';
+
+// Collapsible panel component for secondary controls
+interface CollapsiblePanelProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}
+
+const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, icon, children, defaultOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border border-slate-700/50 rounded-lg overflow-hidden bg-slate-800/30">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700/30 transition"
+      >
+        <span className="text-slate-400">{icon}</span>
+        <span className="text-sm font-medium text-slate-300 flex-1">{title}</span>
+        {isOpen ? (
+          <ChevronDown className="w-4 h-4 text-slate-500" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-slate-500" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="border-t border-slate-700/50">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 type Tab = 'simulate' | 'code' | 'learn';
 
@@ -153,46 +187,126 @@ export const MainLayout: React.FC = () => {
 
 const SimulateTab: React.FC = () => {
   const { setControlMode, setShowWorkspace } = useAppStore();
+  const [showToolsPanel, setShowToolsPanel] = useState(false);
 
   return (
-    <div className="flex-1 p-4 overflow-hidden" style={{ height: 'calc(100vh - 48px)' }}>
-      <div className="h-full grid grid-cols-12 gap-4">
-        {/* Left Column: AI Assistant */}
-        <div className="col-span-3 flex flex-col gap-4">
-          <div className="flex-1 min-h-0">
-            <ChatPanel />
-          </div>
+    <div className="flex-1 overflow-hidden" style={{ height: 'calc(100vh - 48px)' }}>
+      <div className="h-full flex">
+        {/* Left: AI Chat */}
+        <div className="w-80 flex-shrink-0 border-r border-slate-700/50 flex flex-col">
+          <ChatPanel />
         </div>
 
-        {/* Middle Column: 3D Simulation */}
-        <div className="col-span-6 flex flex-col gap-4">
+        {/* Center: 3D Simulation (takes remaining space) */}
+        <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 min-h-0">
             <SimulationViewport />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <EnvironmentSelector />
-            <SensorPanel />
-          </div>
-          <JointTrajectoryGraph height={150} />
         </div>
 
-        {/* Right Column: Controls */}
-        <div className="col-span-3 flex flex-col gap-4 overflow-y-auto">
-          <JointControls />
-          <PresetButtons />
-          <AdvancedControlsPanel
-            onModeChange={setControlMode}
-            onShowWorkspace={setShowWorkspace}
-          />
-          <TaskTemplatesPanel />
-          <PolicyBrowserPanel />
-          <SerialConnectionPanel />
-          <HandTrackingPanel />
-          <DatasetRecorderPanel />
-          <DatasetPlayerPanel />
-          <div className="min-h-0 max-h-56 overflow-hidden">
-            <ChallengePanel />
-          </div>
+        {/* Right: Collapsible Tools Panel */}
+        <div className={`flex-shrink-0 border-l border-slate-700/50 transition-all duration-300 ${showToolsPanel ? 'w-80' : 'w-12'}`}>
+          {showToolsPanel ? (
+            <div className="h-full flex flex-col">
+              {/* Panel Header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50 bg-slate-800/50">
+                <span className="text-sm font-medium text-slate-300">Tools</span>
+                <button
+                  onClick={() => setShowToolsPanel(false)}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition"
+                  title="Collapse panel"
+                >
+                  <PanelRightClose className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Tools */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {/* Joint Controls - Often used, default open */}
+                <CollapsiblePanel title="Joint Controls" icon={<Sliders className="w-4 h-4" />} defaultOpen={true}>
+                  <JointControls />
+                </CollapsiblePanel>
+
+                {/* Quick Presets */}
+                <CollapsiblePanel title="Presets" icon={<ListChecks className="w-4 h-4" />}>
+                  <PresetButtons />
+                </CollapsiblePanel>
+
+                {/* Environment */}
+                <CollapsiblePanel title="Environment" icon={<Gamepad2 className="w-4 h-4" />}>
+                  <EnvironmentSelector />
+                </CollapsiblePanel>
+
+                {/* Sensors */}
+                <CollapsiblePanel title="Sensors" icon={<Activity className="w-4 h-4" />}>
+                  <SensorPanel />
+                </CollapsiblePanel>
+
+                {/* Trajectory Graph */}
+                <CollapsiblePanel title="Trajectory" icon={<BarChart3 className="w-4 h-4" />}>
+                  <JointTrajectoryGraph height={120} />
+                </CollapsiblePanel>
+
+                {/* AI Policies */}
+                <CollapsiblePanel title="LeRobot Policies" icon={<Brain className="w-4 h-4" />}>
+                  <PolicyBrowserPanel />
+                </CollapsiblePanel>
+
+                {/* Advanced Controls */}
+                <CollapsiblePanel title="Advanced Controls" icon={<Settings className="w-4 h-4" />}>
+                  <AdvancedControlsPanel
+                    onModeChange={setControlMode}
+                    onShowWorkspace={setShowWorkspace}
+                  />
+                </CollapsiblePanel>
+
+                {/* Task Templates */}
+                <CollapsiblePanel title="Task Templates" icon={<ListChecks className="w-4 h-4" />}>
+                  <TaskTemplatesPanel />
+                </CollapsiblePanel>
+
+                {/* Hardware Connection */}
+                <CollapsiblePanel title="Serial Connection" icon={<Wifi className="w-4 h-4" />}>
+                  <SerialConnectionPanel />
+                </CollapsiblePanel>
+
+                {/* Hand Tracking */}
+                <CollapsiblePanel title="Hand Tracking" icon={<Hand className="w-4 h-4" />}>
+                  <HandTrackingPanel />
+                </CollapsiblePanel>
+
+                {/* Dataset Recording */}
+                <CollapsiblePanel title="Dataset Recorder" icon={<Database className="w-4 h-4" />}>
+                  <DatasetRecorderPanel />
+                </CollapsiblePanel>
+
+                {/* Dataset Player */}
+                <CollapsiblePanel title="Dataset Player" icon={<Play className="w-4 h-4" />}>
+                  <DatasetPlayerPanel />
+                </CollapsiblePanel>
+
+                {/* Challenges */}
+                <CollapsiblePanel title="Challenges" icon={<Cpu className="w-4 h-4" />}>
+                  <ChallengePanel />
+                </CollapsiblePanel>
+              </div>
+            </div>
+          ) : (
+            /* Collapsed state - just show expand button */
+            <div className="h-full flex flex-col items-center pt-2">
+              <button
+                onClick={() => setShowToolsPanel(true)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded transition"
+                title="Expand tools panel"
+              >
+                <PanelRightOpen className="w-5 h-5" />
+              </button>
+              {/* Vertical text hint */}
+              <div className="mt-4 writing-mode-vertical text-xs text-slate-600 tracking-widest" style={{ writingMode: 'vertical-rl' }}>
+                TOOLS
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
