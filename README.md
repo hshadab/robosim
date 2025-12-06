@@ -60,10 +60,13 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Arduino** - Export to Arduino C++ for various hardware kits
 - **MicroPython** - Export to MicroPython for ESP32/Raspberry Pi Pico
 
-### AI Chat Assistant
-- Natural language robot control
-- Context-aware responses per robot type
-- Quick prompts for common commands
+### AI Chat Assistant (Prompt-First Architecture)
+- **Natural Language Control** - Describe what you want in plain English
+- **Semantic State Awareness** - LLM sees robot state in natural language, not just raw numbers
+- **Bidirectional Communication** - Robot events appear in chat (task completed, errors, etc.)
+- **Context-Aware Responses** - LLM understands current pose, can do relative movements ("move a bit left")
+- **Live Status Bar** - Real-time robot state display in chat panel
+- **Clarifying Questions** - LLM can ask for more details when needed
 
 ## Tech Stack
 
@@ -241,6 +244,76 @@ The base is fixed, and the arm moves kinematically (driven by joint angles rathe
 3. **Hardware compatibility** - Same joint names/limits as real hardware
 4. **Maintainability** - Update by replacing URDF/STL files from upstream
 
+## Architecture: Prompt-First Robot Control
+
+RoboSim is designed with a **prompt-first** architecture where natural language is the primary interface for robot control, not an afterthought.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  USER PROMPT                                            │
+│  "Pick up the block and move it to the left"            │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  SEMANTIC STATE (Natural Language Context)              │
+│                                                         │
+│  "Arm is rotated 45° left, gripper open.                │
+│   End effector at (0.15m, 0.12m, 0.08m).                │
+│   Last action: wave completed 10s ago."                 │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  LLM (Claude/GPT)                                       │
+│  - Understands spatial relationships                    │
+│  - Can reference current position ("from here")         │
+│  - Generates trajectory or asks clarifying questions    │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  ROBOT EXECUTION                                        │
+│  - Smooth trajectory interpolation                      │
+│  - Task tracking (start/complete/fail)                  │
+│  - Event emission for feedback                          │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  CHAT FEEDBACK                                          │
+│  "🤖 Task completed: Picked up object"                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Robot Context | `src/lib/robotContext.ts` | Central state + event bus |
+| Semantic State | `src/lib/semanticState.ts` | Converts state to natural language |
+| Claude API | `src/lib/claudeApi.ts` | LLM integration with semantic context |
+| Chat Panel | `src/components/chat/ChatPanel.tsx` | Bidirectional UI |
+
+### Example Conversation
+
+```
+User: "Wave hello"
+Assistant: "Waving hello!"
+🤖 Task completed: Waving hello!
+
+User: "Now move a bit to the left"
+Assistant: "I see you're currently at 45° base rotation.
+            Moving left to 75°."
+🤖 Task completed: Moving left
+
+User: "What's the gripper doing?"
+Assistant: "The gripper is currently fully open, positioned
+            at medium height, reaching forward."
+```
+
 ## Project Structure
 
 ```
@@ -265,8 +338,11 @@ src/
 │   └── layout/          # Layout components
 ├── hooks/               # Custom React hooks
 │   ├── useTrajectoryExecution.ts  # Smooth motion execution
+│   ├── useRobotContext.ts         # Robot state + events hook
 │   └── ...
 ├── lib/                 # Robot APIs and utilities
+│   ├── robotContext.ts        # Central state aggregator + event bus
+│   ├── semanticState.ts       # Natural language state translation
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...
