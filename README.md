@@ -5,9 +5,12 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 ## Features
 
 ### Multiple Robot Types
-- **Robot Arm (Hiwonder xArm 1S)** - 5-DOF articulated arm with gripper
-- **Wheeled Robot** - Differential drive robot with ultrasonic sensor
-- **Drone (Quadcopter)** - 4-motor drone with flight controls
+- **SO-101 Robot Arm** - 6-DOF open-source desktop arm from The Robot Studio
+  - Realistic 3D model loaded from official URDF
+  - STS3215 servo motors with 1/345 gear ratio
+  - LeRobot (HuggingFace) Python export for real hardware
+- **Wheeled Robot (Elegoo Smart Car v4)** - 4WD differential drive with ultrasonic & IR sensors
+- **Drone (Mini Quadcopter)** - 4-motor drone with flight controls
 - **Humanoid (Berkeley Humanoid Lite)** - 22-DOF bipedal robot
 
 ### 3D Visualization
@@ -34,6 +37,11 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - Robot API for programmatic control
 - Code templates for common tasks
 - Console output panel
+
+### Hardware Export
+- **LeRobot Python** - Export to HuggingFace LeRobot framework for SO-101
+- **Arduino** - Export to Arduino C++ for various hardware kits
+- **MicroPython** - Export to MicroPython for ESP32/Raspberry Pi Pico
 
 ### AI Chat Assistant
 - Natural language robot control
@@ -101,11 +109,21 @@ src/
 
 ## Robot APIs
 
-### Arm Robot
+### SO-101 Robot Arm
 ```javascript
-robot.moveJoint('shoulder', 45);  // Move joint to angle
+// Joint control (6-DOF)
+robot.moveJoint('base', 45);      // Rotate base (shoulder_pan)
+robot.moveJoint('shoulder', 30);  // Lift shoulder (shoulder_lift)
+robot.moveJoint('elbow', -60);    // Bend elbow (elbow_flex)
+robot.moveJoint('wrist', 20);     // Flex wrist (wrist_flex)
+robot.moveJoint('wristRoll', 90); // Roll wrist (wrist_roll)
+
+// Gripper control
 robot.openGripper();              // Open gripper
 robot.closeGripper();             // Close gripper
+robot.setGripper(50);             // Set gripper to 50%
+
+// Preset positions
 robot.goHome();                   // Return to home position
 ```
 
@@ -129,6 +147,30 @@ drone.setThrottle(60);            // Set throttle (0-100)
 drone.setAttitude(roll, pitch, yaw); // Set orientation
 ```
 
+## Hardware Export
+
+### LeRobot Python (SO-101)
+
+Export your simulation code to run on real SO-101 hardware using the HuggingFace LeRobot framework:
+
+```python
+from lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus
+
+# Generated code includes SO101Controller class
+robot = SO101Controller(port="/dev/ttyUSB0")
+robot.move_joint("shoulder", 45)
+robot.go_home()
+robot.disconnect()
+```
+
+Setup for real hardware:
+```bash
+pip install lerobot
+pip install -e ".[feetech]"  # For STS3215 servo support
+lerobot-find-port             # Discover serial port
+lerobot-calibrate             # Calibrate arm positions
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -139,7 +181,15 @@ MIT License - see LICENSE file for details.
 
 ## Acknowledgments
 
+- [The Robot Studio](https://www.therobotstudio.com/) - SO-101 robot arm design and URDF
+- [HuggingFace LeRobot](https://github.com/huggingface/lerobot) - Robot learning framework
 - [React Three Fiber](https://github.com/pmndrs/react-three-fiber)
 - [Rapier Physics](https://rapier.rs/)
 - [Zustand](https://github.com/pmndrs/zustand)
 - Berkeley Humanoid Lite design inspiration
+
+## Resources
+
+- [SO-101 Official Repository](https://github.com/TheRobotStudio/SO-ARM100)
+- [LeRobot SO-101 Documentation](https://huggingface.co/docs/lerobot/so101)
+- [SO-101 Assembly Tutorial](https://maegantucker.com/ECE4560/assignment6-so101/)
