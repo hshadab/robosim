@@ -20,6 +20,7 @@ import {
   Database,
   Upload,
   BarChart3,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 
@@ -487,11 +488,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
 
       {/* Key Features Highlight */}
       <section className="relative px-8 py-12 max-w-7xl mx-auto">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {[
             { icon: <MessageSquare className="w-6 h-6" />, label: 'Chat Control', desc: 'Natural language', color: 'blue' },
             { icon: <Brain className="w-6 h-6" />, label: 'AI Policies', desc: 'HuggingFace Hub', color: 'purple' },
             { icon: <Cpu className="w-6 h-6" />, label: 'Browser ML', desc: 'ONNX Runtime', color: 'green' },
+            { icon: <Users className="w-6 h-6" />, label: 'Multi-Robot', desc: 'Swarm simulation', color: 'cyan' },
             { icon: <GitBranch className="w-6 h-6" />, label: 'Open Source', desc: 'LeRobot ready', color: 'orange' },
           ].map((item) => (
             <div
@@ -780,6 +782,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                 <li className="hover:text-white cursor-pointer">Sensor Noise Models</li>
                 <li className="hover:text-white cursor-pointer">Robot Vision</li>
                 <li className="hover:text-white cursor-pointer">State Persistence</li>
+                <li className="hover:text-white cursor-pointer">Multi-Robot Swarms</li>
               </ul>
             </div>
             <div>

@@ -80,6 +80,17 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Quick Resume** - Load auto-save to continue from last session
 - **State Preview** - See robot type and timestamp before loading
 
+### Multi-Robot Instances
+- **Up to 8 Robots** - Run multiple robot instances simultaneously
+- **Mixed Types** - Combine arms, wheeled robots, drones, and humanoids
+- **Formation Patterns** - Line, grid, circle, and V-formation layouts
+- **Per-Robot State** - Each instance maintains independent joint/motor states
+- **Active Robot Selection** - Click to switch control focus between robots
+- **Clone Robots** - Duplicate existing robots with offset positions
+- **Collision Detection** - Automatic proximity checking between robots
+- **Enable/Disable** - Toggle individual robot visibility and updates
+- **Swarm Robotics Ready** - Foundation for multi-agent coordination
+
 ### Code Editor
 - Built-in JavaScript code editor
 - Robot API for programmatic control
@@ -387,6 +398,7 @@ src/
 │   ├── sensorNoise.ts         # Realistic sensor noise models
 │   ├── visionSimulation.ts    # Camera capture and blob detection
 │   ├── statePersistence.ts    # Save/load state with IndexedDB
+│   ├── multiRobot.ts          # Multi-robot instance management
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation
