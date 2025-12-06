@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Canvas, useLoader } from '@react-three/fiber';
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -20,6 +20,7 @@ import { Drone3D } from './Drone3D';
 import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
 import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
+import type { AIGeneratedObject } from '../../lib/aiImageGeneration';
 
 interface RobotArm3DProps {
   joints: JointState;
@@ -50,18 +51,86 @@ const DEFAULT_WHEELED_STATE: WheeledRobotState = {
   servoHead: 0,
 };
 
-// Base workspace grid and floor
-const WorkspaceGrid: React.FC<{ size?: number }> = ({ size = 0.5 }) => {
+// Floor with AI texture - separate component to ensure hooks are always called
+const TexturedFloor: React.FC<{ textureUrl: string }> = ({ textureUrl }) => {
+  const baseTexture = useLoader(THREE.TextureLoader, textureUrl);
+
+  // Clone and configure texture for tiling
+  const texture = useMemo(() => {
+    const cloned = baseTexture.clone();
+    cloned.wrapS = THREE.RepeatWrapping;
+    cloned.wrapT = THREE.RepeatWrapping;
+    cloned.repeat.set(4, 4);
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [baseTexture]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
+      <planeGeometry args={[2, 2]} />
+      <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
+    </mesh>
+  );
+};
+
+// Base workspace grid and floor with optional AI texture
+const WorkspaceGrid: React.FC<{ size?: number; textureUrl?: string | null }> = ({ size = 0.5, textureUrl }) => {
   return (
     <group>
       {/* Visible floor plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
-        <planeGeometry args={[2, 2]} />
-        <meshStandardMaterial color="#334155" roughness={0.8} metalness={0.2} />
-      </mesh>
-      {/* Grid overlay */}
-      <gridHelper args={[size * 2, 20, '#475569', '#3b4559']} position={[0, 0, 0]} />
+      {textureUrl ? (
+        <TexturedFloor textureUrl={textureUrl} />
+      ) : (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
+          <planeGeometry args={[2, 2]} />
+          <meshStandardMaterial color="#334155" roughness={0.8} metalness={0.2} />
+        </mesh>
+      )}
+      {/* Grid overlay - hidden when texture is applied */}
+      {!textureUrl && (
+        <gridHelper args={[size * 2, 20, '#475569', '#3b4559']} position={[0, 0, 0]} />
+      )}
     </group>
+  );
+};
+
+// AI-generated background component using a skybox sphere
+const AIBackground: React.FC<{ imageUrl: string }> = ({ imageUrl }) => {
+  const texture = useLoader(THREE.TextureLoader, imageUrl);
+
+  return (
+    <mesh scale={[-1, 1, 1]}>
+      <sphereGeometry args={[50, 32, 32]} />
+      <meshBasicMaterial map={texture} side={THREE.BackSide} />
+    </mesh>
+  );
+};
+
+// AI-generated object component with physics
+const AIObject3D: React.FC<{ aiObject: AIGeneratedObject }> = ({ aiObject }) => {
+  const texture = useLoader(THREE.TextureLoader, aiObject.texture.url);
+
+  const getGeometry = () => {
+    switch (aiObject.type) {
+      case 'sphere':
+        return <sphereGeometry args={[aiObject.size.x / 2, 32, 32]} />;
+      case 'cylinder':
+        return <cylinderGeometry args={[aiObject.size.x / 2, aiObject.size.x / 2, aiObject.size.y, 32]} />;
+      case 'cube':
+      default:
+        return <boxGeometry args={[aiObject.size.x, aiObject.size.y, aiObject.size.z]} />;
+    }
+  };
+
+  return (
+    <mesh
+      position={[aiObject.position.x, aiObject.position.y, aiObject.position.z]}
+      castShadow
+      receiveShadow
+    >
+      {getGeometry()}
+      <meshStandardMaterial map={texture} roughness={0.6} metalness={0.1} />
+    </mesh>
   );
 };
 
@@ -123,6 +192,44 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   const [contextLost, setContextLost] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+
+  // AI-generated content state
+  const [aiBackgroundUrl, setAiBackgroundUrl] = useState<string | null>(null);
+  const [aiFloorTextureUrl, setAiFloorTextureUrl] = useState<string | null>(null);
+  const [aiObjects, setAiObjects] = useState<AIGeneratedObject[]>([]);
+
+  // Listen for AI content events
+  useEffect(() => {
+    const handleBackgroundApplied = (event: CustomEvent<{ url: string }>) => {
+      setAiBackgroundUrl(event.detail.url);
+    };
+
+    const handleFloorTextureApplied = (event: CustomEvent<{ url: string }>) => {
+      setAiFloorTextureUrl(event.detail.url);
+    };
+
+    const handleObjectSpawn = (event: CustomEvent<{ object: AIGeneratedObject }>) => {
+      setAiObjects(prev => [...prev, event.detail.object]);
+    };
+
+    const handleClearAIContent = () => {
+      setAiBackgroundUrl(null);
+      setAiFloorTextureUrl(null);
+      setAiObjects([]);
+    };
+
+    window.addEventListener('ai-background-applied', handleBackgroundApplied as EventListener);
+    window.addEventListener('ai-floor-texture-applied', handleFloorTextureApplied as EventListener);
+    window.addEventListener('ai-object-spawn', handleObjectSpawn as EventListener);
+    window.addEventListener('ai-clear-content', handleClearAIContent);
+
+    return () => {
+      window.removeEventListener('ai-background-applied', handleBackgroundApplied as EventListener);
+      window.removeEventListener('ai-floor-texture-applied', handleFloorTextureApplied as EventListener);
+      window.removeEventListener('ai-object-spawn', handleObjectSpawn as EventListener);
+      window.removeEventListener('ai-clear-content', handleClearAIContent);
+    };
+  }, []);
 
   const gripperPosition = calculateGripperPosition(joints);
 
@@ -219,7 +326,11 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         }}
         onCreated={handleCreated}
       >
-        <color attach="background" args={['#0f172a']} />
+        {/* Default background - hidden when AI background is applied */}
+        {!aiBackgroundUrl && <color attach="background" args={['#0f172a']} />}
+
+        {/* AI-generated background */}
+        {aiBackgroundUrl && <AIBackground imageUrl={aiBackgroundUrl} />}
 
         <PerspectiveCamera makeDefault position={getCameraPosition()} fov={45} />
         <OrbitControls
@@ -334,9 +445,14 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           {targetZones.map((zone) => (
             <TargetZonePhysics key={zone.id} zone={zone} />
           ))}
+
+          {/* AI-generated interactive objects */}
+          {aiObjects.map((aiObj) => (
+            <AIObject3D key={aiObj.id} aiObject={aiObj} />
+          ))}
         </Physics>
 
-        <WorkspaceGrid size={activeRobotType === 'drone' ? 1 : 0.5} />
+        <WorkspaceGrid size={activeRobotType === 'drone' ? 1 : 0.5} textureUrl={aiFloorTextureUrl} />
         <EnvironmentLayer environmentId={environment} />
 
         {/* Sensor visualization (for arm) */}

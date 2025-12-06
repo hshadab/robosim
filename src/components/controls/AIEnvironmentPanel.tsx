@@ -207,7 +207,7 @@ export const AIEnvironmentPanel: React.FC = () => {
   const handleSpawnObject = useCallback((obj: AIGeneratedObject) => {
     window.dispatchEvent(
       new CustomEvent('ai-object-spawn', {
-        detail: obj,
+        detail: { object: obj },
       })
     );
   }, []);
