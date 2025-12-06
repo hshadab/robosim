@@ -7,3 +7,7 @@ export { DatasetRecorderPanel } from './DatasetRecorder';
 export { DatasetPlayerPanel } from './DatasetPlayer';
 export { HandTrackingPanel } from './HandTrackingPanel';
 export { ShareButton } from './ShareButton';
+export { AdvancedControlsPanel } from './AdvancedControlsPanel';
+export { TaskTemplatesPanel } from './TaskTemplatesPanel';
+export { JointTrajectoryGraph } from './JointTrajectoryGraph';
+export { SerialConnectionPanel } from './SerialConnectionPanel';

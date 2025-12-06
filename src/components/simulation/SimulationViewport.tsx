@@ -24,6 +24,8 @@ export const SimulationViewport: React.FC = () => {
     drone,
     humanoid,
     setDrone,
+    controlMode,
+    showWorkspace,
   } = useAppStore();
   const [view3D, setView3D] = useState(true);
   const [showCamera, setShowCamera] = useState(false);
@@ -123,6 +125,9 @@ export const SimulationViewport: React.FC = () => {
               drone={drone}
               humanoid={humanoid}
               onDroneStateChange={setDrone}
+              clickToMoveEnabled={controlMode === 'click-to-move'}
+              showWorkspace={showWorkspace}
+              onJointsChange={setJoints}
             />
           </Suspense>
         ) : (

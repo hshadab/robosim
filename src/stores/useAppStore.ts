@@ -67,6 +67,10 @@ interface AppState {
   // User State
   skillLevel: SkillLevel;
 
+  // Advanced Control State
+  controlMode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad';
+  showWorkspace: boolean;
+
   // Actions
   setSelectedRobot: (robotId: string) => void;
   setActiveRobotType: (type: ActiveRobotType) => void;
@@ -83,6 +87,8 @@ interface AppState {
   clearMessages: () => void;
   setLLMLoading: (loading: boolean) => void;
   setSkillLevel: (level: SkillLevel) => void;
+  setControlMode: (mode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad') => void;
+  setShowWorkspace: (show: boolean) => void;
   resetToDefaults: () => void;
 
   // Environment Actions
@@ -185,6 +191,8 @@ const getDefaultState = () => {
     ],
     isLLMLoading: false,
     skillLevel: 'prompter' as const,
+    controlMode: 'manual' as const,
+    showWorkspace: false,
   };
 };
 
@@ -301,6 +309,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLLMLoading: (loading: boolean) => set({ isLLMLoading: loading }),
 
   setSkillLevel: (level: SkillLevel) => set({ skillLevel: level }),
+
+  setControlMode: (mode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad') => set({ controlMode: mode }),
+
+  setShowWorkspace: (show: boolean) => set({ showWorkspace: show }),
 
   resetToDefaults: () => set(getDefaultState()),
 

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 interface LandingPageProps {
   onLogin: () => void;
   onLearnMore?: () => void;
+  onHowToUse?: () => void;
 }
 
 // Brutalist Robot Arm SVG
@@ -128,7 +129,7 @@ const HumanoidSVG: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUse }) => {
   const [hoveredRobot, setHoveredRobot] = useState<string | null>(null);
   const login = useAuthStore((state) => state.login);
 
@@ -213,6 +214,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore }) => {
               className="text-lg text-slate-400 hover:text-white transition font-medium"
             >
               Learn More
+            </button>
+          )}
+          {onHowToUse && (
+            <button
+              onClick={onHowToUse}
+              className="text-lg text-slate-400 hover:text-white transition font-medium"
+            >
+              How to Use
             </button>
           )}
           <button

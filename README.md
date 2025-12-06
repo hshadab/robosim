@@ -25,6 +25,23 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - Motor speed controls for wheeled robots
 - Flight controls for drones (arm/disarm, throttle, pitch, roll, yaw)
 
+### Advanced Arm Controls (SO-101)
+- **Inverse Kinematics** - Click-to-move in 3D space with reachability preview
+- **Keyboard Teleoperation** - WASD + arrow keys for real-time control
+- **Gamepad Support** - Full controller support with analog sticks
+- **Task Templates** - Pre-programmed pick & place, stacking, and demo sequences
+- **Trajectory Planning** - Smooth cubic/quintic interpolated motion paths
+- **Workspace Visualization** - Semi-transparent dome showing reachable area
+
+### Real-time Monitoring
+- **Joint Trajectory Graph** - Live plotting of all joint positions over time
+- **Sensor Panel** - Distance, IR, battery, motor status display
+
+### Hardware Integration
+- **Web Serial Connection** - Connect to real robot via USB (Chrome/Edge)
+- **Auto-sync Mode** - Mirror simulation to hardware in real-time (30-60 Hz)
+- **PWM Command Generation** - Automatic servo microsecond conversion
+
 ### Sensors & Visualization
 - Ultrasonic distance sensor
 - IR line sensors
@@ -230,17 +247,29 @@ The base is fixed, and the arm moves kinematically (driven by joint angles rathe
 src/
 ├── components/
 │   ├── simulation/      # 3D robot components
-│   │   ├── PhysicsArm.tsx
+│   │   ├── SO101Arm3D.tsx       # SO-101 arm with URDF
+│   │   ├── SO101Kinematics.ts   # Forward/Inverse kinematics
+│   │   ├── ClickToMove.tsx      # IK-based click targeting
 │   │   ├── WheeledRobot3D.tsx
 │   │   ├── Drone3D.tsx
 │   │   ├── Humanoid3D.tsx
 │   │   └── ...
 │   ├── controls/        # UI control panels
+│   │   ├── AdvancedControlsPanel.tsx  # IK, keyboard, gamepad modes
+│   │   ├── TaskTemplatesPanel.tsx     # Pick & place sequences
+│   │   ├── JointTrajectoryGraph.tsx   # Real-time plotting
+│   │   ├── SerialConnectionPanel.tsx  # Hardware connection
+│   │   └── ...
 │   ├── editor/          # Code editor components
 │   ├── chat/            # AI chat interface
 │   └── layout/          # Layout components
 ├── hooks/               # Custom React hooks
+│   ├── useTrajectoryExecution.ts  # Smooth motion execution
+│   └── ...
 ├── lib/                 # Robot APIs and utilities
+│   ├── trajectoryPlanner.ts   # Motion interpolation
+│   ├── serialConnection.ts    # Web Serial API
+│   └── ...
 ├── stores/              # Zustand state management
 ├── config/              # Robot profiles, environments
 └── types/               # TypeScript type definitions
@@ -266,6 +295,32 @@ robot.setGripper(50);             // Set gripper to 50%
 robot.goHome();                   // Return to home position
 ```
 
+### Keyboard Controls (SO-101)
+
+Enable keyboard mode in the Advanced Controls panel:
+
+| Key | Action |
+|-----|--------|
+| W/S | Shoulder up/down |
+| A/D | Base rotate left/right |
+| ↑/↓ | Elbow up/down |
+| ←/→ | Wrist up/down |
+| Q/E | Wrist roll left/right |
+| Space | Open gripper |
+| Shift | Close gripper |
+
+### Gamepad Controls (SO-101)
+
+| Control | Action |
+|---------|--------|
+| Left Stick X | Base rotation |
+| Left Stick Y | Shoulder angle |
+| Right Stick X | Wrist angle |
+| Right Stick Y | Elbow angle |
+| Left Bumper/Right Bumper | Wrist roll |
+| Left Trigger | Close gripper |
+| Right Trigger | Open gripper |
+
 ### Wheeled Robot
 ```javascript
 robot.forward(150);               // Drive forward
@@ -285,6 +340,26 @@ drone.land();                     // Land the drone
 drone.setThrottle(60);            // Set throttle (0-100)
 drone.setAttitude(roll, pitch, yaw); // Set orientation
 ```
+
+## Hardware Connection
+
+### Web Serial (Real-time Mirror)
+
+Connect directly to your SO-101 from the browser (Chrome/Edge required):
+
+1. Click "Connect" in the Hardware Connection panel
+2. Select your USB serial port (usually `/dev/ttyUSB0` or `COM3`)
+3. Enable "Auto-sync" to mirror simulation to hardware in real-time
+
+The default protocol sends servo PWM commands at configurable rates (1-60 Hz):
+```
+J0:1500,J1:1500,J2:1500,J3:1500,J4:1500,J5:1500
+```
+
+Configure your Arduino/ESP32 to parse this format and drive servos accordingly.
+
+### Supported Baud Rates
+- 9600, 19200, 38400, 57600, 115200 (default), 250000, 500000, 1000000
 
 ## Hardware Export
 

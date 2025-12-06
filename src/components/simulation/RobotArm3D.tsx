@@ -19,6 +19,7 @@ import { WheeledRobot3D } from './WheeledRobot3D';
 import { Drone3D } from './Drone3D';
 import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
+import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
 
 interface RobotArm3DProps {
   joints: JointState;
@@ -32,6 +33,10 @@ interface RobotArm3DProps {
   drone?: DroneState;
   humanoid?: HumanoidState;
   onDroneStateChange?: (state: Partial<DroneState>) => void;
+  // Advanced controls
+  clickToMoveEnabled?: boolean;
+  showWorkspace?: boolean;
+  onJointsChange?: (joints: JointState) => void;
 }
 
 // Default wheeled robot state
@@ -104,6 +109,9 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   drone = DEFAULT_DRONE_STATE,
   humanoid = DEFAULT_HUMANOID_STATE,
   onDroneStateChange,
+  clickToMoveEnabled = false,
+  showWorkspace = false,
+  onJointsChange,
 }) => {
   // Disable sensor visualizations by default to reduce distraction
   const defaultSensorViz: SensorVisualization = {
@@ -338,6 +346,20 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
             visualization={sensorVisualization || defaultSensorViz}
             joints={joints}
           />
+        )}
+
+        {/* Click-to-move and workspace visualization (for arm) */}
+        {activeRobotType === 'arm' && (
+          <>
+            <WorkspaceVisualization visible={showWorkspace} />
+            {clickToMoveEnabled && onJointsChange && (
+              <ClickToMove
+                joints={joints}
+                onMove={onJointsChange}
+                enabled={clickToMoveEnabled}
+              />
+            )}
+          </>
         )}
       </Canvas>
 
