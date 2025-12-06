@@ -60,20 +60,6 @@
         <mesh filename="assets/sts3215_03a_v1.stl"/>
       </geometry>
     </collision>
-    <!-- Part waveshare_mounting_plate_so101_v2 -->
-    <visual>
-      <origin xyz="-0.0309827 -0.000199441 0.0474" rpy="1.5708 -1.35493e-14 1.5708"/>
-      <geometry>
-        <mesh filename="assets/waveshare_mounting_plate_so101_v2.stl"/>
-      </geometry>
-      <material name="3d_printed"/>
-    </visual>
-    <collision>
-      <origin xyz="-0.0309827 -0.000199441 0.0474" rpy="1.5708 -1.35493e-14 1.5708"/>
-      <geometry>
-        <mesh filename="assets/waveshare_mounting_plate_so101_v2.stl"/>
-      </geometry>
-    </collision>
   </link>
 
   <!-- Link shoulder -->
