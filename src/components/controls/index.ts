@@ -11,3 +11,4 @@ export { AdvancedControlsPanel } from './AdvancedControlsPanel';
 export { TaskTemplatesPanel } from './TaskTemplatesPanel';
 export { JointTrajectoryGraph } from './JointTrajectoryGraph';
 export { SerialConnectionPanel } from './SerialConnectionPanel';
+export { PolicyBrowserPanel } from './PolicyBrowserPanel';

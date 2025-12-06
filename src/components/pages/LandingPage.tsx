@@ -149,39 +149,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
       borderColor: 'border-blue-500/30',
       textColor: 'text-blue-400',
       Component: RobotArmSVG,
+      comingSoon: false,
     },
     {
       id: 'car',
       name: 'Smart Car',
-      sign: 'Line Following\n& Navigation',
+      sign: 'Coming\nSoon',
       color: 'from-green-500 to-green-600',
       shadowColor: 'shadow-green-500/30',
       bgColor: 'bg-green-500/10',
       borderColor: 'border-green-500/30',
       textColor: 'text-green-400',
       Component: SmartCarSVG,
+      comingSoon: true,
     },
     {
       id: 'drone',
       name: 'Quadcopter',
-      sign: 'Aerial Mapping\n& Inspection',
+      sign: 'Coming\nSoon',
       color: 'from-purple-500 to-purple-600',
       shadowColor: 'shadow-purple-500/30',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/30',
       textColor: 'text-purple-400',
       Component: DroneSVG,
+      comingSoon: true,
     },
     {
       id: 'humanoid',
       name: 'Humanoid',
-      sign: 'Walking &\nInteraction',
+      sign: 'Coming\nSoon',
       color: 'from-orange-500 to-orange-600',
       shadowColor: 'shadow-orange-500/30',
       bgColor: 'bg-orange-500/10',
       borderColor: 'border-orange-500/30',
       textColor: 'text-orange-400',
       Component: HumanoidSVG,
+      comingSoon: true,
     },
   ];
 
@@ -265,16 +269,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
             return (
               <div
                 key={robot.id}
-                className="relative group cursor-pointer"
+                className={`relative group ${robot.comingSoon ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                 onMouseEnter={() => setHoveredRobot(robot.id)}
                 onMouseLeave={() => setHoveredRobot(null)}
-                onClick={handleEnterApp}
+                onClick={robot.comingSoon ? undefined : handleEnterApp}
               >
                 {/* Sign */}
                 <div
                   className={`
                     relative mx-auto w-44 mb-0 transition-all duration-300
-                    ${hoveredRobot === robot.id ? '-translate-y-3 rotate-2' : ''}
+                    ${hoveredRobot === robot.id && !robot.comingSoon ? '-translate-y-3 rotate-2' : ''}
                   `}
                 >
                   {/* Sign board - brutalist style */}
@@ -283,10 +287,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                     border-3 border-2 p-4
                     ${robot.shadowColor}
                     transition-all duration-300
-                    ${hoveredRobot === robot.id ? 'shadow-lg' : ''}
+                    ${hoveredRobot === robot.id && !robot.comingSoon ? 'shadow-lg' : ''}
                   `}
                   style={{
-                    boxShadow: hoveredRobot === robot.id ? `4px 4px 0 currentColor` : '2px 2px 0 currentColor',
+                    boxShadow: hoveredRobot === robot.id && !robot.comingSoon ? `4px 4px 0 currentColor` : '2px 2px 0 currentColor',
                   }}
                   >
                     <p className={`${robot.textColor} font-bold text-center whitespace-pre-line leading-tight text-lg uppercase tracking-wide`}>
@@ -301,7 +305,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                 <div
                   className={`
                     relative flex flex-col items-center transition-all duration-300
-                    ${hoveredRobot === robot.id ? 'scale-105' : ''}
+                    ${hoveredRobot === robot.id && !robot.comingSoon ? 'scale-105' : ''}
                   `}
                 >
                   <div className={`
@@ -310,7 +314,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                     transition-all duration-300
                   `}
                   style={{
-                    boxShadow: hoveredRobot === robot.id ? `6px 6px 0 rgba(255,255,255,0.1)` : '3px 3px 0 rgba(255,255,255,0.05)',
+                    boxShadow: hoveredRobot === robot.id && !robot.comingSoon ? `6px 6px 0 rgba(255,255,255,0.1)` : '3px 3px 0 rgba(255,255,255,0.05)',
                   }}
                   >
                     <RobotComponent className="w-28 h-28" />
@@ -329,7 +333,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
                 </div>
 
                 {/* Hover indicator */}
-                {hoveredRobot === robot.id && (
+                {hoveredRobot === robot.id && !robot.comingSoon && (
                   <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-2 h-2 ${robot.bgColor} border ${robot.borderColor}`} />
                 )}
               </div>

@@ -68,11 +68,20 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Live Status Bar** - Real-time robot state display in chat panel
 - **Clarifying Questions** - LLM can ask for more details when needed
 
+### Policy Loading from HuggingFace Hub
+- **Browse LeRobot Policies** - Search and discover trained policies from HuggingFace Hub
+- **ONNX Runtime** - Run policies locally in browser using ONNX Runtime Web
+- **Policy Types Supported** - ACT (Action Chunking Transformer), Diffusion, TD-MPC, VQ-BeT
+- **SO-101 Compatible** - Filter and load policies trained for SO-101/Koch robot arms
+- **Real-time Inference** - Execute policies at 20Hz for smooth robot control
+- **No Server Required** - All inference runs client-side in WebAssembly
+
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript
 - **3D Graphics**: Three.js, React Three Fiber, React Three Drei
 - **Physics**: Rapier (via @react-three/rapier)
+- **ML Inference**: ONNX Runtime Web, HuggingFace Transformers.js
 - **State Management**: Zustand
 - **Styling**: Tailwind CSS
 - **Build Tool**: Vite
@@ -330,6 +339,7 @@ src/
 │   ├── controls/        # UI control panels
 │   │   ├── AdvancedControlsPanel.tsx  # IK, keyboard, gamepad modes
 │   │   ├── TaskTemplatesPanel.tsx     # Pick & place sequences
+│   │   ├── PolicyBrowserPanel.tsx     # HuggingFace policy loader
 │   │   ├── JointTrajectoryGraph.tsx   # Real-time plotting
 │   │   ├── SerialConnectionPanel.tsx  # Hardware connection
 │   │   └── ...
@@ -343,6 +353,8 @@ src/
 ├── lib/                 # Robot APIs and utilities
 │   ├── robotContext.ts        # Central state aggregator + event bus
 │   ├── semanticState.ts       # Natural language state translation
+│   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
+│   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...
