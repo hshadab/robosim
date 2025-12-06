@@ -19,6 +19,7 @@ describe('State Serializer', () => {
           shoulder: 30,
           elbow: -60,
           wrist: 0,
+          wristRoll: 0,
           gripper: 50,
         },
         environment: 'empty',

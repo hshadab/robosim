@@ -12,6 +12,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: { min: -90, max: 90 },      // shoulder_lift
       elbow: { min: -135, max: 135 },       // elbow_flex
       wrist: { min: -90, max: 90 },         // wrist_flex
+      wristRoll: { min: -157, max: 163 },   // wrist_roll (from URDF limits)
       gripper: { min: 0, max: 100 },        // gripper open %
     },
     defaultPosition: {
@@ -19,6 +20,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: 0,
       elbow: 0,
       wrist: 0,
+      wristRoll: 0,
       gripper: 50,
     },
   },
@@ -33,6 +35,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: { min: 0, max: 255 },
       elbow: { min: 0, max: 255 },
       wrist: { min: 0, max: 180 },
+      wristRoll: { min: -180, max: 180 },
       gripper: { min: 0, max: 100 },
     },
     defaultPosition: {
@@ -40,6 +43,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: 0,
       elbow: 0,
       wrist: 90,
+      wristRoll: 0,
       gripper: 0,
     },
   },
@@ -54,6 +58,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: { min: -45, max: 45 },
       elbow: { min: -45, max: 45 },
       wrist: { min: 0, max: 100 },
+      wristRoll: { min: -180, max: 180 },
       gripper: { min: 0, max: 100 },
     },
     defaultPosition: {
@@ -61,6 +66,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: 0,
       elbow: 0,
       wrist: 50,
+      wristRoll: 0,
       gripper: 0,
     },
   },
@@ -75,6 +81,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: { min: -180, max: 60 },
       elbow: { min: 0, max: 135 },
       wrist: { min: -90, max: 90 },
+      wristRoll: { min: -180, max: 180 },
       gripper: { min: 0, max: 100 },
     },
     defaultPosition: {
@@ -82,6 +89,7 @@ export const ROBOT_PROFILES: RobotProfile[] = [
       shoulder: 0,
       elbow: 0,
       wrist: 0,
+      wristRoll: 0,
       gripper: 0,
     },
   },

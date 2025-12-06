@@ -20,6 +20,7 @@ const JOINT_MAP = {
   shoulder: 'shoulder_lift',
   elbow: 'elbow_flex',
   wrist: 'wrist_flex',
+  wristRoll: 'wrist_roll',
   gripper: 'gripper',
 };
 
@@ -123,6 +124,9 @@ const URDFRobot: React.FC<SO100ArmProps> = ({ joints }) => {
     }
     if (robotInstance.joints[JOINT_MAP.wrist]) {
       robotInstance.joints[JOINT_MAP.wrist].setJointValue((joints.wrist * Math.PI) / 180);
+    }
+    if (robotInstance.joints[JOINT_MAP.wristRoll]) {
+      robotInstance.joints[JOINT_MAP.wristRoll].setJointValue((joints.wristRoll * Math.PI) / 180);
     }
     if (robotInstance.joints[JOINT_MAP.gripper]) {
       // Gripper: 0-100 maps to joint limits

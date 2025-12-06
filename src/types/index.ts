@@ -9,6 +9,7 @@ export interface JointState {
   shoulder: number;
   elbow: number;
   wrist: number;
+  wristRoll: number;
   gripper: number;
 }
 

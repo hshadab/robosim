@@ -152,6 +152,7 @@ export const createRobotAPI = (
         shoulder: 0,
         elbow: 0,
         wrist: 0,
+        wristRoll: 0,
         gripper: 50,
       };
 
