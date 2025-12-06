@@ -72,6 +72,14 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Visual Overlay** - Bounding boxes and centroids displayed on feed
 - **Image Processing** - Edge detection, blur, brightness/contrast utilities
 
+### State Persistence
+- **Named Save Slots** - Up to 10 named saves with timestamps
+- **Auto-Save** - Automatic background saving at configurable intervals
+- **Import/Export** - Download and upload save files as JSON
+- **IndexedDB Storage** - Large state data stored in browser database
+- **Quick Resume** - Load auto-save to continue from last session
+- **State Preview** - See robot type and timestamp before loading
+
 ### Code Editor
 - Built-in JavaScript code editor
 - Robot API for programmatic control
@@ -378,6 +386,7 @@ src/
 │   ├── semanticState.ts       # Natural language state translation
 │   ├── sensorNoise.ts         # Realistic sensor noise models
 │   ├── visionSimulation.ts    # Camera capture and blob detection
+│   ├── statePersistence.ts    # Save/load state with IndexedDB
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation

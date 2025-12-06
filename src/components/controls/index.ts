@@ -14,3 +14,4 @@ export { SerialConnectionPanel } from './SerialConnectionPanel';
 export { PolicyBrowserPanel } from './PolicyBrowserPanel';
 export { SensorRealismPanel } from './SensorRealismPanel';
 export { VisionPanel } from './VisionPanel';
+export { SaveLoadPanel } from './SaveLoadPanel';

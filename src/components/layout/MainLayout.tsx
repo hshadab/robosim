@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { SimulationViewport, SensorPanel } from '../simulation';
 import { ChatPanel } from '../chat';
-import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel, PolicyBrowserPanel, SensorRealismPanel, VisionPanel } from '../controls';
+import { JointControls, PresetButtons, EnvironmentSelector, ChallengePanel, DatasetRecorderPanel, DatasetPlayerPanel, HandTrackingPanel, ShareButton, AdvancedControlsPanel, TaskTemplatesPanel, JointTrajectoryGraph, SerialConnectionPanel, PolicyBrowserPanel, SensorRealismPanel, VisionPanel, SaveLoadPanel } from '../controls';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
-import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, PanelRightOpen, PanelRightClose, ChevronDown, ChevronRight, Sliders, Brain, Database, Cpu, Activity, Hand, BarChart3, ListChecks, Wifi, Radio, Camera } from 'lucide-react';
+import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, PanelRightOpen, PanelRightClose, ChevronDown, ChevronRight, Sliders, Brain, Database, Cpu, Activity, Hand, BarChart3, ListChecks, Wifi, Radio, Camera, HardDrive } from 'lucide-react';
 import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
@@ -273,6 +273,11 @@ const SimulateTab: React.FC = () => {
                 {/* Task Templates */}
                 <CollapsiblePanel title="Task Templates" icon={<ListChecks className="w-4 h-4" />}>
                   <TaskTemplatesPanel />
+                </CollapsiblePanel>
+
+                {/* Save/Load State */}
+                <CollapsiblePanel title="Save / Load" icon={<HardDrive className="w-4 h-4" />}>
+                  <SaveLoadPanel />
                 </CollapsiblePanel>
 
                 {/* Hardware Connection */}
