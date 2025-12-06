@@ -8,11 +8,11 @@ export const ROBOT_PROFILES: RobotProfile[] = [
     type: 'arm',
     description: '6-DOF Open-Source Desktop Arm for AI/ML Research (SO-101)',
     limits: {
-      base: { min: -180, max: 180 },       // shoulder_pan
-      shoulder: { min: -90, max: 90 },      // shoulder_lift
-      elbow: { min: -135, max: 135 },       // elbow_flex
-      wrist: { min: -90, max: 90 },         // wrist_flex
-      wristRoll: { min: -157, max: 163 },   // wrist_roll (from URDF limits)
+      base: { min: -110, max: 110 },        // shoulder_pan: ±1.92 rad
+      shoulder: { min: -100, max: 100 },    // shoulder_lift: ±1.75 rad
+      elbow: { min: -97, max: 97 },         // elbow_flex: ±1.69 rad
+      wrist: { min: -95, max: 95 },         // wrist_flex: ±1.66 rad
+      wristRoll: { min: -157, max: 163 },   // wrist_roll: -2.74 to 2.84 rad
       gripper: { min: 0, max: 100 },        // gripper open %
     },
     defaultPosition: {
