@@ -18,3 +18,7 @@ export { SaveLoadPanel } from './SaveLoadPanel';
 export { MultiRobotPanel } from './MultiRobotPanel';
 export { NumericalIKPanel } from './NumericalIKPanel';
 export { AIEnvironmentPanel } from './AIEnvironmentPanel';
+// New AI Features
+export { VoiceControlPanel } from './VoiceControlPanel';
+export { VisionAnalysisPanel } from './VisionAnalysisPanel';
+export { TextTo3DPanel } from './TextTo3DPanel';

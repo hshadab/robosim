@@ -117,11 +117,50 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Scene Integration** - Apply generated content directly to 3D viewport
 - **Download Option** - Save generated images for external use
 
+### Voice Control (Web Speech API)
+- **Hands-free Operation** - Control robots using voice commands
+- **Wake Word Support** - Optional "Hey Robot" activation
+- **Continuous Listening** - Keep listening for commands
+- **Voice Feedback** - Spoken confirmations of actions
+- **Command Categories**:
+  - Movement: "move left", "go forward", "turn right"
+  - Gripper: "open gripper", "grab object", "release"
+  - Presets: "wave hello", "go home", "dance"
+  - Queries: "where are you?", "what's your position?"
+- **Browser Support** - Chrome, Edge (Web Speech API required)
+
+### Vision-Language Analysis (Claude Vision)
+- **Scene Understanding** - Ask "What's in the scene?" and get detailed answers
+- **Object Detection** - Local DETR model for detecting objects
+- **Scene Classification** - Identify environment types (warehouse, lab, outdoor)
+- **Graspable Object Recognition** - Identify objects the robot can pick up
+- **Spatial Queries** - "Where is the red object?", "What can I grab?"
+- **Suggested Actions** - AI recommends next steps based on scene analysis
+- **Dual Mode** - Works locally with Transformers.js, enhanced with Claude API
+
+### Code Copilot (AI-Powered Editor)
+- **Smart Autocomplete** - Robot API function suggestions
+- **Code Generation** - Generate code from comments (Ctrl+Shift+G)
+- **Code Explanation** - Explain selected code (Ctrl+Shift+E)
+- **Error Fixing** - AI suggests fixes for runtime errors
+- **Code Templates** - Pre-built patterns for common tasks
+- **Works Offline** - Basic features work without API key
+
+### Text-to-3D Model Generation
+- **Natural Language Input** - Describe objects like "red apple" or "wooden box"
+- **Procedural Meshes** - Generates appropriate 3D geometry
+- **AI Textures** - Optional Gemini-powered texture generation
+- **Multiple Styles** - Realistic, Cartoon, Low-poly, Voxel
+- **Physics Enabled** - Generated objects work with robot interaction
+- **Preset Objects** - Quick generation of common items
+- **Scene Generation** - Create multiple objects from descriptions
+
 ### Code Editor
-- Built-in JavaScript code editor
+- Built-in JavaScript code editor with Monaco
 - Robot API for programmatic control
 - Code templates for common tasks
 - Console output panel
+- **AI Code Copilot** - Intelligent completions and suggestions
 
 ### Hardware Export
 - **LeRobot Python** - Export to HuggingFace LeRobot framework for SO-101
@@ -409,6 +448,9 @@ src/
 │   │   ├── TaskTemplatesPanel.tsx     # Pick & place sequences
 │   │   ├── PolicyBrowserPanel.tsx     # HuggingFace policy loader
 │   │   ├── AIEnvironmentPanel.tsx     # AI-generated environments and objects
+│   │   ├── VoiceControlPanel.tsx      # Voice command interface
+│   │   ├── VisionAnalysisPanel.tsx    # Scene understanding with AI
+│   │   ├── TextTo3DPanel.tsx          # Text-to-3D object generation
 │   │   ├── JointTrajectoryGraph.tsx   # Real-time plotting
 │   │   ├── SerialConnectionPanel.tsx  # Hardware connection
 │   │   └── ...
@@ -418,6 +460,7 @@ src/
 ├── hooks/               # Custom React hooks
 │   ├── useTrajectoryExecution.ts  # Smooth motion execution
 │   ├── useRobotContext.ts         # Robot state + events hook
+│   ├── useCodeCopilot.ts          # AI code completion for Monaco
 │   └── ...
 ├── lib/                 # Robot APIs and utilities
 │   ├── robotContext.ts        # Central state aggregator + event bus
@@ -428,6 +471,11 @@ src/
 │   ├── multiRobot.ts          # Multi-robot instance management
 │   ├── numericalIK.ts         # Jacobian-based inverse kinematics solver
 │   ├── aiImageGeneration.ts   # Gemini AI image generation for environments
+│   ├── voiceControl.ts        # Web Speech API voice commands
+│   ├── visionLanguage.ts      # Vision-language scene analysis
+│   ├── codeCopilot.ts         # AI code completion and generation
+│   ├── textTo3D.ts            # Text-to-3D model generation
+│   ├── logger.ts              # Structured logging utility
 │   ├── huggingfaceHub.ts      # HuggingFace Hub API integration
 │   ├── policyRunner.ts        # ONNX Runtime policy execution
 │   ├── trajectoryPlanner.ts   # Motion interpolation

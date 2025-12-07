@@ -21,6 +21,10 @@ import {
   Upload,
   BarChart3,
   Users,
+  Mic,
+  Eye,
+  Box,
+  Code,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 
@@ -47,7 +51,7 @@ const RobotArmSVG: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 // Feature tabs configuration
-type FeatureTab = 'chat' | 'policies' | 'control' | 'export';
+type FeatureTab = 'chat' | 'policies' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d';
 
 const FEATURE_TABS: Array<{
   id: FeatureTab;
@@ -138,6 +142,86 @@ const FEATURE_TABS: Array<{
       'Or connect via Web Serial for live sync',
     ],
     color: 'orange',
+  },
+  {
+    id: 'voice',
+    label: 'Voice Control',
+    icon: <Mic className="w-5 h-5" />,
+    title: 'Hands-Free Robot Control',
+    description: 'Control your robot using voice commands. Say "wave hello" or "pick up the block" and watch it happen.',
+    benefits: [
+      'Web Speech API integration',
+      'Wake word support ("Hey Robot")',
+      'Voice feedback and confirmations',
+      'Works in Chrome and Edge browsers',
+    ],
+    howTo: [
+      'Open the Voice Control panel',
+      'Click the microphone button to start',
+      'Speak commands like "move left"',
+      'Enable wake word for hands-free use',
+    ],
+    color: 'cyan',
+  },
+  {
+    id: 'vision',
+    label: 'Vision AI',
+    icon: <Eye className="w-5 h-5" />,
+    title: 'Scene Understanding with AI',
+    description: 'Ask "What\'s in the scene?" and get intelligent answers. Uses local models + Claude Vision for analysis.',
+    benefits: [
+      'Object detection with DETR',
+      'Scene classification',
+      'Graspable object recognition',
+      'Spatial queries ("where is the red object?")',
+    ],
+    howTo: [
+      'Open the Vision Analysis panel',
+      'Click "Analyze Scene" to capture',
+      'Ask questions about the scene',
+      'Get suggested robot actions',
+    ],
+    color: 'pink',
+  },
+  {
+    id: 'copilot',
+    label: 'Code Copilot',
+    icon: <Code className="w-5 h-5" />,
+    title: 'AI-Powered Code Editor',
+    description: 'Get intelligent code completions, generate code from comments, and explain robot programs.',
+    benefits: [
+      'Robot API autocomplete',
+      'Generate code from comments',
+      'Explain selected code',
+      'Fix errors with AI suggestions',
+    ],
+    howTo: [
+      'Write a comment like "// wave hello"',
+      'Press Ctrl+Shift+G to generate code',
+      'Select code and press Ctrl+Shift+E',
+      'Get intelligent completions as you type',
+    ],
+    color: 'yellow',
+  },
+  {
+    id: 'text3d',
+    label: 'Text to 3D',
+    icon: <Box className="w-5 h-5" />,
+    title: 'Generate 3D Objects from Text',
+    description: 'Describe objects like "red apple" or "wooden box" and generate interactive 3D models.',
+    benefits: [
+      'Natural language input',
+      'Multiple styles (realistic, cartoon, low-poly)',
+      'AI-generated textures with Gemini',
+      'Physics-enabled for robot interaction',
+    ],
+    howTo: [
+      'Open the Text to 3D panel',
+      'Type a description like "blue ball"',
+      'Choose style and click generate',
+      'Object appears in the scene',
+    ],
+    color: 'emerald',
   },
 ];
 
@@ -488,12 +572,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
 
       {/* Key Features Highlight */}
       <section className="relative px-8 py-12 max-w-7xl mx-auto">
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-5 gap-4 mb-4">
           {[
             { icon: <MessageSquare className="w-6 h-6" />, label: 'Chat Control', desc: 'Natural language', color: 'blue' },
+            { icon: <Mic className="w-6 h-6" />, label: 'Voice Control', desc: 'Hands-free', color: 'cyan' },
+            { icon: <Eye className="w-6 h-6" />, label: 'Vision AI', desc: 'Scene understanding', color: 'pink' },
+            { icon: <Code className="w-6 h-6" />, label: 'Code Copilot', desc: 'AI autocomplete', color: 'yellow' },
+            { icon: <Box className="w-6 h-6" />, label: 'Text to 3D', desc: 'Generate objects', color: 'emerald' },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className={`p-4 bg-slate-800/50 border-l-4 border-${item.color}-500 hover:bg-slate-800 transition`}
+            >
+              <div className={`text-${item.color}-400 mb-2`}>{item.icon}</div>
+              <div className="text-white font-bold">{item.label}</div>
+              <div className="text-slate-500 text-sm">{item.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-5 gap-4">
+          {[
             { icon: <Brain className="w-6 h-6" />, label: 'AI Policies', desc: 'HuggingFace Hub', color: 'purple' },
             { icon: <Cpu className="w-6 h-6" />, label: 'Browser ML', desc: 'ONNX Runtime', color: 'green' },
-            { icon: <Users className="w-6 h-6" />, label: 'Multi-Robot', desc: 'Swarm simulation', color: 'cyan' },
+            { icon: <Users className="w-6 h-6" />, label: 'Multi-Robot', desc: 'Swarm simulation', color: 'slate' },
+            { icon: <Sparkles className="w-6 h-6" />, label: 'AI Environments', desc: 'Gemini textures', color: 'violet' },
             { icon: <GitBranch className="w-6 h-6" />, label: 'Open Source', desc: 'LeRobot ready', color: 'orange' },
           ].map((item) => (
             <div
@@ -776,14 +878,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
               <h4 className="font-bold text-white mb-4">Features</h4>
               <ul className="space-y-2 text-sm text-slate-400">
                 <li className="hover:text-white cursor-pointer">AI Chat Control</li>
+                <li className="hover:text-white cursor-pointer">Voice Control</li>
+                <li className="hover:text-white cursor-pointer">Vision-Language AI</li>
+                <li className="hover:text-white cursor-pointer">Code Copilot</li>
+                <li className="hover:text-white cursor-pointer">Text to 3D</li>
                 <li className="hover:text-white cursor-pointer">Policy Loading</li>
                 <li className="hover:text-white cursor-pointer">Hardware Export</li>
-                <li className="hover:text-white cursor-pointer">Dataset Recording</li>
-                <li className="hover:text-white cursor-pointer">Sensor Noise Models</li>
-                <li className="hover:text-white cursor-pointer">Robot Vision</li>
-                <li className="hover:text-white cursor-pointer">State Persistence</li>
                 <li className="hover:text-white cursor-pointer">Multi-Robot Swarms</li>
-                <li className="hover:text-white cursor-pointer">Numerical IK Solver</li>
+                <li className="hover:text-white cursor-pointer">AI Environments</li>
               </ul>
             </div>
             <div>
