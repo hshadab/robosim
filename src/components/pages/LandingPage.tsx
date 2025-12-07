@@ -461,9 +461,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onHowToUs
           <a href="#how-it-works" className="text-slate-400 hover:text-white transition font-medium">
             How It Works
           </a>
-          <a href="#use-cases" className="text-slate-400 hover:text-white transition font-medium">
-            Use Cases
-          </a>
           {onLearnMore && (
             <button onClick={onLearnMore} className="text-slate-400 hover:text-white transition font-medium">
               Docs
