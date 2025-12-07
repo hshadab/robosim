@@ -29,6 +29,8 @@ import {
   ChevronDown,
   ChevronRight,
   Layers,
+  GraduationCap,
+  Upload,
 } from 'lucide-react';
 
 // Import all panel components
@@ -41,6 +43,8 @@ import { TaskTemplatesPanel } from './TaskTemplatesPanel';
 import { ParameterizedTaskPanel } from './ParameterizedTaskPanel';
 import { VisualRandomizationPanel } from './VisualRandomizationPanel';
 import { DatasetAugmentationPanel } from './DatasetAugmentationPanel';
+import { AutoEpisodePanel } from './AutoEpisodePanel';
+import { GuidedChallengePanel } from './GuidedChallengePanel';
 import { JointTrajectoryGraph } from './JointTrajectoryGraph';
 import { PolicyBrowserPanel } from './PolicyBrowserPanel';
 import { VoiceControlPanel } from './VoiceControlPanel';
@@ -59,6 +63,7 @@ import { SensorRealismPanel } from './SensorRealismPanel';
 import { VisionPanel } from './VisionPanel';
 import { SaveLoadPanel } from './SaveLoadPanel';
 import { ChallengePanel } from './ChallengePanel';
+import { HuggingFaceUploadPanel } from './HuggingFaceUploadPanel';
 import { SensorPanel } from '../simulation/SensorPanel';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -140,7 +145,7 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
   const [activeCategory, setActiveCategory] = useState<ToolCategory>('control');
   const { activeRobotType } = useAppStore();
 
-  // Mock episodes for stats panel demo
+  // Mock episodes for stats/augmentation panel demo (empty for now, populated from recording)
   const mockEpisodes: Array<{
     frames: Array<{
       timestamp: number;
@@ -182,6 +187,13 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
           <>
             {/* Tutorial for new users */}
             {activeRobotType === 'arm' && <TutorialPanel />}
+
+            {/* Guided Challenges */}
+            {activeRobotType === 'arm' && (
+              <CollapsibleSection title="Guided Challenges" icon={<GraduationCap className="w-4 h-4" />} badge="NEW">
+                <GuidedChallengePanel />
+              </CollapsibleSection>
+            )}
 
             {/* Joint Controls - Primary */}
             <CollapsibleSection
@@ -276,7 +288,12 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
 
             {/* Dataset Augmentation */}
             <CollapsibleSection title="Augmentation" icon={<Layers className="w-4 h-4" />} badge="NEW">
-              <DatasetAugmentationPanel episodes={mockEpisodes} />
+              <DatasetAugmentationPanel episodes={mockEpisodes as any[]} />
+            </CollapsibleSection>
+
+            {/* Auto-Episode Generator */}
+            <CollapsibleSection title="Auto-Generate" icon={<Sparkles className="w-4 h-4" />} badge="NEW">
+              <AutoEpisodePanel />
             </CollapsibleSection>
 
             {/* Dataset Browser */}
@@ -296,6 +313,11 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
             {/* Challenges */}
             <CollapsibleSection title="Challenges" icon={<Cpu className="w-4 h-4" />}>
               <ChallengePanel />
+            </CollapsibleSection>
+
+            {/* HuggingFace Upload */}
+            <CollapsibleSection title="Upload to Hub" icon={<Upload className="w-4 h-4" />} badge="NEW">
+              <HuggingFaceUploadPanel episodes={mockEpisodes as any[]} />
             </CollapsibleSection>
           </>
         )}

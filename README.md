@@ -200,6 +200,72 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Panel Highlighting** - Points to relevant UI elements
 - **Tips & Hints** - Contextual tips for each step
 
+### Guided Challenge System (NEW)
+- **Interactive Challenges** - Learn robot control through hands-on exercises
+- **Real-time Position Validation** - Visual feedback as you match target positions
+- **Three Challenge Levels**:
+  - Basic Movement: Learn individual joint controls
+  - Reach Position: Practice moving to specific poses
+  - Pick Motion Sequence: Master pick-and-place workflow
+- **Progress Tracking** - Step-by-step indicators with auto-advance
+- **Hints & Success Messages** - Get help when stuck, celebrate completions
+- **Tolerance-based Matching** - Configurable accuracy requirements
+
+### Parameterized Task Templates (NEW)
+- **Configurable Waypoints** - Define robot motions with variable parameters
+- **Variable References** - Use `${paramName}` syntax for dynamic values
+- **Built-in Templates**:
+  - Pick-and-Place: Configurable pick/place positions
+  - Stack Objects: Multi-height stacking sequences
+  - Reach Target: Precision positioning tasks
+  - Wave Hello: Demo animation with timing control
+- **Parameter Randomization** - Auto-generate variations for training data
+- **Custom Template Creation** - Define your own parameterized tasks
+
+### Visual Domain Randomization (NEW)
+- **Lighting Controls** - Ambient intensity, directional light, shadow softness
+- **Material Variations** - Metalness, roughness, color tinting
+- **Camera Randomization** - FOV, position jitter for viewpoint diversity
+- **Preset Configurations**:
+  - Bright Studio: Clean, well-lit environment
+  - Moody: Dark, dramatic lighting
+  - Outdoor: Natural sunlight simulation
+  - Factory: Industrial lighting conditions
+- **Auto-Randomize Mode** - Continuously vary visual parameters
+- **Sim-to-Real Ready** - Prepare policies for real-world transfer
+
+### Dataset Augmentation (NEW)
+- **Trajectory Augmentation** - Multiply datasets with variations
+- **Augmentation Types**:
+  - Action Noise: Gaussian noise on joint targets
+  - Time Stretching: Speed up/slow down trajectories
+  - Spatial Jitter: Small position variations
+  - Temporal Dropout: Skip frames for robustness
+  - Mirror/Flip: Create symmetric variations
+- **Preview Before Apply** - See augmentation effects before generating
+- **Configurable Multiplier** - 2x to 10x dataset expansion
+- **Quality Preservation** - Maintains trajectory smoothness
+
+### Auto-Episode Generator (NEW)
+- **One-Click Generation** - Create 100+ episodes instantly
+- **Template-Based** - Uses parameterized task templates
+- **Randomized Parameters** - Each episode has unique variations
+- **Combined with Augmentation** - Base episodes × augmentation multiplier
+- **Progress Tracking** - Real-time generation progress
+- **Export Options**:
+  - LeRobot Format: Direct HuggingFace compatibility
+  - JSON Export: For custom training pipelines
+- **Estimated Output** - Preview episode count before generating
+
+### HuggingFace Hub Integration (NEW)
+- **Direct Upload** - Push datasets to HuggingFace without CLI
+- **Token Authentication** - Secure API token validation
+- **Auto Repository Creation** - Creates dataset repos automatically
+- **Dataset Card Generation** - Auto-generates README with metadata
+- **Public/Private Toggle** - Control dataset visibility
+- **Upload Progress** - Real-time progress tracking
+- **Direct Link** - Open uploaded dataset in browser
+
 ### Consolidated UI
 - **Tabbed Tool Categories** - Control, AI, Data, Hardware, Settings tabs
 - **Reduced Clutter** - 20+ panels organized into 5 logical categories
@@ -659,9 +725,9 @@ RoboSim aims to be the fastest path from zero to trained robot policy. The follo
 - [x] **Dataset augmentation panel** - Multiply episodes with automated variations
 
 ### Phase 3: Advanced Features (Major)
-- [ ] **Auto-episode generator** - One-click synthetic data generation (100+ episodes)
-- [ ] **Guided challenge system** - Interactive tutorials with position validation
-- [ ] **Direct HuggingFace upload** - Integrated Hub publishing without CLI
+- [x] **Auto-episode generator** - One-click synthetic data generation (100+ episodes)
+- [x] **Guided challenge system** - Interactive tutorials with position validation
+- [x] **Direct HuggingFace upload** - Integrated Hub publishing without CLI
 
 ### Why These Features?
 

@@ -12,6 +12,7 @@ export { TaskTemplatesPanel } from './TaskTemplatesPanel';
 export { ParameterizedTaskPanel } from './ParameterizedTaskPanel';
 export { VisualRandomizationPanel } from './VisualRandomizationPanel';
 export { DatasetAugmentationPanel } from './DatasetAugmentationPanel';
+export { AutoEpisodePanel } from './AutoEpisodePanel';
 export { JointTrajectoryGraph } from './JointTrajectoryGraph';
 export { SerialConnectionPanel } from './SerialConnectionPanel';
 export { PolicyBrowserPanel } from './PolicyBrowserPanel';
@@ -29,5 +30,7 @@ export { TextTo3DPanel } from './TextTo3DPanel';
 export { DatasetBrowserPanel } from './DatasetBrowserPanel';
 export { DatasetStatsPanel } from './DatasetStatsPanel';
 export { TutorialPanel } from './TutorialPanel';
+export { GuidedChallengePanel } from './GuidedChallengePanel';
+export { HuggingFaceUploadPanel } from './HuggingFaceUploadPanel';
 // Consolidated Panel
 export { ConsolidatedToolsPanel } from './ConsolidatedToolsPanel';
