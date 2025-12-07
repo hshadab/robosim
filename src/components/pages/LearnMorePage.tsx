@@ -29,28 +29,32 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
       desc: 'Open-source desktop arm from The Robot Studio. Realistic 3D model from official URDF with STS3215 servo motors (1/345 gear ratio). Export to LeRobot Python for real hardware.',
       joints: ['Base/Shoulder Pan (±110°)', 'Shoulder Lift (±100°)', 'Elbow Flex (±97°)', 'Wrist Flex (±95°)', 'Wrist Roll (-157° to 163°)', 'Gripper (0-100%)'],
       useCases: ['Pick and place', 'LeRobot teleoperation', 'AI/ML research', 'Imitation learning'],
-      color: 'blue'
+      color: 'blue',
+      status: 'available' as const
     },
     {
       name: '4WD Wheeled Robot',
       desc: 'Four-wheel drive mobile robot with sensors. Simulates differential drive with skid steering.',
       joints: ['Left Wheels', 'Right Wheels', 'Head Servo (camera pan)'],
       useCases: ['Line following', 'Obstacle avoidance', 'Maze solving', 'Autonomous navigation'],
-      color: 'green'
+      color: 'green',
+      status: 'coming_soon' as const
     },
     {
       name: 'Quadcopter Drone',
       desc: 'Four-rotor aerial vehicle with 6-DOF movement. Full position and orientation control.',
       joints: ['Throttle (altitude)', 'Roll', 'Pitch', 'Yaw'],
       useCases: ['Aerial photography', 'Waypoint navigation', 'Terrain mapping', 'Inspection tasks'],
-      color: 'purple'
+      color: 'purple',
+      status: 'coming_soon' as const
     },
     {
       name: 'Berkeley Humanoid Lite (22-DOF)',
       desc: 'Open-source bipedal robot inspired by Berkeley Humanoid. 0.8m tall, 16kg. Arms, legs, and torso articulation.',
       joints: ['Hip pitch/roll/yaw', 'Knee', 'Ankle pitch/roll', 'Shoulder', 'Elbow', 'Wrist'],
       useCases: ['Walking patterns', 'Balance control', 'Human-robot interaction', 'Gesture recognition'],
-      color: 'orange'
+      color: 'orange',
+      status: 'coming_soon' as const
     },
   ];
 
@@ -221,15 +225,34 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
       <section className="relative px-8 py-12 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
           <Bot className="w-6 h-6 text-blue-400" />
-          Available Robots
+          Supported Robots
         </h2>
         <div className="space-y-6">
           {robots.map((robot) => (
             <div
               key={robot.name}
-              className={`bg-slate-900/50 border-2 border-${robot.color}-500/30 p-6 hover:border-${robot.color}-500/60 transition`}
+              className={`bg-slate-900/50 border-2 p-6 transition ${
+                robot.status === 'available'
+                  ? 'border-blue-500/30 hover:border-blue-500/60'
+                  : 'border-slate-700/30 hover:border-slate-600/60 opacity-80'
+              }`}
             >
-              <h3 className={`text-xl font-bold text-${robot.color}-400 mb-2`}>{robot.name}</h3>
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className={`text-xl font-bold ${
+                  robot.status === 'available' ? 'text-blue-400' : 'text-slate-400'
+                }`}>
+                  {robot.name}
+                </h3>
+                {robot.status === 'available' ? (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
+                    AVAILABLE
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    COMING SOON
+                  </span>
+                )}
+              </div>
               <p className="text-slate-400 mb-4">{robot.desc}</p>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
