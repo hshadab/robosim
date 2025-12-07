@@ -20,6 +20,11 @@ import {
   Code,
   Database,
   BookOpen,
+  Wand2,
+  GraduationCap,
+  Upload,
+  Layers,
+  Palette,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 
@@ -46,7 +51,7 @@ const RobotArmSVG: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 // Feature tabs configuration
-type FeatureTab = 'chat' | 'policies' | 'datasets' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d';
+type FeatureTab = 'chat' | 'policies' | 'datasets' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d' | 'autogen' | 'challenges' | 'augment';
 
 const FEATURE_TABS: Array<{
   id: FeatureTab;
@@ -238,6 +243,66 @@ const FEATURE_TABS: Array<{
     ],
     color: 'emerald',
   },
+  {
+    id: 'autogen',
+    label: 'Auto-Generate',
+    icon: <Wand2 className="w-5 h-5" />,
+    title: 'One-Click Synthetic Data Generation',
+    description: 'Generate 100+ training episodes instantly from parameterized task templates with automatic augmentation.',
+    benefits: [
+      'Generate 100+ episodes in seconds',
+      'Randomized task parameters for variety',
+      'Built-in trajectory augmentation',
+      'Direct LeRobot format export',
+    ],
+    howTo: [
+      'Open the Data tab and Auto-Generate panel',
+      'Select task templates to use',
+      'Configure episode count and augmentation',
+      'Click Generate and export to Hub',
+    ],
+    color: 'lime',
+  },
+  {
+    id: 'challenges',
+    label: 'Challenges',
+    icon: <GraduationCap className="w-5 h-5" />,
+    title: 'Interactive Guided Challenges',
+    description: 'Learn robot control through hands-on challenges with real-time position validation and progress tracking.',
+    benefits: [
+      'Three difficulty levels',
+      'Real-time position feedback',
+      'Step-by-step guidance with hints',
+      'Auto-advance on completion',
+    ],
+    howTo: [
+      'Open the Control tab and Guided Challenges',
+      'Select a challenge to start',
+      'Follow the instructions to move joints',
+      'Match target positions to progress',
+    ],
+    color: 'rose',
+  },
+  {
+    id: 'augment',
+    label: 'Augmentation',
+    icon: <Layers className="w-5 h-5" />,
+    title: 'Dataset Augmentation & Domain Randomization',
+    description: 'Multiply your datasets with trajectory variations and visual randomization for robust sim-to-real transfer.',
+    benefits: [
+      'Action noise and time stretching',
+      'Lighting and material randomization',
+      'Preview before applying',
+      '2x-10x dataset expansion',
+    ],
+    howTo: [
+      'Record some demonstration episodes',
+      'Open the Augmentation panel',
+      'Configure noise and variation settings',
+      'Generate augmented dataset',
+    ],
+    color: 'indigo',
+  },
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstructions }) => {
@@ -424,11 +489,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
         </div>
         <div className="grid grid-cols-5 gap-4">
           {[
-            { icon: <Brain className="w-6 h-6" />, label: 'AI Policies', desc: 'HuggingFace Hub', color: 'purple' },
-            { icon: <Database className="w-6 h-6" />, label: 'Datasets', desc: 'Parquet export', color: 'teal' },
-            { icon: <BookOpen className="w-6 h-6" />, label: 'Tutorials', desc: 'Guided learning', color: 'amber' },
-            { icon: <Sparkles className="w-6 h-6" />, label: 'AI Environments', desc: 'Gemini textures', color: 'violet' },
-            { icon: <GitBranch className="w-6 h-6" />, label: 'Open Source', desc: 'LeRobot ready', color: 'orange' },
+            { icon: <Wand2 className="w-6 h-6" />, label: 'Auto-Generate', desc: '100+ episodes', color: 'lime' },
+            { icon: <GraduationCap className="w-6 h-6" />, label: 'Challenges', desc: 'Learn by doing', color: 'rose' },
+            { icon: <Upload className="w-6 h-6" />, label: 'Hub Upload', desc: 'Direct publish', color: 'sky' },
+            { icon: <Layers className="w-6 h-6" />, label: 'Augmentation', desc: '10x datasets', color: 'indigo' },
+            { icon: <Palette className="w-6 h-6" />, label: 'Randomization', desc: 'Sim-to-real', color: 'violet' },
           ].map((item) => (
             <div
               key={item.label}
@@ -591,11 +656,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
                 <li className="hover:text-white cursor-pointer">AI Chat Control</li>
                 <li className="hover:text-white cursor-pointer">Voice Control</li>
                 <li className="hover:text-white cursor-pointer">Vision-Language AI</li>
-                <li className="hover:text-white cursor-pointer">Dataset Recording</li>
+                <li className="hover:text-white cursor-pointer">Auto-Episode Generator</li>
+                <li className="hover:text-white cursor-pointer">Guided Challenges</li>
                 <li className="hover:text-white cursor-pointer">HuggingFace Upload</li>
-                <li className="hover:text-white cursor-pointer">Policy Loading</li>
-                <li className="hover:text-white cursor-pointer">Interactive Tutorials</li>
-                <li className="hover:text-white cursor-pointer">Hardware Export</li>
+                <li className="hover:text-white cursor-pointer">Domain Randomization</li>
+                <li className="hover:text-white cursor-pointer">Dataset Augmentation</li>
               </ul>
             </div>
             <div>
