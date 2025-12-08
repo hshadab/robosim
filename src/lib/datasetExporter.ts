@@ -46,6 +46,8 @@ export interface EpisodeMetadata {
   robotType: ActiveRobotType;
   robotId: string;
   task?: string;
+  /** Free-form natural language instruction for language-conditioned learning */
+  languageInstruction?: string;
   success?: boolean;
   duration: number;
   frameCount: number;
@@ -131,8 +133,11 @@ export class DatasetRecorder {
 
   /**
    * End the current episode
+   * @param success - Whether the episode was successful
+   * @param task - Categorical task name (e.g., "pick_and_place")
+   * @param languageInstruction - Free-form natural language instruction for language-conditioned learning
    */
-  endEpisode(success = true, task?: string): Episode {
+  endEpisode(success = true, task?: string, languageInstruction?: string): Episode {
     this.isRecording = false;
 
     // Mark last frame as done
@@ -147,6 +152,7 @@ export class DatasetRecorder {
         robotType: this.robotType,
         robotId: this.robotId,
         task,
+        languageInstruction,
         success,
         duration: this.frames.length > 0 ? this.frames[this.frames.length - 1].timestamp : 0,
         frameCount: this.frames.length,

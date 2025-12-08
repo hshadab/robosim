@@ -1,8 +1,41 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, Suspense } from 'react';
 import { RigidBody, CuboidCollider, BallCollider, CylinderCollider, RapierRigidBody } from '@react-three/rapier';
-import { RoundedBox } from '@react-three/drei';
+import { RoundedBox, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
+
+// GLB Model component for loaded 3D models
+// Note: useGLTF suspends during loading, so this must be wrapped in Suspense
+const GLBModel: React.FC<{
+  url: string;
+  scale: number;
+}> = ({ url, scale }) => {
+  console.log('[GLBModel] Loading model from:', url);
+
+  const { scene } = useGLTF(url);
+
+  // Clone the scene to allow multiple instances
+  const clonedScene = React.useMemo(() => {
+    const clone = scene.clone();
+    // Enable shadows on all meshes
+    clone.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+
+  console.log('[GLBModel] Model loaded successfully');
+
+  return (
+    <primitive
+      object={clonedScene}
+      scale={[scale, scale, scale]}
+    />
+  );
+};
 
 interface PhysicsObjectProps {
   object: SimObject;
@@ -120,6 +153,35 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
           </RigidBody>
         );
 
+      case 'glb':
+        console.log('[PhysicsObject] Rendering GLB:', object.modelUrl);
+        if (!object.modelUrl) {
+          console.warn('[PhysicsObject] No modelUrl for GLB object');
+          return null;
+        }
+        return (
+          <RigidBody
+            ref={rigidBodyRef}
+            position={object.position}
+            rotation={object.rotation}
+            colliders={false}
+            mass={0.5}
+            restitution={0.2}
+            friction={0.8}
+          >
+            {/* Use a box collider as approximation for GLB */}
+            <CuboidCollider args={[object.scale / 2, object.scale / 2, object.scale / 2]} />
+            <Suspense fallback={
+              <mesh>
+                <boxGeometry args={[object.scale, object.scale, object.scale]} />
+                <meshStandardMaterial color="#ffff00" />
+              </mesh>
+            }>
+              <GLBModel url={object.modelUrl} scale={object.scale} />
+            </Suspense>
+          </RigidBody>
+        );
+
       default:
         return null;
     }
@@ -161,11 +223,11 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
   );
 };
 
-// Floor collider - large enough to catch falling objects
+// Floor collider - thin collider at Y=0 so objects rest on the visual floor
 export const FloorCollider: React.FC = () => {
   return (
-    <RigidBody type="fixed" position={[0, -0.01, 0]} friction={0.8} restitution={0.1}>
-      <CuboidCollider args={[2, 0.02, 2]} />
+    <RigidBody type="fixed" position={[0, -0.005, 0]} friction={0.8} restitution={0.1}>
+      <CuboidCollider args={[2, 0.005, 2]} />
     </RigidBody>
   );
 };

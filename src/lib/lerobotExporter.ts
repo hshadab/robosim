@@ -53,6 +53,8 @@ interface LeRobotEpisodeMeta {
   episode_index: number;
   tasks: string;
   length: number;
+  /** Free-form natural language instruction for language-conditioned learning (RT-1, OpenVLA) */
+  language_instruction?: string;
 }
 
 // SO-101 joint mapping to LeRobot names
@@ -314,6 +316,7 @@ export function generateTasksJsonl(episodes: Episode[]): string {
 
 /**
  * Generate episodes.jsonl content
+ * Includes language_instruction for language-conditioned imitation learning
  */
 export function generateEpisodesJsonl(episodes: Episode[]): string {
   const lines: string[] = [];
@@ -325,6 +328,12 @@ export function generateEpisodesJsonl(episodes: Episode[]): string {
       tasks: episode.metadata.task || 'default_task',
       length: episode.frames.length,
     };
+
+    // Include language instruction if provided (key for RT-1, OpenVLA, etc.)
+    if (episode.metadata.languageInstruction) {
+      meta.language_instruction = episode.metadata.languageInstruction;
+    }
+
     lines.push(JSON.stringify(meta));
   }
 

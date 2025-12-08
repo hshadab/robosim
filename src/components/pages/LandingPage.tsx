@@ -24,6 +24,7 @@ import {
   Layers,
   Palette,
   Camera,
+  Languages,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 
@@ -50,7 +51,7 @@ const RobotArmSVG: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 // Feature tabs configuration
-type FeatureTab = 'chat' | 'policies' | 'datasets' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d' | 'image3d' | 'autogen' | 'challenges' | 'augment';
+type FeatureTab = 'chat' | 'policies' | 'datasets' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d' | 'image3d' | 'autogen' | 'challenges' | 'augment' | 'langlearn';
 
 const FEATURE_TABS: Array<{
   id: FeatureTab;
@@ -322,6 +323,26 @@ const FEATURE_TABS: Array<{
     ],
     color: 'indigo',
   },
+  {
+    id: 'langlearn',
+    label: 'Language Training',
+    icon: <Languages className="w-5 h-5" />,
+    title: 'Language-Conditioned Robot Learning',
+    description: 'Train robots to follow natural language instructions like RT-1, RT-2, and OpenVLA. The holy grail of robot learning.',
+    benefits: [
+      'Free-form language instructions per episode',
+      'Compatible with RT-1, OpenVLA, LeRobot ACT',
+      'Export to HuggingFace in standard format',
+      'Train robots that understand human commands',
+    ],
+    howTo: [
+      'Open Data tab → LeRobot Dataset panel',
+      'Click Settings and enter a Language Instruction',
+      'Record an episode while demonstrating the task',
+      'Export with language_instruction in metadata',
+    ],
+    color: 'amber',
+  },
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstructions }) => {
@@ -508,8 +529,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
           {[
+            { icon: <Languages className="w-5 h-5 md:w-6 md:h-6" />, label: 'Language Training', desc: 'RT-1/OpenVLA', color: 'amber' },
             { icon: <Wand2 className="w-5 h-5 md:w-6 md:h-6" />, label: 'Auto-Generate', desc: '100+ episodes', color: 'lime' },
             { icon: <GraduationCap className="w-5 h-5 md:w-6 md:h-6" />, label: 'Challenges', desc: 'Learn by doing', color: 'rose' },
             { icon: <Upload className="w-5 h-5 md:w-6 md:h-6" />, label: 'Hub Upload', desc: 'Direct publish', color: 'sky' },

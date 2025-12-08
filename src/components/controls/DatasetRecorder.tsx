@@ -38,6 +38,7 @@ export const DatasetRecorderPanel: React.FC = () => {
   const [exportFormat, setExportFormat] = useState<ExportFormat>('lerobot');
   const [recordVideo, setRecordVideo] = useState(true);
   const [taskName, setTaskName] = useState('manipulation_task');
+  const [languageInstruction, setLanguageInstruction] = useState('');
   const [datasetName, setDatasetName] = useState('robosim_dataset');
   const [showSettings, setShowSettings] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -117,7 +118,7 @@ export const DatasetRecorderPanel: React.FC = () => {
     }
 
     if (recorderRef.current) {
-      const episode = recorderRef.current.endEpisode(success, taskName);
+      const episode = recorderRef.current.endEpisode(success, taskName, languageInstruction || undefined);
       setEpisodes((prev) => [...prev, episode]);
 
       // Store video blob
@@ -289,7 +290,7 @@ export const DatasetRecorderPanel: React.FC = () => {
 
           {/* Task Name */}
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Task Description</label>
+            <label className="text-xs text-slate-400 block mb-1">Task Category</label>
             <input
               type="text"
               value={taskName}
@@ -297,6 +298,24 @@ export const DatasetRecorderPanel: React.FC = () => {
               className="w-full px-2 py-1 text-sm bg-slate-800 border border-slate-700 rounded text-white"
               placeholder="pick_and_place"
             />
+          </div>
+
+          {/* Language Instruction - Key for language-conditioned learning */}
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">
+              Language Instruction
+              <span className="text-purple-400 ml-1">(for RT-1/OpenVLA training)</span>
+            </label>
+            <textarea
+              value={languageInstruction}
+              onChange={(e) => setLanguageInstruction(e.target.value)}
+              className="w-full px-2 py-1 text-sm bg-slate-800 border border-slate-700 rounded text-white resize-none"
+              placeholder="Pick up the red cube and place it on the green target"
+              rows={2}
+            />
+            <p className="text-[10px] text-slate-500 mt-1">
+              Natural language description of the task for language-conditioned imitation learning
+            </p>
           </div>
 
           {/* Export Format */}

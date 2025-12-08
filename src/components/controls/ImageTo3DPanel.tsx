@@ -4,7 +4,7 @@
  * Upload a photo of a real object and convert it to a training-ready 3D model:
  * - Drag & drop or click to upload image
  * - Configure object dimensions and physics
- * - Generate 3D model via CSM API
+ * - Generate 3D model via CSM or Rodin API
  * - Auto-estimate grasp points
  * - Add to scene for robot training
  */
@@ -25,15 +25,56 @@ import {
   Sparkles,
   Download,
   Play,
+  Zap,
 } from 'lucide-react';
 import { Button } from '../common';
 import {
-  generateTrainableObject,
+  generateTrainableObject as generateCSMObject,
   validateCSMApiKey,
   type Generated3DObject,
   type ImageTo3DRequest,
 } from '../../lib/csmImageTo3D';
+import {
+  generateTrainableObject as generateRodinObject,
+  validateRodinApiKey,
+  type RodinImageTo3DRequest,
+} from '../../lib/rodinImageTo3D';
+import {
+  generateTrainableObject as generateFalObject,
+  validateFalApiKey,
+  type FalImageTo3DRequest,
+} from '../../lib/falImageTo3D';
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { useAppStore } from '../../stores/useAppStore';
+
+type ServiceProvider = 'fal' | 'csm' | 'rodin';
+
+const SERVICE_INFO = {
+  fal: {
+    name: 'TripoSR',
+    badge: '$0.07',
+    badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+    description: '~10-30s, pay-per-use',
+    signupUrl: 'https://fal.ai',
+    signupText: 'fal.ai',
+  },
+  csm: {
+    name: 'CSM',
+    badge: 'FREE',
+    badgeColor: 'bg-green-500/20 text-green-400 border-green-500/30',
+    description: '2-5 min, 10 free credits',
+    signupUrl: 'https://csm.ai',
+    signupText: 'csm.ai',
+  },
+  rodin: {
+    name: 'Rodin',
+    badge: '$96/mo',
+    badgeColor: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    description: '~70s generation',
+    signupUrl: 'https://hyper3d.ai',
+    signupText: 'hyper3d.ai',
+  },
+} as const;
 
 interface ImageTo3DPanelProps {
   onObjectGenerated?: (object: Generated3DObject) => void;
@@ -54,11 +95,47 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
+  const spawnObject = useAppStore((state) => state.spawnObject);
+
+  // Service provider selection (default to fal.ai - fast and cheap)
+  const [service, setService] = useState<ServiceProvider>('fal');
+  const serviceInfo = SERVICE_INFO[service];
+
+  // Add object to scene
+  const handleAddToScene = useCallback((obj: Generated3DObject) => {
+    console.log('[ImageTo3D] Adding to scene:', {
+      name: obj.name,
+      meshUrl: obj.meshUrl,
+      dimensions: obj.dimensions,
+    });
+
+    // Calculate scale - models from fal.ai are typically normalized, so use a reasonable default
+    const scale = 0.08; // 8cm - good size for robot manipulation
+
+    spawnObject({
+      type: 'glb',
+      position: [0.2, 0.1, 0.15], // To the right and in front of robot, elevated to drop naturally
+      rotation: [0, 0, 0],
+      scale,
+      color: '#ffffff',
+      isGrabbable: true,
+      isGrabbed: false,
+      isInTargetZone: false,
+      modelUrl: obj.meshUrl,
+      name: obj.name,
+    });
+
+    console.log('[ImageTo3D] Object spawned successfully');
+    onObjectGenerated?.(obj);
+  }, [spawnObject, onObjectGenerated]);
 
   // API key state
   const [apiKey, setApiKey] = useState('');
   const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+
+  // Rodin-specific options
+  const [rodinTier, setRodinTier] = useState<'Sketch' | 'Regular' | 'Detail'>('Regular');
 
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -94,7 +171,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
   const [generatedObject, setGeneratedObject] = useState<Generated3DObject | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Validate API key
+  // Validate API key based on selected service
   const handleValidateKey = useCallback(async () => {
     if (!apiKey || apiKey.length < 10) {
       setApiKeyValid(null);
@@ -102,10 +179,24 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
     }
 
     setIsValidating(true);
-    const valid = await validateCSMApiKey(apiKey);
+    let valid = false;
+    if (service === 'fal') {
+      valid = await validateFalApiKey(apiKey);
+    } else if (service === 'rodin') {
+      valid = await validateRodinApiKey(apiKey);
+    } else {
+      valid = await validateCSMApiKey(apiKey);
+    }
     setApiKeyValid(valid);
     setIsValidating(false);
-  }, [apiKey]);
+  }, [apiKey, service]);
+
+  // Reset API key validation when service changes
+  const handleServiceChange = useCallback((newService: ServiceProvider) => {
+    setService(newService);
+    setApiKeyValid(null);
+    setError(null);
+  }, []);
 
   // Handle image selection
   const handleImageSelect = useCallback((file: File) => {
@@ -143,7 +234,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
     }
   }, [handleImageSelect]);
 
-  // Generate 3D model
+  // Generate 3D model using selected service
   const handleGenerate = useCallback(async () => {
     if (!imageFile || !apiKey || !apiKeyValid) return;
 
@@ -152,23 +243,63 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
     setGeneratedObject(null);
 
     try {
-      const options: Partial<ImageTo3DRequest> = {
-        objectName,
-        geometryModel: quality,
-        textureModel: withTexture ? 'baked' : 'none',
-        resolution: quality === 'highest' ? 100000 : quality === 'turbo' ? 50000 : 30000,
-        scaledBbox: [width, height, depth],
-        symmetry: 'auto',
-      };
+      let result: Generated3DObject;
 
-      const result = await generateTrainableObject(
-        { apiKey },
-        imageFile,
-        options,
-        (phase, percent, message) => {
-          setProgress({ phase, percent, message });
-        }
-      );
+      if (service === 'fal') {
+        // Use fal.ai TripoSR API (fastest)
+        const falOptions: Partial<FalImageTo3DRequest> = {
+          objectName,
+          outputFormat: 'glb',
+          removeBackground: true,
+          scaledBbox: [width, height, depth],
+        };
+
+        result = await generateFalObject(
+          { apiKey },
+          imageFile,
+          falOptions,
+          (phase, percent, message) => {
+            setProgress({ phase, percent, message });
+          }
+        );
+      } else if (service === 'rodin') {
+        // Use Rodin API
+        const rodinOptions: Partial<RodinImageTo3DRequest> = {
+          objectName,
+          tier: rodinTier,
+          quality: quality === 'highest' ? 'high' : quality === 'turbo' ? 'medium' : 'medium',
+          material: withTexture ? 'PBR' : 'Shaded',
+          scaledBbox: [width, height, depth],
+        };
+
+        result = await generateRodinObject(
+          { apiKey },
+          imageFile,
+          rodinOptions,
+          (phase, percent, message) => {
+            setProgress({ phase, percent, message });
+          }
+        );
+      } else {
+        // Use CSM API
+        const csmOptions: Partial<ImageTo3DRequest> = {
+          objectName,
+          geometryModel: quality,
+          textureModel: withTexture ? 'baked' : 'none',
+          resolution: quality === 'highest' ? 100000 : quality === 'turbo' ? 50000 : 30000,
+          scaledBbox: [width, height, depth],
+          symmetry: 'auto',
+        };
+
+        result = await generateCSMObject(
+          { apiKey },
+          imageFile,
+          csmOptions,
+          (phase, percent, message) => {
+            setProgress({ phase, percent, message });
+          }
+        );
+      }
 
       setGeneratedObject(result);
       onObjectGenerated?.(result);
@@ -177,7 +308,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [imageFile, apiKey, apiKeyValid, objectName, quality, withTexture, width, height, depth, onObjectGenerated]);
+  }, [imageFile, apiKey, apiKeyValid, objectName, quality, withTexture, width, height, depth, service, rodinTier, onObjectGenerated]);
 
   const canGenerate = imageFile && apiKeyValid && !isGenerating;
 
@@ -188,8 +319,8 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
           <Camera className="w-4 h-4 text-cyan-400" />
           Image to 3D
-          <span className="text-xs px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-            CSM
+          <span className={`text-xs px-1.5 py-0.5 rounded border ${serviceInfo.badgeColor}`}>
+            {serviceInfo.badge}
           </span>
         </h3>
         <button
@@ -203,14 +334,80 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
       {expanded && (
         <>
           {/* Description */}
-          <p className="text-xs text-slate-400 mb-4">
+          <p className="text-xs text-slate-400 mb-3">
             Upload a photo of a real object to generate a training-ready 3D model with physics and grasp points.
           </p>
+
+          {/* Service Selector */}
+          <div className="mb-4">
+            <label className="text-xs font-medium text-slate-300 mb-2 block">
+              Service Provider
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                onClick={() => handleServiceChange('fal')}
+                className={`p-2 rounded-lg border text-left transition ${
+                  service === 'fal'
+                    ? 'border-cyan-500/50 bg-cyan-500/10'
+                    : 'border-slate-700/50 bg-slate-800/30 hover:bg-slate-700/30'
+                }`}
+              >
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Zap className={`w-3.5 h-3.5 ${service === 'fal' ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <span className={`text-xs font-medium ${service === 'fal' ? 'text-cyan-400' : 'text-slate-300'}`}>
+                    TripoSR
+                  </span>
+                </div>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-400 mt-1 inline-block">
+                  $0.07
+                </span>
+                <p className="text-[10px] text-slate-500 mt-0.5">~20s</p>
+              </button>
+              <button
+                onClick={() => handleServiceChange('csm')}
+                className={`p-2 rounded-lg border text-left transition ${
+                  service === 'csm'
+                    ? 'border-green-500/50 bg-green-500/10'
+                    : 'border-slate-700/50 bg-slate-800/30 hover:bg-slate-700/30'
+                }`}
+              >
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Box className={`w-3.5 h-3.5 ${service === 'csm' ? 'text-green-400' : 'text-slate-400'}`} />
+                  <span className={`text-xs font-medium ${service === 'csm' ? 'text-green-400' : 'text-slate-300'}`}>
+                    CSM
+                  </span>
+                </div>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-green-500/20 text-green-400 mt-1 inline-block">
+                  FREE
+                </span>
+                <p className="text-[10px] text-slate-500 mt-0.5">2-5 min</p>
+              </button>
+              <button
+                onClick={() => handleServiceChange('rodin')}
+                className={`p-2 rounded-lg border text-left transition ${
+                  service === 'rodin'
+                    ? 'border-yellow-500/50 bg-yellow-500/10'
+                    : 'border-slate-700/50 bg-slate-800/30 hover:bg-slate-700/30'
+                }`}
+              >
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Sparkles className={`w-3.5 h-3.5 ${service === 'rodin' ? 'text-yellow-400' : 'text-slate-400'}`} />
+                  <span className={`text-xs font-medium ${service === 'rodin' ? 'text-yellow-400' : 'text-slate-300'}`}>
+                    Rodin
+                  </span>
+                </div>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-400 mt-1 inline-block">
+                  $96/mo
+                </span>
+                <p className="text-[10px] text-slate-500 mt-0.5">~70s</p>
+              </button>
+            </div>
+          </div>
 
           {/* API Key */}
           <div className="mb-4">
             <label className="text-xs font-medium text-slate-300 mb-1 block">
-              CSM API Key
+              {service === 'fal' ? 'fal.ai' : service === 'rodin' ? 'Rodin' : 'CSM'} API Key
             </label>
             <div className="relative">
               <Key className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -219,7 +416,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 onBlur={handleValidateKey}
-                placeholder="csm_..."
+                placeholder={service === 'fal' ? 'Enter fal.ai API key...' : service === 'rodin' ? 'Enter Rodin API key...' : 'csm_...'}
                 className="w-full pl-8 pr-8 py-2 text-sm bg-slate-900/50 border border-slate-700/50
                          rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
               />
@@ -230,18 +427,44 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
               </div>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Get free API key at{' '}
+              Get API key at{' '}
               <a
-                href="https://www.csm.ai"
+                href={serviceInfo.signupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cyan-400 hover:underline"
               >
-                csm.ai
+                {serviceInfo.signupText}
               </a>
-              {' '}(10 free credits)
             </p>
           </div>
+
+          {/* Rodin Tier Selection */}
+          {service === 'rodin' && (
+            <div className="mb-4">
+              <label className="text-xs font-medium text-slate-300 mb-1 block">
+                Generation Speed
+              </label>
+              <div className="grid grid-cols-3 gap-1">
+                {(['Sketch', 'Regular', 'Detail'] as const).map((tier) => (
+                  <button
+                    key={tier}
+                    onClick={() => setRodinTier(tier)}
+                    className={`py-1.5 px-2 rounded text-xs font-medium transition ${
+                      rodinTier === tier
+                        ? 'bg-green-600 text-white'
+                        : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
+                    }`}
+                  >
+                    {tier}
+                    <span className="block text-[10px] opacity-70">
+                      {tier === 'Sketch' ? '~20s' : tier === 'Regular' ? '~70s' : '~120s'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Image Upload - Mobile optimized */}
           <div className="mb-4">
@@ -537,7 +760,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
                   variant="primary"
                   size="sm"
                   className={`bg-cyan-600 hover:bg-cyan-500 h-11 ${isMobile ? 'w-full' : 'flex-1'}`}
-                  onClick={() => onObjectGenerated?.(generatedObject)}
+                  onClick={() => handleAddToScene(generatedObject)}
                 >
                   <Play className="w-4 h-4 mr-2" />
                   Add to Scene
@@ -573,8 +796,13 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
           <div className="mt-3 pt-3 border-t border-slate-700/50">
             <p className="text-xs text-slate-500">
               Powered by{' '}
-              <a href="https://csm.ai" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-                CSM.ai
+              <a
+                href={serviceInfo.signupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:underline"
+              >
+                {service === 'fal' ? 'fal.ai TripoSR' : service === 'rodin' ? 'Hyper3D Rodin' : 'CSM.ai'}
               </a>
               . Photo converts to physics-ready 3D with auto grasp points for robot training.
             </p>

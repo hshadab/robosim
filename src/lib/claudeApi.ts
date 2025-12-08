@@ -4,7 +4,7 @@
  * Enhanced with semantic state for natural language understanding
  */
 
-import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SensorReading } from '../types';
+import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SensorReading, SimObject } from '../types';
 import { SYSTEM_PROMPTS } from '../hooks/useLLMChat';
 import { generateSemanticState } from './semanticState';
 
@@ -51,6 +51,7 @@ export interface FullRobotState {
   humanoid: HumanoidState;
   sensors: SensorReading;
   isAnimating: boolean;
+  objects?: SimObject[];
 }
 
 function buildSystemPrompt(robotType: ActiveRobotType, fullState: FullRobotState): string {
@@ -67,11 +68,35 @@ function buildSystemPrompt(robotType: ActiveRobotType, fullState: FullRobotState
     fullState.isAnimating
   );
 
+  // Build objects description for arm robots
+  let objectsDescription = '';
+  if (robotType === 'arm' && fullState.objects && fullState.objects.length > 0) {
+    const grabbableObjects = fullState.objects.filter(o => o.isGrabbable);
+    if (grabbableObjects.length > 0) {
+      objectsDescription = `
+# OBJECTS IN SCENE
+${grabbableObjects.map(obj => {
+  const pos = obj.position;
+  const grabbed = obj.isGrabbed ? ' (CURRENTLY HELD)' : '';
+  return `- "${obj.name || obj.id}": at position [${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}]${grabbed}`;
+}).join('\n')}
+
+To pick up an object:
+1. Move arm above object position (shoulder ~45°, match base rotation to object angle)
+2. Lower arm (shoulder to -20°, elbow to -100°)
+3. Close gripper (gripper: 0)
+4. Lift back up (shoulder to 30°)
+
+Gripper grab radius is 10cm. Object at X>0 means base should rotate positive (left).
+`;
+    }
+  }
+
   return `${basePrompt}
 
 # CURRENT ROBOT STATE (Natural Language)
 ${semanticState}
-
+${objectsDescription}
 # RAW STATE DATA (For precise control)
 ${JSON.stringify(
   robotType === 'arm' ? fullState.joints :
@@ -111,7 +136,7 @@ export async function callClaudeAPI(
 
   // If no API key, use the demo mode with simulated responses
   if (!apiKey) {
-    return simulateClaudeResponse(message, robotType, currentState, conversationHistory);
+    return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
   }
 
   try {
@@ -194,7 +219,8 @@ async function simulateClaudeResponse(
   message: string,
   robotType: ActiveRobotType,
   currentState: unknown,
-  conversationHistory: ConversationMessage[] = []
+  conversationHistory: ConversationMessage[] = [],
+  objects?: SimObject[]
 ): Promise<ClaudeResponse> {
   // Add realistic delay
   await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
@@ -212,23 +238,23 @@ async function simulateClaudeResponse(
       .filter(m => m.role === 'user')
       .slice(-2, -1)[0]?.content;
     if (lastUserMessage) {
-      return simulateClaudeResponse(lastUserMessage, robotType, currentState, []);
+      return simulateClaudeResponse(lastUserMessage, robotType, currentState, [], objects);
     }
   }
 
   if (lowerMessage.includes('more') || lowerMessage.includes('further') || lowerMessage.includes('continue')) {
     // Continue the last action direction
     if (lastAssistantMessage.includes('left')) {
-      return simulateClaudeResponse('move left more', robotType, currentState, []);
+      return simulateClaudeResponse('move left more', robotType, currentState, [], objects);
     }
     if (lastAssistantMessage.includes('right')) {
-      return simulateClaudeResponse('move right more', robotType, currentState, []);
+      return simulateClaudeResponse('move right more', robotType, currentState, [], objects);
     }
     if (lastAssistantMessage.includes('up') || lastAssistantMessage.includes('rais')) {
-      return simulateClaudeResponse('raise up more', robotType, currentState, []);
+      return simulateClaudeResponse('raise up more', robotType, currentState, [], objects);
     }
     if (lastAssistantMessage.includes('down') || lastAssistantMessage.includes('lower')) {
-      return simulateClaudeResponse('lower down more', robotType, currentState, []);
+      return simulateClaudeResponse('lower down more', robotType, currentState, [], objects);
     }
   }
 
@@ -242,7 +268,7 @@ async function simulateClaudeResponse(
 
   // Status/state queries
   if (lowerMessage.includes('where') || lowerMessage.includes('status') || lowerMessage.includes('position')) {
-    return describeState(robotType, currentState);
+    return describeState(robotType, currentState, objects);
   }
 
   // Undo command
@@ -256,7 +282,7 @@ async function simulateClaudeResponse(
 
   switch (robotType) {
     case 'arm':
-      return simulateArmResponse(lowerMessage, currentState as JointState);
+      return simulateArmResponse(lowerMessage, currentState as JointState, objects);
     case 'wheeled':
       return simulateWheeledResponse(lowerMessage, currentState as WheeledRobotState);
     case 'drone':
@@ -272,12 +298,24 @@ async function simulateClaudeResponse(
 }
 
 // Describe current state
-function describeState(robotType: ActiveRobotType, state: unknown): ClaudeResponse {
+function describeState(robotType: ActiveRobotType, state: unknown, objects?: SimObject[]): ClaudeResponse {
   if (robotType === 'arm') {
     const joints = state as JointState;
     const baseDir = joints.base > 10 ? 'left' : joints.base < -10 ? 'right' : 'center';
     const shoulderPos = joints.shoulder > 20 ? 'raised' : joints.shoulder < -20 ? 'lowered' : 'level';
     const gripperState = joints.gripper > 70 ? 'open' : joints.gripper < 30 ? 'closed' : 'partially open';
+
+    let objectInfo = '';
+    if (objects && objects.length > 0) {
+      const grabbable = objects.filter(o => o.isGrabbable && !o.isGrabbed);
+      const held = objects.find(o => o.isGrabbed);
+      if (held) {
+        objectInfo = `\n\n**Currently holding:** "${held.name || held.id}"`;
+      }
+      if (grabbable.length > 0) {
+        objectInfo += `\n\n**Objects nearby:** ${grabbable.map(o => `"${o.name || o.id}" at [${o.position.map(p => p.toFixed(2)).join(', ')}]`).join(', ')}`;
+      }
+    }
 
     return {
       action: 'explain',
@@ -286,7 +324,7 @@ function describeState(robotType: ActiveRobotType, state: unknown): ClaudeRespon
 • Shoulder: ${joints.shoulder.toFixed(0)}° (${shoulderPos})
 • Elbow: ${joints.elbow.toFixed(0)}°
 • Wrist: ${joints.wrist.toFixed(0)}°
-• Gripper: ${joints.gripper.toFixed(0)}% (${gripperState})`,
+• Gripper: ${joints.gripper.toFixed(0)}% (${gripperState})${objectInfo}`,
     };
   }
   return {
@@ -330,8 +368,21 @@ function parseAmount(message: string): number {
   return 30;
 }
 
-function simulateArmResponse(message: string, state: JointState): ClaudeResponse {
+// Calculate base angle to point at a position
+function calculateBaseAngleForPosition(x: number, z: number): number {
+  // atan2(z, x) gives angle from X axis, we need to rotate to face the object
+  const angleRad = Math.atan2(z, x);
+  const angleDeg = (angleRad * 180) / Math.PI;
+  // Our base 0° faces forward (+X), positive is left
+  return Math.max(-110, Math.min(110, angleDeg));
+}
+
+function simulateArmResponse(message: string, state: JointState, objects?: SimObject[]): ClaudeResponse {
   const amount = parseAmount(message);
+
+  // Find grabbable objects
+  const grabbableObjects = objects?.filter(o => o.isGrabbable && !o.isGrabbed) || [];
+  const heldObject = objects?.find(o => o.isGrabbed);
 
   // Movement commands - base rotation
   if (message.includes('left') && !message.includes('elbow')) {
@@ -484,21 +535,64 @@ for (let i = 0; i < 2; i++) {
     };
   }
 
-  if (message.includes('pick') || message.includes('grab something')) {
+  if (message.includes('pick') || message.includes('grab')) {
+    // If we're already holding something
+    if (heldObject) {
+      return {
+        action: 'explain',
+        description: `I'm already holding "${heldObject.name || heldObject.id}". Say "drop" or "place" to release it first.`,
+      };
+    }
+
+    // Find an object to pick up
+    if (grabbableObjects.length === 0) {
+      return {
+        action: 'explain',
+        description: "I don't see any objects to pick up. Try adding an object using the Image-to-3D panel first.",
+      };
+    }
+
+    // Find closest object or one matching the name
+    let targetObject = grabbableObjects[0];
+    for (const obj of grabbableObjects) {
+      const name = (obj.name || '').toLowerCase();
+      if (message.includes(name) || message.includes(obj.id)) {
+        targetObject = obj;
+        break;
+      }
+    }
+
+    const [objX, objY, objZ] = targetObject.position;
+    const baseAngle = calculateBaseAngleForPosition(objX, objZ);
+    const objName = targetObject.name || targetObject.id;
+
+    // Calculate distance for reach
+    const distance = Math.sqrt(objX * objX + objZ * objZ);
+
+    // Adjust shoulder/elbow based on distance and height
+    // Object is typically at Y=0.05 (on floor), arm base is at ~0.12m
+    const reachShoulder = distance > 0.2 ? 30 : 45;
+    const lowerShoulder = objY < 0.1 ? -30 : -10;
+    const lowerElbow = objY < 0.1 ? -100 : -70;
+
     return {
       action: 'sequence',
       joints: [
-        { gripper: 100 },
-        { shoulder: -25, elbow: -110 },
-        { gripper: 0 },
-        { shoulder: 20, elbow: -30 },
+        { gripper: 100 }, // Open gripper
+        { base: baseAngle, shoulder: reachShoulder }, // Rotate and extend toward object
+        { shoulder: lowerShoulder, elbow: lowerElbow }, // Lower to object
+        { gripper: 0 }, // Close gripper
+        { shoulder: 30, elbow: -30 }, // Lift up
       ],
-      description: 'Executing pick up motion',
-      code: `await openGripper();
-await moveJoint('shoulder', -25);
-await moveJoint('elbow', -110);
+      description: `Picking up "${objName}" at position [${objX.toFixed(2)}, ${objY.toFixed(2)}, ${objZ.toFixed(2)}]`,
+      code: `// Pick up "${objName}"
+await openGripper();
+await moveJoint('base', ${baseAngle.toFixed(0)});
+await moveJoint('shoulder', ${reachShoulder});
+await moveJoint('shoulder', ${lowerShoulder});
+await moveJoint('elbow', ${lowerElbow});
 await closeGripper();
-await moveJoint('shoulder', 20);`,
+await moveJoint('shoulder', 30);`,
     };
   }
 

@@ -273,7 +273,7 @@ export interface EnvironmentConfig {
 }
 
 // Interactive Object Types
-export type ObjectType = 'cube' | 'ball' | 'cylinder' | 'target';
+export type ObjectType = 'cube' | 'ball' | 'cylinder' | 'target' | 'glb';
 
 export interface SimObject {
   id: string;
@@ -285,6 +285,9 @@ export interface SimObject {
   isGrabbable: boolean;
   isGrabbed: boolean;
   isInTargetZone: boolean;
+  // For GLB models
+  modelUrl?: string;
+  name?: string;
 }
 
 export interface TargetZone {

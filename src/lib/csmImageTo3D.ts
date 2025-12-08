@@ -65,7 +65,9 @@ export interface PhysicsConfig {
   collisionShape: 'box' | 'sphere' | 'convex' | 'mesh';
 }
 
-const CSM_API_BASE = 'https://api.csm.ai/v3';
+// Use Vite proxy in development to bypass CORS
+// In production, deploy with a backend proxy or serverless function
+const CSM_API_BASE = '/api/csm';
 
 export async function createImageTo3DSession(
   config: CSMConfig,
@@ -123,23 +125,34 @@ export async function waitForSession(
   config: CSMConfig,
   sessionId: string,
   onProgress?: (status: string, elapsed: number) => void,
-  maxWaitMs: number = 300000
+  maxWaitMs: number = 600000 // 10 minutes - CSM can be slow
 ): Promise<CSMSession> {
   const startTime = Date.now();
   const pollInterval = 3000;
 
+  console.log('[CSM] Starting to poll session:', sessionId);
+
   while (Date.now() - startTime < maxWaitMs) {
-    const session = await getSessionStatus(config, sessionId);
-    const elapsed = Date.now() - startTime;
+    try {
+      const session = await getSessionStatus(config, sessionId);
+      const elapsed = Date.now() - startTime;
 
-    onProgress?.(session.status, elapsed);
+      console.log('[CSM] Poll result:', { status: session.status, elapsed: Math.round(elapsed/1000) + 's' });
 
-    if (session.status === 'complete') {
-      return session;
-    }
+      onProgress?.(session.status, elapsed);
 
-    if (session.status === 'failed') {
-      throw new Error('Generation failed: ' + (session.status_message || session.error_code));
+      if (session.status === 'complete') {
+        console.log('[CSM] Generation complete!', session.output?.meshes?.length, 'meshes');
+        return session;
+      }
+
+      if (session.status === 'failed') {
+        console.error('[CSM] Generation failed:', session.status_message || session.error_code);
+        throw new Error('Generation failed: ' + (session.status_message || session.error_code));
+      }
+    } catch (err) {
+      console.error('[CSM] Poll error:', err);
+      // Continue polling on network errors
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
@@ -286,12 +299,16 @@ export async function generateTrainableObject(
   onProgress?.('processing', 92, 'Processing mesh...');
 
   const meshes = completedSession.output?.meshes || [];
-  const glbMesh = meshes.find((m) => m.format === 'glb' || m.url.endsWith('.glb'));
-  const objMesh = meshes.find((m) => m.format === 'obj' || m.url.endsWith('.obj'));
-  const fbxMesh = meshes.find((m) => m.format === 'fbx' || m.url.endsWith('.fbx'));
+  console.log('[CSM] Available meshes:', meshes);
 
-  if (!glbMesh) {
-    throw new Error('No GLB mesh in response');
+  // Safely find meshes with null checks
+  const glbMesh = meshes.find((m) => m.format === 'glb' || (m.url && m.url.endsWith('.glb')));
+  const objMesh = meshes.find((m) => m.format === 'obj' || (m.url && m.url.endsWith('.obj')));
+  const fbxMesh = meshes.find((m) => m.format === 'fbx' || (m.url && m.url.endsWith('.fbx')));
+
+  if (!glbMesh || !glbMesh.url) {
+    console.error('[CSM] No GLB mesh found. Available meshes:', meshes);
+    throw new Error('No GLB mesh in response. Available: ' + meshes.map(m => m.format || 'unknown').join(', '));
   }
 
   onProgress?.('analyzing', 95, 'Analyzing for robot training...');
@@ -315,21 +332,22 @@ export async function generateTrainableObject(
 }
 
 export async function validateCSMApiKey(apiKey: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${CSM_API_BASE}/sessions/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-KEY': apiKey,
-      },
-      body: JSON.stringify({
-        type: 'image_to_3d',
-        input: { image: 'test' },
-      }),
-    });
+  // CSM API doesn't support CORS, so we can't validate from browser
+  // Instead, check if the key looks valid (32 hex characters)
+  // Real validation happens when user tries to generate
 
-    return response.status !== 401 && response.status !== 403;
-  } catch {
+  if (!apiKey || apiKey.length < 20) {
     return false;
   }
+
+  // CSM API keys are typically 32 character hex strings
+  const hexPattern = /^[a-fA-F0-9]{32}$/;
+  if (hexPattern.test(apiKey)) {
+    return true;
+  }
+
+  // Also accept other formats that look like API keys
+  const apiKeyPattern = /^[a-zA-Z0-9_-]{20,}$/;
+  return apiKeyPattern.test(apiKey);
+
 }

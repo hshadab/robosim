@@ -3,7 +3,7 @@ import {
   Bot, ArrowLeft, MousePointer2, Keyboard, Gamepad2, Package, LineChart,
   Usb, Play, Target, Layers, ChevronDown, ChevronRight, Zap, Hand,
   Code, Download, Settings, Brain, Cpu, CheckCircle, Mic, Eye, Box,
-  Camera, Wand2, GraduationCap, Upload, Palette
+  Camera, Wand2, GraduationCap, Upload, Palette, Languages
 } from 'lucide-react';
 
 interface HowToUsePageProps {
@@ -37,7 +37,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Enable Click-to-Move Mode',
-          description: 'In the right panel, find "Advanced Controls" and click the "Click" button (mouse icon) to enable click-to-move mode.',
+          description: 'Go to the Control tab in the Tools panel (right side), open "Advanced Controls" and click the "Click" button (mouse icon).',
           tip: 'The button turns green when active'
         },
         {
@@ -64,7 +64,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Enable Keyboard Mode',
-          description: 'In "Advanced Controls", click the "Keys" button (keyboard icon). The panel turns purple when active.',
+          description: 'Go to the Control tab → Advanced Controls, click the "Keys" button (keyboard icon). The panel turns purple when active.',
         },
         {
           title: 'Focus the Application',
@@ -106,7 +106,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
         },
         {
           title: 'Enable Gamepad Mode',
-          description: 'Click the "Pad" button to activate gamepad control. It turns orange when active.',
+          description: 'Go to Control tab → Advanced Controls, click the "Pad" button. It turns orange when active.',
         },
         {
           title: 'Left Stick: Base & Shoulder',
@@ -132,7 +132,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Find Task Templates Panel',
-          description: 'Scroll down in the right sidebar to find "Task Templates" (package icon).',
+          description: 'Go to the Control tab in the Tools panel (right side), then open "Task Templates".',
         },
         {
           title: 'Browse Available Tasks',
@@ -158,7 +158,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Locate the Graph',
-          description: 'The Joint Trajectory Graph is in the center column, below the environment and sensor panels.',
+          description: 'Go to the Control tab in the Tools panel (right side), then open "Trajectory".',
         },
         {
           title: 'Understand the Display',
@@ -188,7 +188,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Open Advanced Controls Settings',
-          description: 'In "Advanced Controls" panel, click the settings gear icon to expand options.',
+          description: 'Go to Control tab → Advanced Controls, click the settings gear icon to expand options.',
         },
         {
           title: 'Enable Workspace Toggle',
@@ -207,7 +207,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'serial',
-      title: 'Hardware Connection (Web Serial)',
+      title: 'Serial Connection',
       icon: <Usb className="w-5 h-5" />,
       color: 'blue',
       benefit: 'Connect directly to your real SO-101 robot and mirror simulation movements in real-time!',
@@ -217,8 +217,8 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
           description: 'Web Serial requires Chrome, Edge, or Opera. Firefox and Safari are not supported.',
         },
         {
-          title: 'Find Hardware Connection Panel',
-          description: 'In the right sidebar, find "Hardware Connection" (USB icon).',
+          title: 'Find Serial Connection Panel',
+          description: 'Go to the Hardware tab in the Tools panel (right side), then open "Serial Connection".',
         },
         {
           title: 'Connect Your Robot',
@@ -242,14 +242,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'hand',
-      title: 'Hand Gesture Control',
+      title: 'Hand Tracking',
       icon: <Hand className="w-5 h-5" />,
       color: 'pink',
       benefit: 'Control the robot arm naturally using your hand movements via webcam.',
       steps: [
         {
           title: 'Find Hand Tracking Panel',
-          description: 'In the right sidebar, find "Hand Tracking" panel.',
+          description: 'Go to the Hardware tab in the Tools panel (right side), then open "Hand Tracking".',
         },
         {
           title: 'Enable Camera Access',
@@ -302,14 +302,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'dataset',
-      title: 'Dataset Recording (LeRobot)',
+      title: 'Record Dataset',
       icon: <Download className="w-5 h-5" />,
       color: 'cyan',
       benefit: 'Record robot movements for machine learning training in HuggingFace LeRobot format.',
       steps: [
         {
-          title: 'Find Dataset Recorder',
-          description: 'In the right sidebar, find "Dataset Recorder" panel.',
+          title: 'Find Record Dataset Panel',
+          description: 'Go to the Data tab in the Tools panel (right side), then open "Record Dataset".',
         },
         {
           title: 'Start Recording',
@@ -361,6 +361,33 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       ],
     },
     {
+      id: 'copilot',
+      title: 'Code Copilot (AI Assistance)',
+      icon: <Code className="w-5 h-5" />,
+      color: 'yellow',
+      benefit: 'Get AI-powered code completions, generate code from comments, and explain robot programs.',
+      steps: [
+        {
+          title: 'Write a Comment',
+          description: 'In the code editor, write a comment describing what you want, like "// wave hello" or "// pick up the block".',
+        },
+        {
+          title: 'Generate Code from Comments',
+          description: 'Press Ctrl+Shift+G (Cmd+Shift+G on Mac) to have AI generate code from your comment.',
+          tip: 'The AI reads your comment and generates the appropriate robot commands'
+        },
+        {
+          title: 'Explain Selected Code',
+          description: 'Select any code block and press Ctrl+Shift+E to get an AI explanation of what it does.',
+        },
+        {
+          title: 'Use Intelligent Autocomplete',
+          description: 'As you type, the AI provides smart completions for robot API methods like robot.moveJoint(), robot.goHome(), and robot.openGripper().',
+          tip: 'Press Tab to accept completions, Escape to dismiss'
+        },
+      ],
+    },
+    {
       id: 'voice',
       title: 'Voice Control',
       icon: <Mic className="w-5 h-5" />,
@@ -369,7 +396,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       steps: [
         {
           title: 'Open Voice Control Panel',
-          description: 'In the AI tab of the Tools panel, find "Voice Control".',
+          description: 'Go to the AI tab in the Tools panel (right side), then open "Voice Control".',
         },
         {
           title: 'Allow Microphone Access',
@@ -388,14 +415,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'vision',
-      title: 'Vision AI Analysis',
+      title: 'Vision Analysis',
       icon: <Eye className="w-5 h-5" />,
       color: 'pink',
       benefit: 'Ask questions about the scene and get AI-powered answers about objects and positions.',
       steps: [
         {
           title: 'Open Vision Analysis Panel',
-          description: 'In the AI tab, find "Vision Analysis" panel.',
+          description: 'Go to the AI tab in the Tools panel (right side), then open "Vision Analysis".',
         },
         {
           title: 'Capture the Scene',
@@ -414,14 +441,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'text3d',
-      title: 'Text to 3D Objects',
+      title: 'Text to 3D',
       icon: <Box className="w-5 h-5" />,
       color: 'emerald',
       benefit: 'Generate 3D objects from text descriptions - create training environments instantly.',
       steps: [
         {
           title: 'Open Text to 3D Panel',
-          description: 'In the AI tab, find "Text to 3D" panel.',
+          description: 'Go to the AI tab in the Tools panel (right side), then open "Text to 3D".',
         },
         {
           title: 'Describe Your Object',
@@ -440,14 +467,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'image3d',
-      title: 'Image to 3D (CSM)',
+      title: 'Image to 3D',
       icon: <Camera className="w-5 h-5" />,
       color: 'teal',
       benefit: 'Upload a photo of any real object and convert it to a training-ready 3D model.',
       steps: [
         {
           title: 'Open Image to 3D Panel',
-          description: 'In the AI tab, find "Image to 3D" panel with CSM badge.',
+          description: 'Go to the AI tab in the Tools panel (right side), then open "Image to 3D" (has CSM badge).',
         },
         {
           title: 'Enter CSM API Key',
@@ -470,14 +497,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'policies',
-      title: 'LeRobot Policy Browser',
+      title: 'LeRobot Policies',
       icon: <Brain className="w-5 h-5" />,
       color: 'purple',
       benefit: 'Load and run pre-trained AI policies from HuggingFace Hub directly in your browser.',
       steps: [
         {
-          title: 'Open Policy Browser',
-          description: 'In the AI tab, find "LeRobot Policies" panel.',
+          title: 'Open LeRobot Policies Panel',
+          description: 'Go to the AI tab in the Tools panel (right side), then open "LeRobot Policies".',
         },
         {
           title: 'Search for Policies',
@@ -496,14 +523,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'autogen',
-      title: 'Auto-Episode Generator',
+      title: 'Auto-Generate',
       icon: <Wand2 className="w-5 h-5" />,
       color: 'lime',
       benefit: 'Generate 100+ training episodes instantly with one click - no manual demos needed.',
       steps: [
         {
           title: 'Open Auto-Generate Panel',
-          description: 'In the Data tab, find "Auto-Generate" panel.',
+          description: 'Go to the Data tab in the Tools panel (right side), then open "Auto-Generate".',
         },
         {
           title: 'Select Task Templates',
@@ -556,18 +583,18 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'augment',
-      title: 'Dataset Augmentation',
+      title: 'Augmentation',
       icon: <Layers className="w-5 h-5" />,
       color: 'indigo',
       benefit: 'Multiply your recorded datasets 2-10x with automatic trajectory variations.',
       steps: [
         {
           title: 'Record Some Episodes',
-          description: 'First record demonstration episodes using the Dataset Recorder.',
+          description: 'First record demonstration episodes using Record Dataset.',
         },
         {
           title: 'Open Augmentation Panel',
-          description: 'In the Data tab, find "Augmentation" panel.',
+          description: 'Go to the Data tab in the Tools panel (right side), then open "Augmentation".',
         },
         {
           title: 'Select Augmentation Types',
@@ -586,14 +613,14 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'randomization',
-      title: 'Visual Domain Randomization',
+      title: 'Visual Randomization',
       icon: <Palette className="w-5 h-5" />,
       color: 'violet',
       benefit: 'Randomize lighting, materials, and camera to prepare policies for real-world transfer.',
       steps: [
         {
           title: 'Open Visual Randomization',
-          description: 'In the Settings tab, find "Visual Randomization" panel.',
+          description: 'Go to the More tab in the Tools panel (right side), then open "Visual Randomization".',
         },
         {
           title: 'Adjust Lighting',
@@ -616,18 +643,18 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     },
     {
       id: 'upload',
-      title: 'HuggingFace Hub Upload',
+      title: 'Upload to Hub',
       icon: <Upload className="w-5 h-5" />,
       color: 'sky',
       benefit: 'Upload your recorded datasets directly to HuggingFace Hub - no CLI required.',
       steps: [
         {
           title: 'Record Episodes',
-          description: 'Use Dataset Recorder or Auto-Generate to create training data.',
+          description: 'Use Record Dataset or Auto-Generate to create training data.',
         },
         {
-          title: 'Open Upload Panel',
-          description: 'In the Data tab, find "Upload to Hub" panel.',
+          title: 'Open Upload to Hub Panel',
+          description: 'Go to the Data tab in the Tools panel (right side), then open "Upload to Hub".',
         },
         {
           title: 'Enter HuggingFace Token',
@@ -644,14 +671,49 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
         },
       ],
     },
+    {
+      id: 'langlearn',
+      title: 'Language-Conditioned Training',
+      icon: <Languages className="w-5 h-5" />,
+      color: 'amber',
+      benefit: 'Train robots to follow natural language instructions - the key to models like RT-1, RT-2, and OpenVLA.',
+      steps: [
+        {
+          title: 'Open LeRobot Dataset Panel',
+          description: 'Go to the Data tab in the Tools panel (right side), then open "LeRobot Dataset".',
+        },
+        {
+          title: 'Expand Settings',
+          description: 'Click the settings arrow to expand the configuration panel.',
+        },
+        {
+          title: 'Enter Language Instruction',
+          description: 'In the "Language Instruction" field, type a natural language description like "Pick up the red cube and place it on the green target".',
+          tip: 'Be specific and descriptive - this is what the robot learns to understand'
+        },
+        {
+          title: 'Record Your Demonstration',
+          description: 'Click Record, then perform the task using any control method (keyboard, gamepad, etc.). Click Success when done.',
+        },
+        {
+          title: 'Export with Language Data',
+          description: 'Export to LeRobot format. The language_instruction is included in episodes.jsonl metadata.',
+        },
+        {
+          title: 'Train Language-Conditioned Policy',
+          description: 'Use the dataset with LeRobot ACT/Diffusion policy or fine-tune OpenVLA for language-conditioned control.',
+          tip: 'Each episode can have a unique instruction for diverse training data'
+        },
+      ],
+    },
   ];
 
   const quickStartSteps = [
     { step: 1, title: 'Select Robot', description: 'Choose SO-101 Arm from the dropdown in the header', icon: <Bot className="w-5 h-5" /> },
-    { step: 2, title: 'Try Manual Control', description: 'Use the joint sliders on the right to move each joint', icon: <Settings className="w-5 h-5" /> },
-    { step: 3, title: 'Enable Keyboard Mode', description: 'Click "Keys" in Advanced Controls, then use WASD', icon: <Keyboard className="w-5 h-5" /> },
-    { step: 4, title: 'Run a Task', description: 'Click play on "Pick & Place" in Task Templates', icon: <Play className="w-5 h-5" /> },
-    { step: 5, title: 'Connect Hardware', description: 'If you have real hardware, use Serial Connection', icon: <Usb className="w-5 h-5" /> },
+    { step: 2, title: 'Try Manual Control', description: 'In the Control tab, use Joint Controls to move each joint', icon: <Settings className="w-5 h-5" /> },
+    { step: 3, title: 'Enable Keyboard Mode', description: 'In Control tab → Advanced Controls, click "Keys" for WASD control', icon: <Keyboard className="w-5 h-5" /> },
+    { step: 4, title: 'Run a Task', description: 'In Control tab → Task Templates, click play on "Pick & Place"', icon: <Play className="w-5 h-5" /> },
+    { step: 5, title: 'Connect Hardware', description: 'In Hardware tab → Serial Connection, connect your robot', icon: <Usb className="w-5 h-5" /> },
   ];
 
   return (

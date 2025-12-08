@@ -195,6 +195,7 @@ export const useLLMChat = () => {
           humanoid: humanoidRef.current,
           sensors: sensorsRef.current,
           isAnimating: isAnimatingRef.current,
+          objects: useAppStore.getState().objects,
         };
 
         // Build conversation history from stored messages

@@ -451,10 +451,12 @@ const SimulateTab: React.FC<SimulateTabProps> = ({ openTutorial }) => {
               </div>
 
               {/* Consolidated Tools with Categorized Tabs */}
-              <ConsolidatedToolsPanel
-                onModeChange={setControlMode}
-                onShowWorkspace={setShowWorkspace}
-              />
+              <div className="flex-1 overflow-hidden">
+                <ConsolidatedToolsPanel
+                  onModeChange={setControlMode}
+                  onShowWorkspace={setShowWorkspace}
+                />
+              </div>
             </div>
           ) : (
             /* Collapsed state - just show expand button */

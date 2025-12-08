@@ -251,7 +251,6 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
             <CollapsibleSection
               title="LeRobot Policies"
               icon={<Brain className="w-4 h-4" />}
-              defaultOpen={true}
               badge="ONNX"
             >
               <PolicyBrowserPanel />
@@ -267,7 +266,7 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
             <TextTo3DPanel />
 
             {/* Image to 3D */}
-            <CollapsibleSection title="Image to 3D" icon={<Camera className="w-4 h-4" />} badge="CSM">
+            <CollapsibleSection title="Image to 3D" icon={<Camera className="w-4 h-4" />} badge="CSM" defaultOpen={true}>
               <ImageTo3DPanel />
             </CollapsibleSection>
 
