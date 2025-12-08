@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout';
-import { LandingPage, LearnMorePage, InstructionsPage } from './components/pages';
+import { LandingPage, LearnMorePage, InstructionsPage, ComparisonPage } from './components/pages';
 import { useLoadSharedState } from './hooks/useLoadSharedState';
 import { useAuthStore } from './stores/useAuthStore';
 
-type MarketingPage = 'landing' | 'learnmore' | 'how-to-use';
+type MarketingPage = 'landing' | 'learnmore' | 'how-to-use' | 'comparison';
 
 function getPageFromPath(): MarketingPage {
   const path = window.location.pathname;
   if (path === '/learnmore') return 'learnmore';
   if (path === '/how-to-use') return 'how-to-use';
+  if (path === '/comparison') return 'comparison';
   return 'landing';
 }
 
@@ -56,11 +57,20 @@ function App() {
         />
       );
     }
+    if (marketingPage === 'comparison') {
+      return (
+        <ComparisonPage
+          onBack={() => navigateTo('landing')}
+          onGetStarted={handleGetStarted}
+        />
+      );
+    }
     return (
       <LandingPage
         onLogin={handleGetStarted}
         onLearnMore={() => navigateTo('learnmore')}
         onInstructions={() => navigateTo('how-to-use')}
+        onComparison={() => navigateTo('comparison')}
       />
     );
   }

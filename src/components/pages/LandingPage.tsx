@@ -32,6 +32,7 @@ interface LandingPageProps {
   onLogin: () => void;
   onLearnMore?: () => void;
   onInstructions?: () => void;
+  onComparison?: () => void;
 }
 
 // Brutalist Robot Arm SVG
@@ -345,7 +346,7 @@ const FEATURE_TABS: Array<{
   },
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstructions }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstructions, onComparison }) => {
   const [hoveredRobot, setHoveredRobot] = useState<string | null>(null);
   const [activeFeatureTab, setActiveFeatureTab] = useState<FeatureTab>('chat');
   const login = useAuthStore((state) => state.login);
@@ -383,6 +384,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
           <a href="#features" className="hidden md:inline text-slate-400 hover:text-white transition font-medium">
             Features
           </a>
+          {onComparison && (
+            <a
+              href="/comparison"
+              onClick={(e) => {
+                e.preventDefault();
+                onComparison();
+              }}
+              className="hidden lg:inline text-orange-400 hover:text-orange-300 transition font-medium"
+            >
+              Why RoboSim?
+            </a>
+          )}
           {onLearnMore && (
             <a
               href="/learnmore"
