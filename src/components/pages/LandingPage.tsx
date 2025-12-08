@@ -438,15 +438,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
               AI-NATIVE ROBOTICS
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight tracking-tight">
-              Build Robot Skills
+              From Chat to Real Robot
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400">
                 In Your Browser
               </span>
             </h1>
             <p className="text-base md:text-xl text-slate-400 mb-6 md:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
-              Simulate, program, and deploy robots with natural language control,
-              pre-trained AI policies, and one-click hardware export.
+              No ROS. No MuJoCo. No GPU. Just open a URL and start building datasets for real robots.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 md:gap-4">
               <button
@@ -560,6 +559,111 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstruc
               <div className="text-slate-500 text-xs md:text-sm hidden sm:block">{item.desc}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Why RoboSim? Mini Differentiators */}
+      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 text-center">
+          <h3 className="text-lg font-bold text-white">Why RoboSim?</h3>
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 bg-blue-500 rounded-full" />
+              <span className="text-slate-400">Browser-first</span>
+              <span className="text-slate-600">– no install</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 bg-purple-500 rounded-full" />
+              <span className="text-slate-400">LeRobot-native</span>
+              <span className="text-slate-600">– Parquet + HF Hub</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span className="text-slate-400">Prompt-first</span>
+              <span className="text-slate-600">– chat & voice control</span>
+            </div>
+          </div>
+          {onComparison && (
+            <button
+              onClick={onComparison}
+              className="text-orange-400 hover:text-orange-300 text-sm font-medium transition"
+            >
+              See full comparison →
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* 3-Step Workflow */}
+      <section className="relative px-4 md:px-8 py-12 md:py-16 max-w-7xl mx-auto">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-2xl md:text-3xl font-black text-white mb-3">What You Can Do in an Afternoon</h2>
+          <p className="text-slate-400">From zero to trained policy in three steps</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          {/* Step 1 */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-blue-500/50 transition">
+            <div className="absolute -top-4 left-6 bg-blue-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
+              1
+            </div>
+            <div className="mt-2">
+              <h3 className="text-lg font-bold text-white mb-2">Teleoperate & Record</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Control the SO-101 with chat, keyboard, gamepad, or click-to-move IK.
+                Connect real hardware via Web Serial.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">WASD Control</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Gamepad</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Web Serial</span>
+              </div>
+            </div>
+          </div>
+          {/* Step 2 */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-purple-500/50 transition">
+            <div className="absolute -top-4 left-6 bg-purple-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
+              2
+            </div>
+            <div className="mt-2">
+              <h3 className="text-lg font-bold text-white mb-2">Generate Dataset</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Use task templates and auto-generation to create 100+ episodes.
+                Add language instructions for RT-1/OpenVLA training.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">LeRobot Format</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Parquet</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">HF Upload</span>
+              </div>
+            </div>
+          </div>
+          {/* Step 3 */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-green-500/50 transition">
+            <div className="absolute -top-4 left-6 bg-green-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
+              3
+            </div>
+            <div className="mt-2">
+              <h3 className="text-lg font-bold text-white mb-2">Train & Deploy</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Train ACT/Diffusion policies with LeRobot, load them back via ONNX Runtime Web,
+                and run on sim or real hardware.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">ONNX Runtime</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">ACT Policy</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Sim2Real</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="text-center mt-8">
+          <button
+            onClick={handleEnterApp}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 text-white px-8 py-3 font-bold hover:opacity-90 transition"
+          >
+            Start the Workflow
+            <ArrowRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
 
