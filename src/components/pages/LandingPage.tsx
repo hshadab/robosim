@@ -26,7 +26,6 @@ import {
   Camera,
   Languages,
 } from 'lucide-react';
-import { useAuthStore } from '../../stores/useAuthStore';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -346,13 +345,12 @@ const FEATURE_TABS: Array<{
   },
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLearnMore, onInstructions, onComparison }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, onInstructions, onComparison }) => {
   const [hoveredRobot, setHoveredRobot] = useState<string | null>(null);
   const [activeFeatureTab, setActiveFeatureTab] = useState<FeatureTab>('chat');
-  const login = useAuthStore((state) => state.login);
 
   const handleEnterApp = () => {
-    login('demo@robosim.dev');
+    onLogin();
   };
 
   const activeFeature = FEATURE_TABS.find(f => f.id === activeFeatureTab)!;

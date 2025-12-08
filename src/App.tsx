@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout';
-import { LandingPage, LearnMorePage, InstructionsPage, ComparisonPage } from './components/pages';
+import { LandingPage, LearnMorePage, InstructionsPage, ComparisonPage, LoginModal } from './components/pages';
 import { useLoadSharedState } from './hooks/useLoadSharedState';
 import { useAuthStore } from './stores/useAuthStore';
 
@@ -15,8 +15,9 @@ function getPageFromPath(): MarketingPage {
 }
 
 function App() {
-  const { isAuthenticated, login } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [marketingPage, setMarketingPage] = useState<MarketingPage>(getPageFromPath);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Load shared state from URL on startup
   useLoadSharedState();
@@ -31,7 +32,11 @@ function App() {
   }, []);
 
   const handleGetStarted = () => {
-    login('demo@robosim.dev');
+    setShowLoginModal(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
   };
 
   const navigateTo = (page: MarketingPage) => {
@@ -66,12 +71,20 @@ function App() {
       );
     }
     return (
-      <LandingPage
-        onLogin={handleGetStarted}
-        onLearnMore={() => navigateTo('learnmore')}
-        onInstructions={() => navigateTo('how-to-use')}
-        onComparison={() => navigateTo('comparison')}
-      />
+      <>
+        <LandingPage
+          onLogin={handleGetStarted}
+          onLearnMore={() => navigateTo('learnmore')}
+          onInstructions={() => navigateTo('how-to-use')}
+          onComparison={() => navigateTo('comparison')}
+        />
+        {showLoginModal && (
+          <LoginModal
+            onClose={() => setShowLoginModal(false)}
+            onSuccess={handleLoginSuccess}
+          />
+        )}
+      </>
     );
   }
 
