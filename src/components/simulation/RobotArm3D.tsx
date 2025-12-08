@@ -250,7 +250,6 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
     });
 
     canvas.addEventListener('webglcontextrestored', () => {
-      console.log('WebGL context restored');
       setContextLost(false);
     });
   }, []);

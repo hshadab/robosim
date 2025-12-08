@@ -188,8 +188,7 @@ function checkStepComplete(
 // Calculate progress for a step (0-100)
 function calculateStepProgress(
   currentJoints: JointState,
-  targetJoints: Partial<JointState>,
-  _tolerance: number
+  targetJoints: Partial<JointState>
 ): number {
   const joints = Object.entries(targetJoints);
   if (joints.length === 0) return 100;
@@ -227,26 +226,27 @@ export const GuidedChallengePanel: React.FC = () => {
   // Step progress
   const stepProgress = useMemo(() => {
     if (!currentStep) return 0;
-    return calculateStepProgress(joints, currentStep.targetJoints, currentStep.tolerance);
+    return calculateStepProgress(joints, currentStep.targetJoints);
   }, [joints, currentStep]);
 
   // Auto-advance when step is complete
   useEffect(() => {
-    if (isCurrentStepComplete && currentStep && !completedSteps.has(currentStep.id)) {
-      setCompletedSteps((prev) => new Set(prev).add(currentStep.id));
-
-      // Auto-advance after delay
-      const timer = setTimeout(() => {
-        if (selectedChallenge && currentStepIndex < selectedChallenge.steps.length - 1) {
-          setCurrentStepIndex((prev) => prev + 1);
-          setShowHint(false);
-        } else {
-          setChallengeComplete(true);
-        }
-      }, 1500);
-
-      return () => clearTimeout(timer);
+    if (!isCurrentStepComplete || !currentStep || completedSteps.has(currentStep.id)) {
+      return;
     }
+
+    // Mark step complete and auto-advance after delay
+    const timer = setTimeout(() => {
+      setCompletedSteps((prev) => new Set(prev).add(currentStep.id));
+      if (selectedChallenge && currentStepIndex < selectedChallenge.steps.length - 1) {
+        setCurrentStepIndex((prev) => prev + 1);
+        setShowHint(false);
+      } else {
+        setChallengeComplete(true);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [isCurrentStepComplete, currentStep, completedSteps, selectedChallenge, currentStepIndex]);
 
   // Start challenge

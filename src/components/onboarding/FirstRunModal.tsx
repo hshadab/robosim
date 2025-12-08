@@ -160,14 +160,24 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
  * Hook to manage first-run state
  */
 export const useFirstRun = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [hasChecked, setHasChecked] = useState(false);
+  const [showModal, setShowModal] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !localStorage.getItem(STORAGE_KEY);
+    }
+    return false;
+  });
+  const [hasChecked, setHasChecked] = useState(() => typeof window !== 'undefined');
 
   useEffect(() => {
+    // Re-check on mount for SSR hydration
     const hasCompleted = localStorage.getItem(STORAGE_KEY);
-    setShowModal(!hasCompleted);
-    setHasChecked(true);
-  }, []);
+    if (!hasCompleted !== showModal) {
+      setShowModal(!hasCompleted);
+    }
+    if (!hasChecked) {
+      setHasChecked(true);
+    }
+  }, [showModal, hasChecked]);
 
   const markComplete = () => {
     localStorage.setItem(STORAGE_KEY, 'true');

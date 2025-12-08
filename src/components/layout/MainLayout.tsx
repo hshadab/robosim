@@ -20,7 +20,7 @@ export const MainLayout: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [triggerTutorial, setTriggerTutorial] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuthStore();
+  const { user, profile, logout } = useAuthStore();
   const {
     selectedRobotId,
     setSelectedRobot,
@@ -174,7 +174,7 @@ export const MainLayout: React.FC = () => {
           ) : (
             <>
               <span className="text-sm text-slate-400 hidden md:inline">
-                {user?.name || user?.email}
+                {profile?.full_name || user?.email}
               </span>
               <button
                 onClick={logout}
@@ -212,7 +212,7 @@ export const MainLayout: React.FC = () => {
             ))}
             <div className="border-t border-slate-700 my-2" />
             <div className="px-4 py-2 text-sm text-slate-400">
-              {user?.name || user?.email}
+              {profile?.full_name || user?.email}
             </div>
             <button
               onClick={() => {

@@ -20,7 +20,11 @@ export function useMediaQuery(query: string): boolean {
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(query);
-    setMatches(mediaQuery.matches);
+
+    // Sync state if it differs (handles SSR hydration)
+    if (mediaQuery.matches !== matches) {
+      setMatches(mediaQuery.matches);
+    }
 
     const handler = (event: MediaQueryListEvent) => {
       setMatches(event.matches);
@@ -28,7 +32,7 @@ export function useMediaQuery(query: string): boolean {
 
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
-  }, [query]);
+  }, [query, matches]);
 
   return matches;
 }
@@ -47,14 +51,19 @@ export function useIsDesktop(): boolean {
 }
 
 export function useIsTouchDevice(): boolean {
-  const [isTouch, setIsTouch] = useState(false);
+  const [isTouch, setIsTouch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+    return false;
+  });
 
   useEffect(() => {
-    setIsTouch(
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0
-    );
-  }, []);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isTouchDevice !== isTouch) {
+      setIsTouch(isTouchDevice);
+    }
+  }, [isTouch]);
 
   return isTouch;
 }

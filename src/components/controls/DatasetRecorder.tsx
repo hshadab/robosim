@@ -148,7 +148,7 @@ export const DatasetRecorderPanel: React.FC = () => {
     setBatchCurrent(0);
     setBatchPaused(false);
     startRecording();
-  }, []);
+  }, [startRecording]);
 
   // Pause/resume batch
   const toggleBatchPause = useCallback(() => {
@@ -166,7 +166,7 @@ export const DatasetRecorderPanel: React.FC = () => {
         batchTimerRef.current = null;
       }
     }
-  }, [batchPaused, isRecording]);
+  }, [batchPaused, isRecording, startRecording]);
 
   // Cancel batch recording
   const cancelBatchRecording = useCallback(() => {
@@ -180,7 +180,7 @@ export const DatasetRecorderPanel: React.FC = () => {
     if (isRecording) {
       stopRecording(false);
     }
-  }, [isRecording]);
+  }, [isRecording, stopRecording]);
 
   const clearEpisodes = () => {
     setEpisodes([]);
@@ -203,7 +203,6 @@ export const DatasetRecorderPanel: React.FC = () => {
           spatialJitter: 1.0,
         };
         episodesToExport = augmentDataset(episodes, augConfig);
-        console.log(`Augmented ${episodes.length} episodes to ${episodesToExport.length} episodes`);
       }
 
       if (exportFormat === 'lerobot') {

@@ -4,47 +4,32 @@ import { RoundedBox, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
 
-// GLB Model component
+// GLB Model component - hooks must be called unconditionally
 const GLBModel: React.FC<{
   url: string;
   position: [number, number, number];
   rotation: [number, number, number];
   scale: number;
 }> = ({ url, position, rotation, scale }) => {
-  console.log('[GLBModel] Loading model from:', url);
+  const { scene } = useGLTF(url);
+  const clonedScene = scene.clone();
 
-  try {
-    const { scene } = useGLTF(url);
-    const clonedScene = scene.clone();
+  // Enable shadows on all meshes
+  clonedScene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
 
-    // Enable shadows on all meshes
-    clonedScene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-
-    console.log('[GLBModel] Model loaded successfully');
-
-    return (
-      <primitive
-        object={clonedScene}
-        position={position}
-        rotation={rotation}
-        scale={[scale, scale, scale]}
-      />
-    );
-  } catch (error) {
-    console.error('[GLBModel] Failed to load model:', error);
-    // Return a red box as fallback
-    return (
-      <mesh position={position}>
-        <boxGeometry args={[scale, scale, scale]} />
-        <meshStandardMaterial color="red" />
-      </mesh>
-    );
-  }
+  return (
+    <primitive
+      object={clonedScene}
+      position={position}
+      rotation={rotation}
+      scale={[scale, scale, scale]}
+    />
+  );
 };
 
 interface SimObjectProps {
@@ -132,9 +117,7 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
         );
 
       case 'glb':
-        console.log('[SimObjectMesh] Rendering GLB:', object.modelUrl);
         if (!object.modelUrl) {
-          console.warn('[SimObjectMesh] No modelUrl for GLB object');
           return null;
         }
         return (
@@ -256,14 +239,6 @@ export const SimObjectsLayer: React.FC<SimObjectsLayerProps> = ({
   gripperPosition
 }) => {
   const grabRadius = 0.1; // Must match the hook
-
-  // Debug: log when objects change
-  React.useEffect(() => {
-    console.log('[SimObjectsLayer] Objects count:', objects.length);
-    objects.forEach(obj => {
-      console.log('[SimObjectsLayer] Object:', obj.id, obj.type, obj.modelUrl?.substring(0, 50));
-    });
-  }, [objects]);
 
   return (
     <group>

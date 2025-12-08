@@ -60,9 +60,8 @@ export const SerialConnectionPanel: React.FC = () => {
         setError(err.message);
         setConnectionState('error');
       },
-      onJointFeedback: (feedbackJoints) => {
+      onJointFeedback: () => {
         // Could update UI with feedback here
-        console.log('Joint feedback:', feedbackJoints);
       },
     });
   }, []);

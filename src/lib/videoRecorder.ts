@@ -129,7 +129,6 @@ export class CanvasVideoRecorder {
       this.mediaRecorder.start(100); // Get data every 100ms
       this.isRecording = true;
 
-      console.log(`Video recording started: ${mimeType}, ${this.options.fps} fps`);
       return true;
     } catch (error) {
       console.error('Failed to start video recording:', error);
@@ -164,7 +163,6 @@ export class CanvasVideoRecorder {
           this.stream = null;
         }
 
-        console.log(`Video recording stopped: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
         resolve(blob);
       };
 
@@ -240,8 +238,7 @@ export class CanvasVideoRecorder {
  */
 export async function convertWebMToMP4(webmBlob: Blob): Promise<Blob> {
   // For now, return as-is since browser-native MP4 encoding is limited
-  // In production, we'd use ffmpeg.wasm for true MP4 conversion
-  console.log('Note: Video is in WebM format. For MP4, use ffmpeg conversion.');
+  // In production, use ffmpeg.wasm for true MP4 conversion
   return webmBlob;
 }
 

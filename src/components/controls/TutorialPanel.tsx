@@ -180,14 +180,18 @@ function loadProgress(): TutorialProgress {
     if (saved) {
       return JSON.parse(saved);
     }
-  } catch {}
+  } catch {
+    // Ignore localStorage errors
+  }
   return { completedSteps: [], currentModule: null, dismissed: false };
 }
 
 function saveProgress(progress: TutorialProgress): void {
   try {
     localStorage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify(progress));
-  } catch {}
+  } catch {
+    // Ignore localStorage errors
+  }
 }
 
 export const TutorialPanel: React.FC = () => {

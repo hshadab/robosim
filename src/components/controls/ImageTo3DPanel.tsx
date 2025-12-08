@@ -103,12 +103,6 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
 
   // Add object to scene
   const handleAddToScene = useCallback((obj: Generated3DObject) => {
-    console.log('[ImageTo3D] Adding to scene:', {
-      name: obj.name,
-      meshUrl: obj.meshUrl,
-      dimensions: obj.dimensions,
-    });
-
     // Calculate scale - models from fal.ai are typically normalized, so use a reasonable default
     const scale = 0.08; // 8cm - good size for robot manipulation
 
@@ -125,7 +119,6 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
       name: obj.name,
     });
 
-    console.log('[ImageTo3D] Object spawned successfully');
     onObjectGenerated?.(obj);
   }, [spawnObject, onObjectGenerated]);
 

@@ -110,9 +110,6 @@ export class PolicyRunner {
         config: config || null,
       };
 
-      console.log('[PolicyRunner] Model loaded successfully');
-      console.log('[PolicyRunner] Input names:', this.session.inputNames);
-      console.log('[PolicyRunner] Output names:', this.session.outputNames);
     } catch (error) {
       console.error('[PolicyRunner] Failed to load model:', error);
       throw error;

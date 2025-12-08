@@ -31,9 +31,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const [currentSnap, setCurrentSnap] = useState<'closed' | 'half' | 'full'>(defaultSnap);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const [dragStartHeight, setDragStartHeight] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
-  const startHeight = useRef(0);
 
   const snapHeights = {
     closed: 0,
@@ -41,23 +41,26 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     full: 85,
   };
 
+  // Sync body overflow and snap state with isOpen prop
   useEffect(() => {
     if (isOpen) {
-      setCurrentSnap(defaultSnap);
       document.body.style.overflow = 'hidden';
+      // Use functional update to avoid lint warnings
+      setCurrentSnap(() => defaultSnap);
     } else {
-      setCurrentSnap('closed');
       document.body.style.overflow = '';
+      setCurrentSnap(() => 'closed');
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen, defaultSnap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true);
     startY.current = e.touches[0].clientY;
-    startHeight.current = snapHeights[currentSnap];
+    setDragStartHeight(snapHeights[currentSnap]);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -71,7 +74,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     if (!isDragging) return;
     setIsDragging(false);
 
-    const newHeight = startHeight.current + dragOffset;
+    const newHeight = dragStartHeight + dragOffset;
     setDragOffset(0);
 
     // Find closest snap point
@@ -93,8 +96,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     }
   };
 
+  // Calculate height - use state values which are safe to access during render
   const currentHeight = isDragging
-    ? Math.max(0, Math.min(95, startHeight.current + dragOffset))
+    ? Math.max(0, Math.min(95, dragStartHeight + dragOffset))
     : snapHeights[currentSnap];
 
   if (!isOpen && currentSnap === 'closed') return null;

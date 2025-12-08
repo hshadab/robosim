@@ -10,6 +10,18 @@
  * API Docs: https://developer.hyper3d.ai/api-specification/rodin-generation
  */
 
+import {
+  estimateGraspPoints,
+  estimatePhysicsConfig,
+  imageFileToBase64,
+  type GraspPoint,
+  type PhysicsConfig,
+  type Generated3DObject,
+} from './grasp3DUtils';
+
+export type { GraspPoint, PhysicsConfig, Generated3DObject };
+export { estimateGraspPoints, estimatePhysicsConfig, imageFileToBase64 };
+
 export interface RodinConfig {
   apiKey: string;
 }
@@ -46,32 +58,6 @@ export interface RodinDownloadResult {
     name: string;
     url: string;
   }>;
-}
-
-export interface Generated3DObject {
-  sessionId: string;
-  name: string;
-  meshUrl: string;
-  objUrl?: string;
-  fbxUrl?: string;
-  thumbnailUrl?: string;
-  dimensions: [number, number, number];
-  graspPoints: GraspPoint[];
-  physicsConfig: PhysicsConfig;
-}
-
-export interface GraspPoint {
-  position: [number, number, number];
-  normal: [number, number, number];
-  graspType: 'pinch' | 'power' | 'hook';
-  confidence: number;
-}
-
-export interface PhysicsConfig {
-  mass: number;
-  friction: number;
-  restitution: number;
-  collisionShape: 'box' | 'sphere' | 'convex' | 'mesh';
 }
 
 // Use Vite proxy in development to bypass CORS
@@ -119,8 +105,6 @@ export async function createRodinSession(
   // Request GLB format
   formData.append('geometry_file_format', 'glb');
 
-  console.log('[Rodin] Creating session with tier:', request.tier || 'Regular');
-
   const response = await fetch(`${RODIN_API_BASE}/rodin`, {
     method: 'POST',
     headers: {
@@ -136,7 +120,6 @@ export async function createRodinSession(
   }
 
   const result = await response.json();
-  console.log('[Rodin] Session created:', result);
 
   if (result.error) {
     throw new Error('Rodin error: ' + result.error);
@@ -200,8 +183,6 @@ export async function waitForSession(
   const startTime = Date.now();
   const pollInterval = 2000; // Rodin is faster, poll every 2s
 
-  console.log('[Rodin] Starting to poll session:', session.uuid);
-
   while (Date.now() - startTime < maxWaitMs) {
     try {
       const statuses = await checkJobStatus(config, session.jobs.subscription_key);
@@ -211,17 +192,10 @@ export async function waitForSession(
       const mainJob = statuses[0];
 
       if (mainJob) {
-        console.log('[Rodin] Poll result:', {
-          status: mainJob.status,
-          progress: mainJob.progress,
-          elapsed: Math.round(elapsed / 1000) + 's',
-        });
-
         const progressPercent = mainJob.progress || (elapsed / 120000) * 100;
         onProgress?.(mainJob.status, Math.min(95, progressPercent));
 
         if (mainJob.status === 'Done') {
-          console.log('[Rodin] Generation complete!');
           // Get download links
           const result = await downloadResult(config, session.jobs.uuids[0]);
           return result;
@@ -241,103 +215,6 @@ export async function waitForSession(
   }
 
   throw new Error('Timeout waiting for 3D generation');
-}
-
-export function estimateGraspPoints(
-  dimensions: [number, number, number],
-  _objectType?: string
-): GraspPoint[] {
-  const [width, height, depth] = dimensions;
-  const graspPoints: GraspPoint[] = [];
-
-  const maxDim = Math.max(width, height, depth);
-  const minDim = Math.min(width, height, depth);
-  const aspectRatio = maxDim / minDim;
-
-  if (aspectRatio > 3) {
-    graspPoints.push({
-      position: [0, -height * 0.3, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.9,
-    });
-    graspPoints.push({
-      position: [0, height * 0.4, 0],
-      normal: [1, 0, 0],
-      graspType: 'pinch',
-      confidence: 0.7,
-    });
-  } else if (aspectRatio < 1.5) {
-    graspPoints.push({
-      position: [width * 0.4, 0, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.85,
-    });
-    graspPoints.push({
-      position: [-width * 0.4, 0, 0],
-      normal: [-1, 0, 0],
-      graspType: 'power',
-      confidence: 0.85,
-    });
-    if (maxDim < 0.1) {
-      graspPoints.push({
-        position: [0, height * 0.4, 0],
-        normal: [0, 1, 0],
-        graspType: 'pinch',
-        confidence: 0.8,
-      });
-    }
-  } else {
-    graspPoints.push({
-      position: [0, 0, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.8,
-    });
-    graspPoints.push({
-      position: [0, height * 0.3, 0],
-      normal: [0, 1, 0],
-      graspType: 'pinch',
-      confidence: 0.7,
-    });
-  }
-
-  return graspPoints;
-}
-
-export function estimatePhysicsConfig(
-  dimensions: [number, number, number],
-  _objectType?: string
-): PhysicsConfig {
-  const [width, height, depth] = dimensions;
-  const volume = width * height * depth;
-
-  const density = 800;
-  const mass = Math.max(0.01, Math.min(5, volume * density));
-
-  const aspectRatio = Math.max(width, height, depth) / Math.min(width, height, depth);
-  let collisionShape: PhysicsConfig['collisionShape'] = 'convex';
-
-  if (aspectRatio < 1.3) {
-    collisionShape = 'box';
-  }
-
-  return {
-    mass,
-    friction: 0.5,
-    restitution: 0.2,
-    collisionShape,
-  };
-}
-
-export async function imageFileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 export async function generateTrainableObject(
@@ -374,7 +251,6 @@ export async function generateTrainableObject(
   onProgress?.('processing', 92, 'Processing mesh...');
 
   const files = downloadFiles.list || [];
-  console.log('[Rodin] Available files:', files);
 
   // Find GLB file
   const glbFile = files.find((f) => f.name?.endsWith('.glb') || f.url?.includes('.glb'));

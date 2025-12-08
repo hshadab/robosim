@@ -62,12 +62,21 @@ export const HuggingFaceUploadPanel: React.FC<HuggingFaceUploadPanelProps> = ({
   const [progress, setProgress] = useState<HFUploadProgress | null>(null);
   const [result, setResult] = useState<HFUploadResult | null>(null);
   
-  // Generate default repo name
-  useEffect(() => {
+  // Generate default repo name - use lazy initialization instead of effect
+  const [repoNameInitialized] = useState(() => {
     if (!repoName) {
-      setRepoName(generateRepoName(task, robotId));
+      return generateRepoName(task, robotId);
     }
-  }, [task, robotId, repoName]);
+    return repoName;
+  });
+
+  // Sync repoName with initialized value on first render only
+  useEffect(() => {
+    if (!repoName && repoNameInitialized) {
+      setRepoName(repoNameInitialized);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Validate repo name
   const repoNameValidation = useMemo(

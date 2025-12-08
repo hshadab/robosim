@@ -39,6 +39,31 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split heavy ML libraries into separate chunks for better caching
+          'ml-transformers': ['@huggingface/transformers'],
+          'ml-onnx': ['onnxruntime-web'],
+          'mediapipe': ['@mediapipe/tasks-vision'],
+          // Split Three.js ecosystem
+          'three-core': ['three'],
+          'three-fiber': ['@react-three/fiber', '@react-three/drei'],
+          'three-physics': ['@react-three/rapier'],
+          // Split large UI dependencies
+          'monaco-editor': ['@monaco-editor/react'],
+        },
+      },
+    },
+    // Increase chunk size warning limit (some WASM chunks are inherently large)
+    chunkSizeWarningLimit: 1000,
+  },
+  // Optimize dependencies for faster dev server startup
+  optimizeDeps: {
+    include: ['three', '@react-three/fiber', '@react-three/drei'],
+    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+  },
   test: {
     globals: true,
     environment: 'jsdom',

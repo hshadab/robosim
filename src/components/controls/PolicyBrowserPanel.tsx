@@ -92,15 +92,13 @@ export const PolicyBrowserPanel: React.FC = () => {
       }
 
       // Download config
-      const config = await downloadPolicyConfig(policy.modelId, (progress, msg) => {
+      const config = await downloadPolicyConfig(policy.modelId, (progress) => {
         setDownloadProgress(progress * 0.2); // 0-20%
-        console.log('[PolicyBrowser] Config:', msg);
       });
 
       // Download ONNX model
-      const modelBuffer = await downloadOnnxModel(policy.modelId, (progress, msg) => {
+      const modelBuffer = await downloadOnnxModel(policy.modelId, (progress) => {
         setDownloadProgress(20 + progress * 0.7); // 20-90%
-        console.log('[PolicyBrowser] Model:', msg);
       });
 
       if (!modelBuffer) {

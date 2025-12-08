@@ -5,7 +5,7 @@
  * Helps identify data quality issues and coverage gaps.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -19,26 +19,10 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
-import { useState } from 'react';
-
-// Types for episodes (matching datasetExporter)
-interface Episode {
-  frames: Array<{
-    timestamp: number;
-    observation: { jointPositions: number[] };
-    action: { jointTargets: number[] };
-    done: boolean;
-  }>;
-  metadata: {
-    duration: number;
-    success: boolean;
-    task?: string;
-  };
-}
+import type { Episode } from '../../lib/datasetExporter';
 
 interface DatasetStatsProps {
   episodes: Episode[];
-  robotType?: string;
 }
 
 interface JointStats {
@@ -220,7 +204,7 @@ const JointCoverage: React.FC<{ stats: JointStats; jointIndex: number }> = ({
   );
 };
 
-export const DatasetStatsPanel: React.FC<DatasetStatsProps> = ({ episodes, robotType: _robotType = 'so-101' }) => {
+export const DatasetStatsPanel: React.FC<DatasetStatsProps> = ({ episodes }) => {
   const [expanded, setExpanded] = useState(true);
   const [showJointDetails, setShowJointDetails] = useState(false);
 

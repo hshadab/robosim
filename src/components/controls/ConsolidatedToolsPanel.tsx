@@ -48,6 +48,7 @@ import { GuidedChallengePanel } from './GuidedChallengePanel';
 import { JointTrajectoryGraph } from './JointTrajectoryGraph';
 import { PolicyBrowserPanel } from './PolicyBrowserPanel';
 import { VoiceControlPanel } from './VoiceControlPanel';
+import type { Episode } from '../../lib/datasetExporter';
 import { VisionAnalysisPanel } from './VisionAnalysisPanel';
 import { TextTo3DPanel } from './TextTo3DPanel';
 import { AIEnvironmentPanel } from './AIEnvironmentPanel';
@@ -147,19 +148,7 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
   const { activeRobotType } = useAppStore();
 
   // Mock episodes for stats/augmentation panel demo (empty for now, populated from recording)
-  const mockEpisodes: Array<{
-    frames: Array<{
-      timestamp: number;
-      observation: { jointPositions: number[] };
-      action: { jointTargets: number[] };
-      done: boolean;
-    }>;
-    metadata: {
-      duration: number;
-      success: boolean;
-      task?: string;
-    };
-  }> = [];
+  const mockEpisodes: Episode[] = [];
 
   return (
     <div className="h-full flex flex-col bg-slate-900/50">
@@ -289,11 +278,11 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
             </CollapsibleSection>
 
             {/* Dataset Stats */}
-            <DatasetStatsPanel episodes={mockEpisodes} robotType="so-101" />
+            <DatasetStatsPanel episodes={mockEpisodes} />
 
             {/* Dataset Augmentation */}
             <CollapsibleSection title="Augmentation" icon={<Layers className="w-4 h-4" />} badge="NEW">
-              <DatasetAugmentationPanel episodes={mockEpisodes as any[]} />
+              <DatasetAugmentationPanel episodes={mockEpisodes} />
             </CollapsibleSection>
 
             {/* Auto-Episode Generator */}
@@ -322,7 +311,7 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
 
             {/* HuggingFace Upload */}
             <CollapsibleSection title="Upload to Hub" icon={<Upload className="w-4 h-4" />} badge="NEW">
-              <HuggingFaceUploadPanel episodes={mockEpisodes as any[]} />
+              <HuggingFaceUploadPanel episodes={mockEpisodes} />
             </CollapsibleSection>
           </>
         )}

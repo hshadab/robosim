@@ -10,8 +10,6 @@ const GLBModel: React.FC<{
   url: string;
   scale: number;
 }> = ({ url, scale }) => {
-  console.log('[GLBModel] Loading model from:', url);
-
   const { scene } = useGLTF(url);
 
   // Clone the scene to allow multiple instances
@@ -26,8 +24,6 @@ const GLBModel: React.FC<{
     });
     return clone;
   }, [scene]);
-
-  console.log('[GLBModel] Model loaded successfully');
 
   return (
     <primitive
@@ -154,7 +150,6 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
         );
 
       case 'glb':
-        console.log('[PhysicsObject] Rendering GLB:', object.modelUrl);
         if (!object.modelUrl) {
           console.warn('[PhysicsObject] No modelUrl for GLB object');
           return null;

@@ -9,6 +9,16 @@
  * API Docs: https://fal.ai/models/fal-ai/triposr
  */
 
+import {
+  estimateGraspPoints,
+  estimatePhysicsConfig,
+  type GraspPoint,
+  type PhysicsConfig,
+  type Generated3DObject,
+} from './grasp3DUtils';
+
+export type { GraspPoint, PhysicsConfig, Generated3DObject };
+
 export interface FalConfig {
   apiKey: string;
 }
@@ -32,32 +42,6 @@ export interface FalResult {
   };
 }
 
-export interface Generated3DObject {
-  sessionId: string;
-  name: string;
-  meshUrl: string;
-  objUrl?: string;
-  fbxUrl?: string;
-  thumbnailUrl?: string;
-  dimensions: [number, number, number];
-  graspPoints: GraspPoint[];
-  physicsConfig: PhysicsConfig;
-}
-
-export interface GraspPoint {
-  position: [number, number, number];
-  normal: [number, number, number];
-  graspType: 'pinch' | 'power' | 'hook';
-  confidence: number;
-}
-
-export interface PhysicsConfig {
-  mass: number;
-  friction: number;
-  restitution: number;
-  collisionShape: 'box' | 'sphere' | 'convex' | 'mesh';
-}
-
 // fal.ai API endpoint
 const FAL_API_BASE = 'https://fal.run/fal-ai/triposr';
 
@@ -77,8 +61,6 @@ export async function generateWithFal(
   } else {
     imageUrl = request.imageSource;
   }
-
-  console.log('[fal.ai] Generating 3D model from:', imageUrl.substring(0, 50) + '...');
 
   const response = await fetch(FAL_API_BASE, {
     method: 'POST',
@@ -102,7 +84,6 @@ export async function generateWithFal(
   }
 
   const result = await response.json();
-  console.log('[fal.ai] Generation complete:', result);
   return result;
 }
 
@@ -121,8 +102,7 @@ async function uploadToFal(config: FalConfig, file: File | Blob): Promise<string
   });
 
   if (!initResponse.ok) {
-    // Fallback: try using data URL directly
-    console.log('[fal.ai] Upload init failed, using data URL fallback');
+    // Fallback: use data URL directly
     if (file instanceof File) {
       return await fileToDataUrl(file);
     }
@@ -172,85 +152,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-export function estimateGraspPoints(
-  dimensions: [number, number, number],
-  _objectType?: string
-): GraspPoint[] {
-  const [width, height, depth] = dimensions;
-  const graspPoints: GraspPoint[] = [];
-
-  const maxDim = Math.max(width, height, depth);
-  const minDim = Math.min(width, height, depth);
-  const aspectRatio = maxDim / minDim;
-
-  if (aspectRatio > 3) {
-    graspPoints.push({
-      position: [0, -height * 0.3, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.9,
-    });
-    graspPoints.push({
-      position: [0, height * 0.4, 0],
-      normal: [1, 0, 0],
-      graspType: 'pinch',
-      confidence: 0.7,
-    });
-  } else if (aspectRatio < 1.5) {
-    graspPoints.push({
-      position: [width * 0.4, 0, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.85,
-    });
-    graspPoints.push({
-      position: [-width * 0.4, 0, 0],
-      normal: [-1, 0, 0],
-      graspType: 'power',
-      confidence: 0.85,
-    });
-  } else {
-    graspPoints.push({
-      position: [0, 0, 0],
-      normal: [1, 0, 0],
-      graspType: 'power',
-      confidence: 0.8,
-    });
-    graspPoints.push({
-      position: [0, height * 0.3, 0],
-      normal: [0, 1, 0],
-      graspType: 'pinch',
-      confidence: 0.7,
-    });
-  }
-
-  return graspPoints;
-}
-
-export function estimatePhysicsConfig(
-  dimensions: [number, number, number],
-  _objectType?: string
-): PhysicsConfig {
-  const [width, height, depth] = dimensions;
-  const volume = width * height * depth;
-
-  const density = 800;
-  const mass = Math.max(0.01, Math.min(5, volume * density));
-
-  const aspectRatio = Math.max(width, height, depth) / Math.min(width, height, depth);
-  let collisionShape: PhysicsConfig['collisionShape'] = 'convex';
-
-  if (aspectRatio < 1.3) {
-    collisionShape = 'box';
-  }
-
-  return {
-    mass,
-    friction: 0.5,
-    restitution: 0.2,
-    collisionShape,
-  };
-}
+export { estimateGraspPoints, estimatePhysicsConfig };
 
 export async function generateTrainableObject(
   config: FalConfig,
