@@ -1,17 +1,18 @@
 # RoboSim - Interactive Robotics Simulation Platform
 
-A web-based 3D robotics simulation platform built with React, Three.js, and Rapier physics. Control and visualize multiple robot types including robotic arms, wheeled robots, drones, and humanoids.
+A web-based 3D robotics simulation platform built with React, Three.js, and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
 
 ## Features
 
-### Multiple Robot Types
-- **SO-101 Robot Arm** - 6-DOF open-source desktop arm from The Robot Studio
+### Robot Support
+- **SO-101 Robot Arm** (Fully Supported) - 6-DOF open-source desktop arm from The Robot Studio
   - Realistic 3D model loaded from official URDF
   - STS3215 servo motors with 1/345 gear ratio
   - LeRobot (HuggingFace) Python export for real hardware
-- **Wheeled Robot (Elegoo Smart Car v4)** - 4WD differential drive with ultrasonic & IR sensors
-- **Drone (Mini Quadcopter)** - 4-motor drone with flight controls
-- **Humanoid (Berkeley Humanoid Lite)** - 22-DOF bipedal robot
+  - Full AI control, data recording, and policy execution
+- **Wheeled Robot** (Coming Soon) - Differential drive mobile robot
+- **Quadcopter Drone** (Coming Soon) - 4-motor drone with flight controls
+- **Humanoid** (Coming Soon) - Bipedal robot with manipulation
 
 ### 3D Visualization
 - Real-time 3D rendering with PBR materials
@@ -19,11 +20,10 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - Multiple environment options (empty, warehouse, outdoor, maze)
 - Contact shadows and studio lighting
 
-### Interactive Controls
+### Interactive Controls (SO-101)
 - Joint sliders for precise control
 - Preset positions and animations
-- Motor speed controls for wheeled robots
-- Flight controls for drones (arm/disarm, throttle, pitch, roll, yaw)
+- Multiple control modes (manual, keyboard, gamepad, IK click-to-move)
 
 ### Advanced Arm Controls (SO-101)
 - **Inverse Kinematics** - Click-to-move in 3D space with reachability preview
@@ -45,7 +45,7 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 
 ### Real-time Monitoring
 - **Joint Trajectory Graph** - Live plotting of all joint positions over time
-- **Sensor Panel** - Distance, IR, battery, motor status display
+- **Sensor Panel** - Joint angles, velocities, and gripper status
 
 ### Hardware Integration
 - **Web Serial Connection** - Connect to real robot via USB (Chrome/Edge)
@@ -53,11 +53,10 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **PWM Command Generation** - Automatic servo microsecond conversion
 
 ### Sensors & Visualization
-- Ultrasonic distance sensor
-- IR line sensors
-- GPS, accelerometer, gyroscope simulation
-- Lidar visualization (2D minimap and 3D rays)
 - Robot camera view (picture-in-picture)
+- Joint position/velocity sensors
+- End-effector position tracking
+- Gripper state monitoring
 
 ### Sensor Noise Models (Sim-to-Real Transfer)
 - **Configurable Realism Levels** - None, Low, Medium, High, Extreme
@@ -69,7 +68,7 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
   - Lag/latency simulation
   - Jitter (timing variations)
   - Spike artifacts (sudden large errors)
-- **Per-Sensor Profiles** - Realistic defaults for ultrasonic, IR, IMU, accelerometer, gyroscope, encoder, temperature, battery, GPS, touch, and lidar
+- **Per-Sensor Profiles** - Realistic defaults for encoder, IMU, camera, and joint sensors
 - **Real-time Toggle** - Enable/disable noise without restarting
 - **UI Panel** - Intuitive controls in the Tools sidebar
 
@@ -91,10 +90,9 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **State Preview** - See robot type and timestamp before loading
 
 ### Multi-Robot Instances
-- **Up to 8 Robots** - Run multiple robot instances simultaneously
-- **Mixed Types** - Combine arms, wheeled robots, drones, and humanoids
+- **Up to 8 Robots** - Run multiple SO-101 arm instances simultaneously
 - **Formation Patterns** - Line, grid, circle, and V-formation layouts
-- **Per-Robot State** - Each instance maintains independent joint/motor states
+- **Per-Robot State** - Each instance maintains independent joint states
 - **Active Robot Selection** - Click to switch control focus between robots
 - **Clone Robots** - Duplicate existing robots with offset positions
 - **Collision Detection** - Automatic proximity checking between robots
@@ -643,24 +641,21 @@ Enable keyboard mode in the Advanced Controls panel:
 | Left Trigger | Close gripper |
 | Right Trigger | Open gripper |
 
-### Wheeled Robot
+### Wheeled Robot (Coming Soon)
 ```javascript
 robot.forward(150);               // Drive forward
 robot.backward(100);              // Drive backward
 robot.turnLeft(100);              // Turn left
 robot.turnRight(100);             // Turn right
 robot.stop();                     // Stop motors
-robot.setServo(45);               // Set ultrasonic servo angle
 ```
 
-### Drone
+### Drone (Coming Soon)
 ```javascript
 drone.arm();                      // Arm motors
-drone.disarm();                   // Disarm motors
 drone.takeoff(0.5);               // Take off to height (meters)
 drone.land();                     // Land the drone
 drone.setThrottle(60);            // Set throttle (0-100)
-drone.setAttitude(roll, pitch, yaw); // Set orientation
 ```
 
 ## Hardware Connection
