@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
   Bot, ArrowLeft, Code, Cpu, Brain, Camera, Database, Download,
-  Gamepad2, Layers, Zap, Smartphone, Terminal, BookOpen, Settings, Hand,
-  Target, Upload, BarChart3, ChevronRight
+  Layers, Zap, Smartphone, Terminal,
+  Upload, BarChart3, ChevronRight
 } from 'lucide-react';
 
 interface LearnMorePageProps {
@@ -10,33 +10,6 @@ interface LearnMorePageProps {
   onGetStarted: () => void;
 }
 
-// Steps for how it works
-const HOW_IT_WORKS_STEPS = [
-  {
-    number: '01',
-    title: 'Choose Your Robot',
-    description: 'Start with the SO-101 robot arm. More robots coming soon.',
-    icon: <Target className="w-6 h-6" />,
-  },
-  {
-    number: '02',
-    title: 'Control It Your Way',
-    description: 'Use chat, sliders, keyboard, gamepad, or trained AI policies.',
-    icon: <Gamepad2 className="w-6 h-6" />,
-  },
-  {
-    number: '03',
-    title: 'Record & Train',
-    description: 'Capture demonstrations and export to LeRobot for training.',
-    icon: <Layers className="w-6 h-6" />,
-  },
-  {
-    number: '04',
-    title: 'Deploy to Hardware',
-    description: 'Export code or connect directly to your real robot.',
-    icon: <Cpu className="w-6 h-6" />,
-  },
-];
 
 // Detailed workflow use cases with LeRobot/HuggingFace integration
 type UseCaseTab = 'collect' | 'train' | 'deploy' | 'evaluate';
@@ -256,36 +229,6 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
     },
   ];
 
-  const programmingMethods = [
-    {
-      title: 'Natural Language (AI Chat)',
-      icon: <Brain className="w-6 h-6" />,
-      description: 'Describe what you want in plain English. The AI assistant converts your instructions into robot commands.',
-      example: '"Pick up the red cube and place it on the blue platform"',
-      color: 'blue'
-    },
-    {
-      title: 'TypeScript/JavaScript',
-      icon: <Code className="w-6 h-6" />,
-      description: 'Write code directly using our robot API. Full control with intellisense support.',
-      example: 'robot.moveTo({ base: 45, shoulder: 30, elbow: -60 })',
-      color: 'green'
-    },
-    {
-      title: 'Hand Gesture Control',
-      icon: <Hand className="w-6 h-6" />,
-      description: 'Use your webcam to control robots with hand gestures via MediaPipe tracking.',
-      example: 'Move your hand to control arm position, pinch to close gripper',
-      color: 'pink'
-    },
-    {
-      title: 'Arduino Code',
-      icon: <Cpu className="w-6 h-6" />,
-      description: 'Write Arduino sketches and run them in the browser-based ATmega328p emulator.',
-      example: 'myservo.write(90); // Move servo to 90 degrees',
-      color: 'cyan'
-    },
-  ];
 
   const exportOptions = [
     {
@@ -332,28 +275,6 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
     },
   ];
 
-  const useCases = [
-    {
-      title: 'Education',
-      desc: 'Learn robotics programming without expensive hardware. Perfect for schools and bootcamps.',
-      icon: <BookOpen className="w-6 h-6" />,
-    },
-    {
-      title: 'Prototyping',
-      desc: 'Test robot programs before deploying to real hardware. Save time and prevent damage.',
-      icon: <Settings className="w-6 h-6" />,
-    },
-    {
-      title: 'AI Training Data',
-      desc: 'Generate training datasets for imitation learning and reinforcement learning models.',
-      icon: <Brain className="w-6 h-6" />,
-    },
-    {
-      title: 'Competition Prep',
-      desc: 'Practice for robotics competitions. Test strategies without physical robots.',
-      icon: <Gamepad2 className="w-6 h-6" />,
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-base overflow-x-hidden">
@@ -403,35 +324,6 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
           RoboSim is an AI-native robotics simulation platform that runs entirely in your browser.
           Program robots using natural language, code, or hand gestures, then export to real hardware.
         </p>
-      </section>
-
-      {/* How It Works */}
-      <section className="relative px-8 py-16 bg-slate-900/50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-black text-white mb-4">How It Works</h2>
-            <p className="text-xl text-slate-400">From simulation to real robot in 4 steps</p>
-          </div>
-
-          <div className="grid grid-cols-4 gap-6">
-            {HOW_IT_WORKS_STEPS.map((step, i) => (
-              <div key={step.number} className="relative">
-                {/* Connector line */}
-                {i < HOW_IT_WORKS_STEPS.length - 1 && (
-                  <div className="absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-blue-500 to-transparent z-0" />
-                )}
-                <div className="relative z-10 p-6 bg-[#0a0f1a] border-2 border-slate-700 hover:border-blue-500/50 transition">
-                  <div className="flex items-center gap-4 mb-4">
-                    <span className="text-4xl font-black text-blue-500/30">{step.number}</span>
-                    <div className="p-2 bg-blue-500/20 text-blue-400">{step.icon}</div>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
-                  <p className="text-slate-400">{step.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* LeRobot Workflows */}
@@ -602,29 +494,6 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
         </div>
       </section>
 
-      {/* Programming Methods */}
-      <section className="relative px-8 py-12 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <Code className="w-6 h-6 text-green-400" />
-          Ways to Program Robots
-        </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {programmingMethods.map((method) => (
-            <div
-              key={method.title}
-              className={`bg-slate-900/50 border-2 border-${method.color}-500/30 p-6`}
-            >
-              <div className={`text-${method.color}-400 mb-3`}>{method.icon}</div>
-              <h3 className="text-lg font-bold text-white mb-2">{method.title}</h3>
-              <p className="text-slate-400 text-sm mb-3">{method.description}</p>
-              <div className="bg-slate-950 p-3 rounded font-mono text-xs text-slate-300">
-                {method.example}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Export Options */}
       <section className="relative px-8 py-12 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -646,26 +515,6 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
                 <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">{opt.format}</span>
               </div>
               <p className="text-xs text-slate-500">{opt.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Use Cases */}
-      <section className="relative px-8 py-12 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <Gamepad2 className="w-6 h-6 text-orange-400" />
-          Use Cases
-        </h2>
-        <div className="grid md:grid-cols-4 gap-4">
-          {useCases.map((uc) => (
-            <div
-              key={uc.title}
-              className="bg-slate-900/50 border border-slate-700/50 p-5 hover:border-orange-500/50 transition text-center"
-            >
-              <div className="text-orange-400 mb-3 flex justify-center">{uc.icon}</div>
-              <h3 className="text-sm font-bold text-white mb-2">{uc.title}</h3>
-              <p className="text-xs text-slate-500">{uc.desc}</p>
             </div>
           ))}
         </div>
