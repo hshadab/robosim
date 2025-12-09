@@ -38,3 +38,5 @@ export { ImageTo3DPanel } from './ImageTo3DPanel';
 export { ConsolidatedToolsPanel } from './ConsolidatedToolsPanel';
 // Object Library
 export { ObjectLibraryPanel } from './ObjectLibraryPanel';
+// LLM Recording
+export { LLMRecordingPanel } from './LLMRecordingPanel';

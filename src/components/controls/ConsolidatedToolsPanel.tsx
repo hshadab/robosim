@@ -68,6 +68,7 @@ import { ChallengePanel } from './ChallengePanel';
 import { HuggingFaceUploadPanel } from './HuggingFaceUploadPanel';
 import { ImageTo3DPanel } from './ImageTo3DPanel';
 import { ObjectLibraryPanel } from './ObjectLibraryPanel';
+import { LLMRecordingPanel } from './LLMRecordingPanel';
 import { SensorPanel } from '../simulation/SensorPanel';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -293,8 +294,13 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = ({
             </CollapsibleSection>
 
             {/* Auto-Episode Generator */}
-            <CollapsibleSection title="Auto-Generate" icon={<Sparkles className="w-4 h-4" />} badge="NEW">
+            <CollapsibleSection title="Auto-Generate" icon={<Sparkles className="w-4 h-4" />}>
               <AutoEpisodePanel />
+            </CollapsibleSection>
+
+            {/* LLM + Physics Recording */}
+            <CollapsibleSection title="LLM → Physics" icon={<Brain className="w-4 h-4" />} badge="NEW">
+              <LLMRecordingPanel />
             </CollapsibleSection>
 
             {/* Dataset Browser */}
