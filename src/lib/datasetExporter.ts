@@ -184,7 +184,7 @@ export class DatasetRecorder {
   ): Observation {
     // Convert different robot states to a common observation format
     if ('base' in state) {
-      // Arm robot
+      // Arm robot (SO-101 has 6 joints)
       const armState = state as JointState;
       return {
         jointPositions: [
@@ -192,6 +192,7 @@ export class DatasetRecorder {
           armState.shoulder,
           armState.elbow,
           armState.wrist,
+          armState.wristRoll,
           armState.gripper,
         ],
         image,

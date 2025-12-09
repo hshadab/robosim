@@ -11,7 +11,7 @@ interface HowToUsePageProps {
   onGetStarted: () => void;
 }
 
-type Section = 'getting-started' | 'robots' | 'controls' | 'ai' | 'code' | 'shortcuts' | 'troubleshooting';
+type Section = 'getting-started' | 'robots' | 'controls' | 'ai' | 'training-data' | 'code' | 'shortcuts' | 'troubleshooting';
 
 export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted }) => {
   const [activeSection, setActiveSection] = useState<Section>('getting-started');
@@ -32,6 +32,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
     { id: 'robots' as Section, label: 'Robot Types', icon: <Bot className="w-4 h-4" /> },
     { id: 'controls' as Section, label: 'Control Panels', icon: <Settings className="w-4 h-4" /> },
     { id: 'ai' as Section, label: 'AI Features', icon: <Brain className="w-4 h-4" /> },
+    { id: 'training-data' as Section, label: 'Training Data for LeRobot', icon: <Database className="w-4 h-4" /> },
     { id: 'code' as Section, label: 'Code Editor', icon: <Code className="w-4 h-4" /> },
     { id: 'shortcuts' as Section, label: 'Keyboard Shortcuts', icon: <Keyboard className="w-4 h-4" /> },
     { id: 'troubleshooting' as Section, label: 'Troubleshooting', icon: <HelpCircle className="w-4 h-4" /> },
@@ -1692,6 +1693,263 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
                       <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">LeRobot ACT</span>
                       <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">Diffusion Policy</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Training Data for LeRobot */}
+            {activeSection === 'training-data' && (
+              <div className="space-y-8">
+                {/* Overview */}
+                <div className="bg-slate-900/50 border-2 border-orange-500/30 p-6">
+                  <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <Database className="w-6 h-6 text-orange-400" />
+                    Training Data for LeRobot
+                  </h2>
+                  <p className="text-slate-300 leading-relaxed mb-4">
+                    RoboSim makes it easy to generate high-quality training data for the HuggingFace LeRobot framework.
+                    Train real robots using data created entirely in the browser - no special hardware required during data collection.
+                  </p>
+                  <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-lg">
+                    <p className="text-orange-300 text-sm">
+                      <strong>Goal:</strong> Create datasets that can train policies (ACT, Diffusion, TD-MPC) to run on real SO-101 robots.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Start Pipeline */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-400" />
+                    Quick Start: Your First Dataset
+                  </h3>
+                  <div className="grid gap-4">
+                    {[
+                      { step: 1, title: 'Add Objects to Scene', desc: 'Go to Data tab → Object Library → Load "Block Stacking" preset', time: '30 sec' },
+                      { step: 2, title: 'Record Demonstrations', desc: 'Data tab → Dataset Recorder → Click "Start Recording" → Teleoperate the robot → Click "Stop"', time: '2-5 min' },
+                      { step: 3, title: 'Export for LeRobot', desc: 'Click "Export LeRobot" → Download ZIP file', time: '10 sec' },
+                      { step: 4, title: 'Convert to Parquet', desc: 'Unzip → Run: python convert_to_parquet.py', time: '10 sec' },
+                      { step: 5, title: 'Train with LeRobot', desc: 'python -m lerobot.scripts.train --dataset path/to/dataset', time: '1-24 hrs' },
+                    ].map((item) => (
+                      <div key={item.step} className="flex items-start gap-4 bg-slate-800/50 p-4 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shrink-0">
+                          {item.step}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white">{item.title}</h4>
+                          <p className="text-slate-400 text-sm">{item.desc}</p>
+                        </div>
+                        <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">{item.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Example Workflows */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-blue-400" />
+                    Example Workflows
+                  </h3>
+
+                  {/* Example 1: Custom Object */}
+                  <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg">
+                    <h4 className="font-bold text-white mb-2">Example 1: Train Robot to Pick Up Your Coffee Mug</h4>
+                    <div className="space-y-2 text-sm text-slate-300">
+                      <p><strong className="text-blue-400">Step 1:</strong> Take 2-4 photos of your mug from different angles with your phone</p>
+                      <p><strong className="text-blue-400">Step 2:</strong> AI tab → Image to 3D → Upload photos → Select "fal.ai" → Generate (~20 seconds)</p>
+                      <p><strong className="text-blue-400">Step 3:</strong> Set object name to "coffee_mug" and size to "Medium" → Add to Scene</p>
+                      <p><strong className="text-blue-400">Step 4:</strong> Record 20-50 demonstrations of picking up the mug</p>
+                      <p><strong className="text-blue-400">Step 5:</strong> Export → Train with LeRobot ACT policy → Deploy to real SO-101</p>
+                    </div>
+                    <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs text-slate-400">
+                      <strong>Why this works:</strong> The 3D model has realistic physics (convex hull collider, correct mass),
+                      and grasp points are auto-estimated for cup-shaped objects.
+                    </div>
+                  </div>
+
+                  {/* Example 2: Language-Conditioned */}
+                  <div className="mb-6 p-4 bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-lg">
+                    <h4 className="font-bold text-white mb-2">Example 2: Language-Conditioned Pick & Place</h4>
+                    <div className="space-y-2 text-sm text-slate-300">
+                      <p><strong className="text-green-400">Step 1:</strong> Data tab → Object Library → Load "Color Sorting" preset (red, blue, green blocks)</p>
+                      <p><strong className="text-green-400">Step 2:</strong> Data tab → LLM Recording → Enter: "Pick up the red block and place it on the left"</p>
+                      <p><strong className="text-green-400">Step 3:</strong> Set Episodes to 10, click "Generate" - AI creates motion plans and records physics</p>
+                      <p><strong className="text-green-400">Step 4:</strong> Repeat with different instructions: "Stack blue on green", "Move all blocks right"</p>
+                      <p><strong className="text-green-400">Step 5:</strong> Export → Train RT-1 or OpenVLA style model with language conditioning</p>
+                    </div>
+                    <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs text-slate-400">
+                      <strong>Dataset includes:</strong> language_instruction field in metadata, enabling vision-language-action model training.
+                    </div>
+                  </div>
+
+                  {/* Example 3: Synthetic Data */}
+                  <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
+                    <h4 className="font-bold text-white mb-2">Example 3: Generate 1000+ Episodes Automatically</h4>
+                    <div className="space-y-2 text-sm text-slate-300">
+                      <p><strong className="text-purple-400">Step 1:</strong> Data tab → Auto Episode Generator → Select task template "Pick and Place"</p>
+                      <p><strong className="text-purple-400">Step 2:</strong> Set Base Episodes: 100, Augmentation: 10x</p>
+                      <p><strong className="text-purple-400">Step 3:</strong> Enable Domain Randomization (lighting, materials)</p>
+                      <p><strong className="text-purple-400">Step 4:</strong> Click "Generate All" → Wait ~2-5 minutes</p>
+                      <p><strong className="text-purple-400">Step 5:</strong> Export 1000 episodes ready for LeRobot training</p>
+                    </div>
+                    <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs text-slate-400">
+                      <strong>Augmentations applied:</strong> Action noise, time stretching, spatial jitter, and visual randomization
+                      for better sim-to-real transfer.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Format */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Box className="w-5 h-5 text-cyan-400" />
+                    LeRobot v3.0 Dataset Format
+                  </h3>
+                  <div className="bg-slate-800 p-4 rounded-lg font-mono text-sm text-slate-300 mb-4">
+                    <pre>{`my_dataset/
+├── meta/
+│   ├── info.json          # Dataset config, feature shapes
+│   ├── stats.json         # Min/max/mean/std per feature
+│   ├── episodes.jsonl     # Episode metadata + language
+│   └── tasks.jsonl        # Task definitions
+├── data/
+│   └── chunk-000/
+│       ├── episode_000000.parquet
+│       ├── episode_000001.parquet
+│       └── ...
+├── videos/                 # Optional camera recordings
+│   └── observation.images.cam_high/
+│       └── episode_*.mp4
+├── convert_to_parquet.py   # Run this after download!
+└── README.md               # Auto-generated documentation`}</pre>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-slate-800/50 p-3 rounded">
+                      <h4 className="font-semibold text-white mb-2">observation.state</h4>
+                      <p className="text-slate-400 text-sm">6 joint positions: [base, shoulder, elbow, wrist, wristRoll, gripper]</p>
+                    </div>
+                    <div className="bg-slate-800/50 p-3 rounded">
+                      <h4 className="font-semibold text-white mb-2">action</h4>
+                      <p className="text-slate-400 text-sm">6 joint targets (same format as observation.state)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Image to 3D */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-pink-400" />
+                    Photo → 3D Model → Training Data
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Train robots on your own objects by converting photos to physics-enabled 3D models.
+                  </p>
+                  <div className="grid md:grid-cols-3 gap-4 mb-4">
+                    <div className="bg-slate-800/50 p-4 rounded-lg text-center">
+                      <div className="text-3xl mb-2">📸</div>
+                      <h4 className="font-semibold text-white">1. Photograph</h4>
+                      <p className="text-slate-400 text-xs">2-4 angles, good lighting, plain background</p>
+                    </div>
+                    <div className="bg-slate-800/50 p-4 rounded-lg text-center">
+                      <div className="text-3xl mb-2">🧊</div>
+                      <h4 className="font-semibold text-white">2. Generate 3D</h4>
+                      <p className="text-slate-400 text-xs">fal.ai (~20s), CSM (free), or Rodin (highest quality)</p>
+                    </div>
+                    <div className="bg-slate-800/50 p-4 rounded-lg text-center">
+                      <div className="text-3xl mb-2">⚙️</div>
+                      <h4 className="font-semibold text-white">3. Auto Physics</h4>
+                      <p className="text-slate-400 text-xs">Colliders, mass, and grasp points auto-configured</p>
+                    </div>
+                  </div>
+                  <div className="bg-pink-500/10 border border-pink-500/30 p-3 rounded-lg text-sm">
+                    <strong className="text-pink-300">Smart Colliders:</strong>
+                    <span className="text-slate-300 ml-2">
+                      Mesh is analyzed to choose optimal physics shape - spheres for balls, cylinders for bottles,
+                      convex hulls for complex objects.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tips for Quality Data */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-400" />
+                    Tips for High-Quality Training Data
+                  </h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {[
+                      { tip: 'Record 50-200 episodes', why: 'More data = better generalization. ACT needs ~50, Diffusion needs ~100+' },
+                      { tip: 'Vary starting positions', why: 'Randomize object and robot positions to avoid overfitting' },
+                      { tip: 'Include failures', why: 'Some failed attempts help the policy learn recovery behaviors' },
+                      { tip: 'Use domain randomization', why: 'Vary lighting and colors for better sim-to-real transfer' },
+                      { tip: 'Add trajectory noise', why: 'Small perturbations make policies more robust' },
+                      { tip: 'Record at consistent FPS', why: '30 FPS is standard - matches LeRobot expectations' },
+                    ].map((item, i) => (
+                      <div key={i} className="bg-slate-800/50 p-3 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-medium text-white">{item.tip}</p>
+                            <p className="text-slate-400 text-xs">{item.why}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Upload to HuggingFace */}
+                <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Download className="w-5 h-5 text-blue-400" />
+                    Share on HuggingFace Hub
+                  </h3>
+                  <div className="space-y-3">
+                    <p className="text-slate-300">
+                      Upload datasets directly to HuggingFace without CLI tools:
+                    </p>
+                    <div className="bg-slate-800 p-4 rounded-lg font-mono text-sm">
+                      <p className="text-slate-400"># After upload, use your dataset:</p>
+                      <p className="text-green-400">from lerobot.common.datasets.lerobot_dataset import LeRobotDataset</p>
+                      <p className="text-blue-400">dataset = LeRobotDataset("your-username/my-robot-dataset")</p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3 text-center">
+                      <div className="bg-blue-500/10 p-3 rounded">
+                        <p className="text-blue-400 font-semibold">1. Get HF Token</p>
+                        <p className="text-xs text-slate-400">huggingface.co/settings/tokens</p>
+                      </div>
+                      <div className="bg-blue-500/10 p-3 rounded">
+                        <p className="text-blue-400 font-semibold">2. Paste in Settings</p>
+                        <p className="text-xs text-slate-400">Settings tab → API Keys</p>
+                      </div>
+                      <div className="bg-blue-500/10 p-3 rounded">
+                        <p className="text-blue-400 font-semibold">3. Upload</p>
+                        <p className="text-xs text-slate-400">Data tab → HuggingFace Upload</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Common Issues */}
+                <div className="bg-slate-900/50 border-2 border-red-500/20 p-6">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-red-400" />
+                    Troubleshooting
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { q: 'LeRobot says "invalid parquet file"', a: 'Run convert_to_parquet.py first! The browser exports JSON that needs conversion.' },
+                      { q: 'Policy trained but doesn\'t work on real robot', a: 'Enable domain randomization and add trajectory noise. Record more varied demonstrations.' },
+                      { q: '3D model physics feel wrong', a: 'Check object size setting. Use "Small" for items <5cm, "Medium" for 5-15cm, "Large" for >15cm.' },
+                      { q: 'Episodes are too short', a: 'Include full task completion. Record from approach to release, not just the grasp.' },
+                    ].map((item, i) => (
+                      <div key={i} className="bg-slate-800/50 p-3 rounded-lg">
+                        <p className="font-medium text-red-300">{item.q}</p>
+                        <p className="text-slate-400 text-sm mt-1">{item.a}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

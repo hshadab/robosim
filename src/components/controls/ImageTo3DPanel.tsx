@@ -26,6 +26,8 @@ import {
   Download,
   Play,
   Zap,
+  Plus,
+  X,
 } from 'lucide-react';
 import { Button } from '../common';
 import {
@@ -130,9 +132,12 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
   // Rodin-specific options
   const [rodinTier, setRodinTier] = useState<'Sketch' | 'Regular' | 'Detail'>('Regular');
 
-  // Image state
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Image state - support multiple images for better 3D generation
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // For backwards compatibility, primary image is first in array
+  const imageFile = imageFiles[0] || null;
+  const imagePreview = imagePreviews[0] || null;
 
   // Object config
   const [objectName, setObjectName] = useState('');
@@ -191,41 +196,80 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
     setError(null);
   }, []);
 
-  // Handle image selection
-  const handleImageSelect = useCallback((file: File) => {
-    setImageFile(file);
+  // Handle image selection - supports adding multiple images
+  const handleImageSelect = useCallback((file: File, addToExisting: boolean = false) => {
     setError(null);
     setGeneratedObject(null);
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
+      const preview = e.target?.result as string;
+      if (addToExisting && imageFiles.length < 4) {
+        // Add to existing images (max 4)
+        setImageFiles(prev => [...prev, file]);
+        setImagePreviews(prev => [...prev, preview]);
+      } else {
+        // Replace all images
+        setImageFiles([file]);
+        setImagePreviews([preview]);
+      }
     };
     reader.readAsDataURL(file);
 
-    // Auto-set name from filename
+    // Auto-set name from filename (only if not already set)
     if (!objectName) {
-      const name = file.name.replace(/.[^.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
+      const name = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
       setObjectName(name);
     }
-  }, [objectName]);
+  }, [objectName, imageFiles.length]);
 
-  // Handle file drop
+  // Remove a specific image
+  const handleRemoveImage = useCallback((index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // Clear all images
+  const handleClearImages = useCallback(() => {
+    setImageFiles([]);
+    setImagePreviews([]);
+    setGeneratedObject(null);
+  }, []);
+
+  // Handle file drop - supports multiple files
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      handleImageSelect(file);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+      // First file replaces, subsequent files add
+      handleImageSelect(files[0], false);
+      files.slice(1, 4).forEach(file => {
+        setTimeout(() => handleImageSelect(file, true), 100);
+      });
     }
   }, [handleImageSelect]);
 
-  // Handle file input change
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleImageSelect(file);
+  // Handle file input change - supports multiple files
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>, addToExisting: boolean = false) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      if (addToExisting) {
+        // Add to existing
+        Array.from(files).slice(0, 4 - imageFiles.length).forEach(file => {
+          handleImageSelect(file, true);
+        });
+      } else {
+        // Replace with first file
+        handleImageSelect(files[0], false);
+        // Add subsequent files
+        Array.from(files).slice(1, 4).forEach(file => {
+          setTimeout(() => handleImageSelect(file, true), 100);
+        });
+      }
     }
-  }, [handleImageSelect]);
+    // Reset input
+    e.target.value = '';
+  }, [handleImageSelect, imageFiles.length]);
 
   // Generate 3D model using selected service
   const handleGenerate = useCallback(async () => {
@@ -459,108 +503,155 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
             </div>
           )}
 
-          {/* Image Upload - Mobile optimized */}
+          {/* Image Upload - Multi-image support */}
           <div className="mb-4">
-            <label className="text-xs font-medium text-slate-300 mb-1 block">
-              Object Photo
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-slate-300">
+                Object Photos
+              </label>
+              {imagePreviews.length > 0 && (
+                <span className="text-xs text-slate-500">
+                  {imagePreviews.length}/4 images
+                </span>
+              )}
+            </div>
 
-            {/* Mobile: Show camera + gallery buttons */}
-            {isMobile && !imagePreview ? (
+            {/* Multi-image preview grid */}
+            {imagePreviews.length > 0 ? (
               <div className="space-y-2">
-                {/* Camera capture button - large tap target */}
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="w-full h-20 flex flex-col items-center justify-center gap-2
-                           bg-cyan-600/20 border-2 border-dashed border-cyan-500/50
-                           rounded-xl text-cyan-400 active:bg-cyan-600/30 transition touch-manipulation"
-                >
-                  <Camera className="w-8 h-8" />
-                  <span className="text-sm font-medium">Take Photo</span>
-                </button>
+                <div className="grid grid-cols-4 gap-2">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`View ${index + 1}`}
+                        className="w-full aspect-square object-cover rounded-lg border border-slate-700/50"
+                      />
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveImage(index);
+                        }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full
+                                 flex items-center justify-center opacity-0 group-hover:opacity-100
+                                 transition-opacity shadow-lg"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                      {/* Primary indicator */}
+                      {index === 0 && (
+                        <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-cyan-500/90
+                                      rounded text-[10px] text-white font-medium">
+                          Primary
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
-                {/* Gallery button */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-14 flex items-center justify-center gap-2
-                           bg-slate-800/50 border border-slate-700/50
-                           rounded-xl text-slate-300 active:bg-slate-700/50 transition touch-manipulation"
-                >
-                  <Upload className="w-5 h-5" />
-                  <span className="text-sm">Choose from Gallery</span>
-                </button>
+                  {/* Add more button (if less than 4 images) */}
+                  {imagePreviews.length < 4 && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-square rounded-lg border-2 border-dashed border-slate-700/50
+                               hover:border-cyan-500/50 bg-slate-900/30 flex flex-col items-center
+                               justify-center gap-1 transition-colors"
+                    >
+                      <Plus className="w-5 h-5 text-slate-500" />
+                      <span className="text-[10px] text-slate-500">Add</span>
+                    </button>
+                  )}
+                </div>
 
-                {/* Hidden camera input */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleClearImages}
+                    className="flex-1 py-1.5 text-xs text-slate-400 hover:text-white
+                             bg-slate-800/50 rounded transition-colors"
+                  >
+                    Clear All
+                  </button>
+                  {imagePreviews.length < 4 && (
+                    <button
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex-1 py-1.5 text-xs text-cyan-400 hover:text-cyan-300
+                               bg-cyan-500/10 rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Camera className="w-3 h-3" />
+                      Add View
+                    </button>
+                  )}
+                </div>
 
-                {/* Hidden gallery input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+                <p className="text-[10px] text-slate-500 text-center">
+                  Multiple angles improve 3D quality. Primary image is main reference.
+                </p>
               </div>
             ) : (
-              /* Desktop or has preview */
-              <div
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition
-                  ${imagePreview
-                    ? 'border-cyan-500/50 bg-cyan-500/5'
-                    : 'border-slate-700/50 hover:border-slate-600/50 bg-slate-900/30'
-                  }`}
-              >
-                {imagePreview ? (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="max-h-40 md:max-h-32 mx-auto rounded"
-                    />
-                    <div className="mt-2 text-xs text-slate-400">
-                      {isMobile ? 'Tap to change' : 'Click to change image'}
-                    </div>
+              /* No images - show upload options */
+              <>
+                {/* Mobile: Show camera + gallery buttons */}
+                {isMobile ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="w-full h-20 flex flex-col items-center justify-center gap-2
+                               bg-cyan-600/20 border-2 border-dashed border-cyan-500/50
+                               rounded-xl text-cyan-400 active:bg-cyan-600/30 transition touch-manipulation"
+                    >
+                      <Camera className="w-8 h-8" />
+                      <span className="text-sm font-medium">Take Photo</span>
+                    </button>
+
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-14 flex items-center justify-center gap-2
+                               bg-slate-800/50 border border-slate-700/50
+                               rounded-xl text-slate-300 active:bg-slate-700/50 transition touch-manipulation"
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span className="text-sm">Choose from Gallery</span>
+                    </button>
                   </div>
                 ) : (
-                  <>
+                  /* Desktop: Drag & drop */
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition
+                             border-slate-700/50 hover:border-slate-600/50 bg-slate-900/30"
+                  >
                     <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
                     <div className="text-sm text-slate-400">
-                      Drop image or click to upload
+                      Drop images or click to upload
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      PNG, JPG up to 10MB
+                      Up to 4 images for better quality
                     </div>
-                  </>
+                  </div>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                {/* Camera input for desktop too (for devices with cameras) */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
+              </>
             )}
+
+            {/* Hidden file inputs */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => handleFileChange(e, imagePreviews.length > 0)}
+              className="hidden"
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handleFileChange(e, imagePreviews.length > 0)}
+              className="hidden"
+            />
           </div>
 
           {/* Object Config */}

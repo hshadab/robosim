@@ -175,15 +175,39 @@ export async function generateTrainableObject(
     ...options,
   });
 
-  onProgress?.('processing', 90, 'Processing mesh...');
+  onProgress?.('processing', 85, 'Processing mesh...');
 
   if (!result.model_mesh?.url) {
     throw new Error('No mesh URL in response');
   }
 
-  onProgress?.('analyzing', 95, 'Analyzing for robot training...');
+  onProgress?.('analyzing', 90, 'Analyzing mesh geometry...');
 
-  const dimensions: [number, number, number] = options.scaledBbox || [0.1, 0.1, 0.1];
+  // Try to analyze actual mesh dimensions
+  let dimensions: [number, number, number] = options.scaledBbox || [0.1, 0.1, 0.1];
+  let analyzedBounds: Generated3DObject['boundingBox'] | undefined;
+
+  try {
+    const { analyzeGLBMesh } = await import('./grasp3DUtils');
+    const meshAnalysis = await analyzeGLBMesh(result.model_mesh.url);
+
+    // Use analyzed dimensions if user didn't specify
+    if (!options.scaledBbox) {
+      // Scale to reasonable size (target ~10cm for largest dimension)
+      const maxDim = Math.max(...meshAnalysis.dimensions);
+      const targetSize = 0.1; // 10cm
+      const scaleFactor = maxDim > 0 ? targetSize / maxDim : 1;
+      dimensions = meshAnalysis.dimensions.map(d => d * scaleFactor) as [number, number, number];
+    }
+
+    analyzedBounds = meshAnalysis.boundingBox;
+    onProgress?.('analyzing', 95, `Mesh: ${meshAnalysis.meshCount} meshes, ${meshAnalysis.vertexCount} vertices`);
+  } catch (err) {
+    console.warn('[fal.ai] Could not analyze mesh, using defaults:', err);
+  }
+
+  onProgress?.('analyzing', 97, 'Estimating grasp points...');
+
   const graspPoints = estimateGraspPoints(dimensions, options.objectName);
   const physicsConfig = estimatePhysicsConfig(dimensions, options.objectName);
 
@@ -196,6 +220,7 @@ export async function generateTrainableObject(
     dimensions,
     graspPoints,
     physicsConfig,
+    boundingBox: analyzedBounds,
   };
 }
 

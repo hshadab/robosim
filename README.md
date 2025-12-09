@@ -153,16 +153,23 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Preset Objects** - Quick generation of common items
 - **Scene Generation** - Create multiple objects from descriptions
 
-### Image-to-3D Object Generation (NEW)
+### Image-to-3D Object Generation (ENHANCED)
 - **Photo to 3D Model** - Upload real object photos and convert to training-ready 3D models
-- **CSM API Integration** - Powered by Common Sense Machines (CSM.ai) image-to-3D API
-- **Automatic Grasp Point Estimation** - AI estimates optimal grasp points from object geometry
-- **Physics Configuration** - Auto-calculated mass, friction, and collision shapes
-- **Quality Options** - Base (fast), Turbo, or Highest quality generation
-- **Real-World Dimensions** - Specify actual object size in meters
-- **Download & Use** - Download GLB file or add directly to scene
+- **Multi-Image Support** - Upload up to 4 photos from different angles for better 3D reconstruction
+- **Multiple API Services**:
+  - **fal.ai (TripoSR)** - Fast (~10-30s), affordable ($0.07/gen)
+  - **CSM.ai** - High quality, free tier (10 credits)
+  - **Rodin (Hyper3D)** - Highest quality, multiple tiers
+- **Auto Mesh Analysis** - Automatically extracts real dimensions from generated GLB
+- **Smart Physics Colliders**:
+  - Spherical objects → Ball collider
+  - Cylindrical objects → Cylinder collider
+  - Complex shapes → Convex hull collider
+  - Box-like objects → Box collider
+- **Improved Grasp Estimation** - Object-type-aware grasp points (bottles, tools, flat objects, etc.)
+- **Volume-Based Mass** - Mass calculated from actual mesh volume
+- **Download & Use** - Download GLB file or add directly to scene with physics
 - **Training Pipeline** - Generates parameterized task templates for the object
-- **Free Tier** - CSM.ai offers 10 free API credits to get started
 
 ### Code Editor
 - Built-in JavaScript code editor with Monaco
@@ -193,14 +200,18 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 - **Real-time Inference** - Execute policies at 20Hz for smooth robot control
 - **No Server Required** - All inference runs client-side in WebAssembly
 
-### LeRobot Dataset Recording & Export
-- **Real Apache Parquet** - Export datasets in true Parquet format (LeRobot v2.0/v3.0 compatible)
+### LeRobot Dataset Recording & Export (ENHANCED)
+- **LeRobot v3.0 Compatible** - Full compatibility with HuggingFace LeRobot format
+- **Complete 6-Joint Capture** - Records all SO-101 joints (base, shoulder, elbow, wrist, wristRoll, gripper)
+- **Accurate Statistics** - Proper standard deviation calculation for feature normalization
 - **Multi-Camera Recording** - Support for cam_high, cam_wrist, cam_left, cam_right views
 - **Dataset Statistics Dashboard** - Analyze episode counts, success rates, joint coverage
 - **Quality Recommendations** - Get feedback on data quality for training readiness
 - **Dataset Browser** - Browse and preview LeRobot datasets from HuggingFace Hub
-- **HuggingFace Upload** - Direct upload datasets to HuggingFace Hub with token auth
+- **HuggingFace Upload** - Direct upload with proper LeRobot directory structure
 - **Task Success Detection** - Automatic detection for reach, pick & place, push, stack tasks
+- **Python Conversion Script** - Included `convert_to_parquet.py` for true Parquet format
+- **Auto-Generated README** - Dataset documentation included in exports
 
 ### Interactive Tutorial System
 - **Guided Tutorials** - Step-by-step walkthroughs for new users

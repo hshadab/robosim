@@ -1,8 +1,14 @@
 /**
  * Parquet File Writer for LeRobot Datasets
  *
- * Creates Parquet-compatible files for LeRobot v2.0/v3.0 format.
- * Uses a pure JavaScript implementation for browser compatibility.
+ * Creates LeRobot v2.0/v3.0 compatible data files.
+ *
+ * NOTE: Browser limitations prevent creating true Apache Parquet binary files.
+ * This module outputs a JSON-based format with the same schema that can be:
+ * 1. Used directly by the included Python converter script
+ * 2. Loaded by LeRobot after conversion to Parquet
+ *
+ * The exported ZIP includes a convert_to_parquet.py script for easy conversion.
  */
 
 /**
@@ -19,9 +25,20 @@ export interface ParquetEpisodeData {
 }
 
 /**
- * Create Arrow schema for LeRobot data (for documentation)
+ * Arrow schema definition for LeRobot compatibility
  */
-function createArrowSchema(numJoints: number = 6) {
+export interface ArrowSchema {
+  fields: Array<{
+    name: string;
+    type: string;
+    listSize?: number;
+  }>;
+}
+
+/**
+ * Create Arrow schema for LeRobot data
+ */
+export function createArrowSchema(numJoints: number = 6): ArrowSchema {
   return {
     fields: [
       { name: 'observation.state', type: 'FixedSizeList<Float32>', listSize: numJoints },
@@ -36,16 +53,16 @@ function createArrowSchema(numJoints: number = 6) {
 }
 
 /**
- * Write episode data to a LeRobot-compatible format
- * Returns JSON that can be converted to Parquet using Python
+ * Write episode data to LeRobot-compatible JSON format
+ * This JSON can be converted to Parquet using the included Python script
  */
 export async function writeParquetFile(data: ParquetEpisodeData): Promise<Uint8Array> {
   return writeParquetFilePure(data);
 }
 
 /**
- * Pure JavaScript Parquet-compatible format writer
- * Creates a JSON structure that matches LeRobot's expected schema
+ * Write episode data as JSON with LeRobot-compatible schema
+ * The output follows columnar format matching Parquet structure
  */
 export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Uint8Array> {
   const numRows = data['episode_index'].length;
@@ -54,17 +71,16 @@ export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Ui
     throw new Error('No data to write');
   }
 
-  // Create a structured format that can be easily converted to Parquet
+  // Create columnar data structure matching LeRobot schema
   const output = {
-    // Metadata for format identification
     _meta: {
-      format: 'lerobot-v2',
-      version: '2.0',
+      format: 'robosim-lerobot-json',
+      lerobot_version: '3.0',
       num_rows: numRows,
       schema: createArrowSchema(data['observation.state'][0]?.length || 6),
       created_at: new Date().toISOString(),
+      note: 'Convert to Parquet using: python convert_to_parquet.py',
     },
-    // Column data in columnar format (like Parquet)
     columns: {
       'observation.state': data['observation.state'],
       'action': data['action'],
@@ -76,9 +92,92 @@ export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Ui
     }
   };
 
-  // Encode as JSON bytes
-  const json = JSON.stringify(output, null, 2);
+  const json = JSON.stringify(output);
   return new TextEncoder().encode(json);
+}
+
+/**
+ * Generate Python conversion script to include in export
+ */
+export function generateConversionScript(): string {
+  return `#!/usr/bin/env python3
+"""
+Convert RoboSim JSON episode files to Apache Parquet format for LeRobot.
+
+Usage:
+    python convert_to_parquet.py
+
+This script converts all .parquet files (which are actually JSON) in the
+data/chunk-000/ directory to true Apache Parquet format.
+
+Requirements:
+    pip install pandas pyarrow
+"""
+
+import json
+import os
+from pathlib import Path
+
+try:
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+except ImportError:
+    print("Please install required packages: pip install pandas pyarrow")
+    exit(1)
+
+def convert_episode_file(json_path: Path) -> None:
+    """Convert a single JSON episode file to Parquet."""
+    with open(json_path, 'r') as f:
+        data = json.load(f)
+
+    columns = data['columns']
+
+    # Create DataFrame with proper types
+    df = pd.DataFrame({
+        'observation.state': columns['observation.state'],
+        'action': columns['action'],
+        'episode_index': pd.array(columns['episode_index'], dtype='int64'),
+        'frame_index': pd.array(columns['frame_index'], dtype='int64'),
+        'timestamp': pd.array(columns['timestamp'], dtype='float32'),
+        'next.done': columns['next.done'],
+        'task_index': pd.array(columns['task_index'], dtype='int64'),
+    })
+
+    # Write as Parquet
+    output_path = json_path  # Overwrite with same name
+    table = pa.Table.from_pandas(df)
+    pq.write_table(table, output_path)
+    print(f"Converted: {json_path}")
+
+def main():
+    data_dir = Path('data/chunk-000')
+    if not data_dir.exists():
+        print(f"Data directory not found: {data_dir}")
+        return
+
+    # Find all .parquet files (which are JSON)
+    json_files = list(data_dir.glob('episode_*.parquet'))
+
+    if not json_files:
+        print("No episode files found to convert.")
+        return
+
+    print(f"Converting {len(json_files)} episode files...")
+    for json_path in sorted(json_files):
+        try:
+            convert_episode_file(json_path)
+        except Exception as e:
+            print(f"Error converting {json_path}: {e}")
+
+    print("\\nConversion complete! Dataset is now ready for LeRobot.")
+    print("\\nUsage with LeRobot:")
+    print("  from lerobot.common.datasets.lerobot_dataset import LeRobotDataset")
+    print("  dataset = LeRobotDataset('path/to/this/directory')")
+
+if __name__ == '__main__':
+    main()
+`;
 }
 
 /**
