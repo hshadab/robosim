@@ -1375,6 +1375,247 @@ export const InstructionsPage: React.FC<InstructionsPageProps> = ({ onBack, onGe
                     </ol>
                   </div>
                 </div>
+
+                {/* Voice Control */}
+                <div className="bg-slate-900/50 border-2 border-emerald-500/30 p-6">
+                  <h3 className="text-xl font-bold text-emerald-400 mb-4 flex items-center gap-3">
+                    <Mic className="w-5 h-5" />
+                    Voice Control
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Control robots hands-free using voice commands. Speak naturally and the robot responds.
+                    Perfect for accessibility or when your hands are occupied.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-slate-950 p-4 border border-slate-800">
+                      <h5 className="text-emerald-400 font-semibold mb-2">Example Commands</h5>
+                      <ul className="text-sm text-slate-400 space-y-1">
+                        <li>"wave hello"</li>
+                        <li>"open gripper"</li>
+                        <li>"move left"</li>
+                        <li>"go home"</li>
+                      </ul>
+                    </div>
+                    <div className="bg-slate-950 p-4 border border-slate-800">
+                      <h5 className="text-emerald-400 font-semibold mb-2">Features</h5>
+                      <ul className="text-sm text-slate-400 space-y-1">
+                        <li>• Wake word: "Hey Robot"</li>
+                        <li>• Voice feedback</li>
+                        <li>• Works in Chrome/Edge</li>
+                        <li>• Real-time recognition</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hand Tracking */}
+                <div className="bg-slate-900/50 border-2 border-pink-500/30 p-6">
+                  <h3 className="text-xl font-bold text-pink-400 mb-4 flex items-center gap-3">
+                    <Hand className="w-5 h-5" />
+                    Hand Tracking
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Control the robot arm using your hand movements via webcam. MediaPipe tracks 21 hand landmarks
+                    at 30+ FPS for natural, intuitive control.
+                  </p>
+                  <div className="bg-slate-800/30 p-4 border border-pink-500/30 mb-4">
+                    <h4 className="font-semibold text-white mb-2">How to Use</h4>
+                    <ul className="text-sm text-slate-400 space-y-1">
+                      <li>1. Open Hand Tracking panel in Hardware tab</li>
+                      <li>2. Click "Start Tracking" and allow camera access</li>
+                      <li>3. Position hand 30-60cm from camera</li>
+                      <li>4. Move hand to control arm position</li>
+                      <li>5. Pinch fingers to close gripper, open hand to release</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Text to 3D */}
+                <div className="bg-slate-900/50 border-2 border-green-500/30 p-6">
+                  <h3 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-3">
+                    <Box className="w-5 h-5" />
+                    Text to 3D
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Generate 3D objects from text descriptions. Type "red apple" or "wooden cube" and a physics-enabled
+                    object appears in your scene.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-slate-950 p-4 border border-slate-800">
+                      <h5 className="text-green-400 font-semibold mb-2">Example Prompts</h5>
+                      <ul className="text-sm text-slate-400 space-y-1">
+                        <li>"red apple"</li>
+                        <li>"wooden cube"</li>
+                        <li>"blue ball"</li>
+                        <li>"metal cylinder"</li>
+                      </ul>
+                    </div>
+                    <div className="bg-slate-950 p-4 border border-slate-800">
+                      <h5 className="text-green-400 font-semibold mb-2">Style Options</h5>
+                      <ul className="text-sm text-slate-400 space-y-1">
+                        <li>• Realistic</li>
+                        <li>• Cartoon</li>
+                        <li>• Low-poly</li>
+                        <li>• Voxel</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Image to 3D */}
+                <div className="bg-slate-900/50 border-2 border-teal-500/30 p-6">
+                  <h3 className="text-xl font-bold text-teal-400 mb-4 flex items-center gap-3">
+                    <Monitor className="w-5 h-5" />
+                    Image to 3D (CSM)
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Upload a photo of any real object and convert it to a training-ready 3D model using CSM.ai.
+                    Includes auto-estimated grasp points for manipulation tasks.
+                  </p>
+                  <div className="bg-slate-800/30 p-4 border border-teal-500/30">
+                    <h4 className="font-semibold text-white mb-2">Steps</h4>
+                    <ol className="text-sm text-slate-400 space-y-1">
+                      <li>1. Get free API key from csm.ai (10 free credits)</li>
+                      <li>2. Upload photo of real object</li>
+                      <li>3. Set real-world dimensions</li>
+                      <li>4. Generate 3D model with physics</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* AI Environments */}
+                <div className="bg-slate-900/50 border-2 border-amber-500/30 p-6">
+                  <h3 className="text-xl font-bold text-amber-400 mb-4 flex items-center gap-3">
+                    <Layers className="w-5 h-5" />
+                    AI Environments (Gemini)
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Generate scene backdrops, floor textures, and object textures using Gemini AI.
+                    Create warehouse, garden, lab, or custom environments for domain randomization.
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['Warehouse', 'Garden', 'Lab', 'Factory', 'Kitchen', 'Custom'].map((env) => (
+                      <div key={env} className="bg-slate-950 p-3 border border-slate-800 text-center">
+                        <span className="text-sm text-slate-400">{env}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* LeRobot Policies */}
+                <div className="bg-slate-900/50 border-2 border-violet-500/30 p-6">
+                  <h3 className="text-xl font-bold text-violet-400 mb-4 flex items-center gap-3">
+                    <Brain className="w-5 h-5" />
+                    LeRobot Policies
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Load and run pre-trained AI policies from HuggingFace Hub directly in your browser.
+                    Policies run locally using ONNX Runtime Web - no GPU required.
+                  </p>
+                  <div className="bg-slate-800/30 p-4 border border-violet-500/30">
+                    <h4 className="font-semibold text-white mb-2">Supported Policy Types</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-2 py-1 bg-violet-500/20 text-violet-300 text-xs rounded">ACT</span>
+                      <span className="px-2 py-1 bg-violet-500/20 text-violet-300 text-xs rounded">Diffusion</span>
+                      <span className="px-2 py-1 bg-violet-500/20 text-violet-300 text-xs rounded">VQ-BeT</span>
+                      <span className="px-2 py-1 bg-violet-500/20 text-violet-300 text-xs rounded">ONNX</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LLM → Physics Recording */}
+                <div className="bg-slate-900/50 border-2 border-fuchsia-500/30 p-6">
+                  <h3 className="text-xl font-bold text-fuchsia-400 mb-4 flex items-center gap-3">
+                    <Zap className="w-5 h-5" />
+                    LLM → Physics Recording
+                    <span className="text-xs px-2 py-1 bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded">NEW</span>
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Generate training data by describing tasks in natural language. AI creates a motion plan,
+                    physics simulation executes it, and camera captures frames at 30 FPS.
+                  </p>
+                  <div className="bg-slate-950 p-4 border border-slate-800 mb-4">
+                    <div className="text-xs text-fuchsia-400 mb-2">Example Workflow:</div>
+                    <div className="font-mono text-xs text-slate-300 space-y-1">
+                      <div>1. "Stack the red block on blue"</div>
+                      <div>2. AI parses → motion plan</div>
+                      <div>3. Physics sim executes</div>
+                      <div>4. Camera records frames</div>
+                      <div>5. Export with language instruction</div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/30 p-4 border border-fuchsia-500/30">
+                    <h4 className="font-semibold text-white mb-2">Output Formats</h4>
+                    <ul className="text-sm text-slate-400 space-y-1">
+                      <li>• LeRobot v3.0 with Parquet</li>
+                      <li>• Language instruction in metadata</li>
+                      <li>• Compatible with RT-1, OpenVLA, ACT</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Object Library */}
+                <div className="bg-slate-900/50 border-2 border-indigo-500/30 p-6">
+                  <h3 className="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-3">
+                    <Box className="w-5 h-5" />
+                    Object Library
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    34 physics-enabled objects including 18 YCB benchmark items (standard robotics research objects).
+                    7 scene presets for common manipulation tasks.
+                  </p>
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div className="bg-slate-950 p-3 border border-slate-800 text-center">
+                      <div className="text-2xl font-bold text-indigo-400">34</div>
+                      <div className="text-xs text-slate-500">Objects</div>
+                    </div>
+                    <div className="bg-slate-950 p-3 border border-slate-800 text-center">
+                      <div className="text-2xl font-bold text-indigo-400">18</div>
+                      <div className="text-xs text-slate-500">YCB Items</div>
+                    </div>
+                    <div className="bg-slate-950 p-3 border border-slate-800 text-center">
+                      <div className="text-2xl font-bold text-indigo-400">7</div>
+                      <div className="text-xs text-slate-500">Presets</div>
+                    </div>
+                    <div className="bg-slate-950 p-3 border border-slate-800 text-center">
+                      <div className="text-2xl font-bold text-indigo-400">6</div>
+                      <div className="text-xs text-slate-500">Categories</div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/30 p-4 border border-indigo-500/30">
+                    <h4 className="font-semibold text-white mb-2">Scene Presets</h4>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Block Stacking</span>
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Cup Pouring</span>
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Color Sorting</span>
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Fruit Pick & Place</span>
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Can Lineup</span>
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded">Office Desk</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Language-Conditioned Training */}
+                <div className="bg-slate-900/50 border-2 border-orange-500/30 p-6">
+                  <h3 className="text-xl font-bold text-orange-400 mb-4 flex items-center gap-3">
+                    <BookOpen className="w-5 h-5" />
+                    Language-Conditioned Training
+                  </h3>
+                  <p className="text-slate-300 mb-4">
+                    Train robots to follow natural language instructions. Record demonstrations with free-form text commands,
+                    export to LeRobot format, and train policies like RT-1, RT-2, or OpenVLA.
+                  </p>
+                  <div className="bg-slate-800/30 p-4 border border-orange-500/30">
+                    <h4 className="font-semibold text-white mb-2">Supported Models</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">RT-1</span>
+                      <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">RT-2</span>
+                      <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">OpenVLA</span>
+                      <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">LeRobot ACT</span>
+                      <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">Diffusion Policy</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
