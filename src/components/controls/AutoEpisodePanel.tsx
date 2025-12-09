@@ -203,9 +203,9 @@ export const AutoEpisodePanel: React.FC = () => {
             </div>
             <input
               type="range"
-              min={5}
-              max={50}
-              step={5}
+              min={10}
+              max={500}
+              step={10}
               value={episodesPerTemplate}
               onChange={(e) => setEpisodesPerTemplate(parseInt(e.target.value))}
               disabled={isGenerating}
