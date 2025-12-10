@@ -16,11 +16,19 @@ import {
   Settings,
   ChevronRight,
   Sparkles,
+  Box,
+  ChevronLeft,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Episode, Frame } from '../../lib/datasetExporter';
 import { generateTrainableObject as generateFalObject } from '../../lib/falImageTo3D';
 import { getOptimalPlacement } from '../../lib/workspacePlacement';
+import {
+  PRIMITIVE_OBJECTS,
+  OBJECT_CATEGORIES,
+  createSimObjectFromTemplate,
+  type ObjectTemplate,
+} from '../../lib/objectLibrary';
 import {
   autoGenerateEpisodes,
   TARGET_EPISODE_COUNT,
@@ -54,6 +62,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [showKeyInput, setShowKeyInput] = useState<'fal' | 'hf' | null>(null);
   const [backendAvailable, setBackendAvailable] = useState(false);
 
+  // Object selection mode
+  const [objectMode, setObjectMode] = useState<'choose' | 'library' | 'photo'>('choose');
+  const [selectedCategory, setSelectedCategory] = useState<string>('toy');
+
   // Recording
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +85,22 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     return [joints.base, joints.shoulder, joints.elbow, joints.wrist, joints.wristRoll, joints.gripper];
   }, [joints]);
 
+  // Handle adding a standard library object
+  const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
+    // Random position in front of robot
+    const x = (Math.random() - 0.5) * 0.2;
+    const z = 0.08 + Math.random() * 0.08;
+    const y = template.scale + 0.01;
+
+    const newObject = createSimObjectFromTemplate(template, [x, y, z]);
+    // Remove the 'id' since spawnObject will generate one
+    const { id, ...objWithoutId } = newObject;
+    spawnObject(objWithoutId);
+
+    setState(s => ({ ...s, objectName: template.name, objectPlaced: true }));
+    setStep('record-demo');
+  }, [spawnObject]);
+
   // Handle image upload
   const handleImageSelect = useCallback(async (file: File) => {
     if (!falApiKey) {
@@ -86,15 +114,26 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     try {
       const objectName = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
 
+      console.log('[MinimalTrainFlow] Starting 3D generation for:', objectName);
+
       const generated = await generateFalObject(
         { apiKey: falApiKey },
         file,
         { objectName, outputFormat: 'glb', removeBackground: true },
-        () => {}
+        (status) => console.log('[MinimalTrainFlow] Generation status:', status)
       );
+
+      console.log('[MinimalTrainFlow] Generated object:', generated);
+      console.log('[MinimalTrainFlow] Mesh URL:', generated.meshUrl);
+
+      if (!generated.meshUrl) {
+        throw new Error('No mesh URL returned from 3D generation');
+      }
 
       const existingPositions = objects.map(o => o.position as [number, number, number]);
       const placement = getOptimalPlacement(generated.dimensions, { avoidPositions: existingPositions });
+
+      console.log('[MinimalTrainFlow] Spawning at position:', placement.position);
 
       spawnObject({
         type: 'glb',
@@ -109,9 +148,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         isInTargetZone: false,
       });
 
+      console.log('[MinimalTrainFlow] Object spawned successfully');
+
       setState(s => ({ ...s, objectName, objectPlaced: true }));
       setStep('record-demo');
     } catch (err) {
+      console.error('[MinimalTrainFlow] Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to process image');
     } finally {
       setIsProcessing(false);
@@ -312,8 +354,98 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     switch (step) {
       case 'add-object':
+        // Choose between library and photo
+        if (objectMode === 'choose') {
+          return (
+            <div className="space-y-3">
+              <button
+                onClick={() => setObjectMode('library')}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+              >
+                <Box className="w-6 h-6" />
+                Use Standard Object
+              </button>
+              <button
+                onClick={() => setObjectMode('photo')}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+              >
+                <Camera className="w-6 h-6" />
+                Upload Photo
+              </button>
+              <p className="text-center text-sm text-slate-500 mt-2">
+                Standard objects work instantly. Photos take ~20s to convert.
+              </p>
+            </div>
+          );
+        }
+
+        // Library object selection
+        if (objectMode === 'library') {
+          const filteredObjects = PRIMITIVE_OBJECTS.filter(obj => obj.category === selectedCategory);
+          return (
+            <div className="space-y-3">
+              <button
+                onClick={() => setObjectMode('choose')}
+                className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </button>
+
+              {/* Category tabs */}
+              <div className="flex flex-wrap gap-1">
+                {OBJECT_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-2 py-1 rounded text-xs transition ${
+                      selectedCategory === cat.id
+                        ? 'bg-purple-500/30 text-purple-300'
+                        : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    {cat.icon} {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Object grid */}
+              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                {filteredObjects.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleAddLibraryObject(template)}
+                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-purple-500/50 transition text-left"
+                  >
+                    <div
+                      className="w-8 h-8 rounded flex-shrink-0"
+                      style={{
+                        backgroundColor: template.color,
+                        borderRadius: template.type === 'ball' ? '50%' : template.type === 'cylinder' ? '20%' : '4px',
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-slate-200 truncate">{template.name}</div>
+                      <div className="text-xs text-slate-500 truncate">{template.description}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        // Photo upload mode
         return (
-          <>
+          <div className="space-y-3">
+            <button
+              onClick={() => setObjectMode('choose')}
+              className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </button>
+
             <input
               ref={fileInputRef}
               type="file"
@@ -334,14 +466,14 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               ) : (
                 <>
                   <Camera className="w-6 h-6" />
-                  Add Your Object
+                  Select Photo
                 </>
               )}
             </button>
-            <p className="text-center text-sm text-slate-500 mt-3">
+            <p className="text-center text-sm text-slate-500">
               Take a photo of anything you want the robot to pick up
             </p>
-          </>
+          </div>
         );
 
       case 'record-demo':
@@ -450,6 +582,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               onClick={() => {
                 setState(initialQuickTrainState);
                 setStep('add-object');
+                setObjectMode('choose');
               }}
               className="mt-4 px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition"
             >
