@@ -1719,6 +1719,66 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
                   </div>
                 </div>
 
+                {/* Recommended Workflow */}
+                <div className="bg-gradient-to-r from-emerald-900/30 to-violet-900/30 border-2 border-emerald-500/30 p-6 rounded-xl">
+                  <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-emerald-400" />
+                    Recommended Workflow: Start Fast, Refine for Quality
+                  </h3>
+                  <p className="text-slate-300 text-sm mb-4">
+                    Multiple data collection approaches work together. Start with the fastest method, then add quality refinements as needed.
+                  </p>
+
+                  <div className="grid gap-3">
+                    {/* Step 1: Chat */}
+                    <div className="flex items-start gap-4 bg-slate-800/60 p-4 rounded-lg border-l-4 border-emerald-500">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold shrink-0">1</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-emerald-300">Start with Chat Recording</h4>
+                        <p className="text-slate-400 text-sm">Just talk to the robot. Every command becomes a labeled training episode with automatic language annotations. Great for quickly generating diverse demonstrations.</p>
+                        <p className="text-emerald-400/70 text-xs mt-1">Best for: Initial dataset, language-conditioned learning, natural variation</p>
+                      </div>
+                    </div>
+
+                    {/* Step 2: Review */}
+                    <div className="flex items-start gap-4 bg-slate-800/60 p-4 rounded-lg border-l-4 border-amber-500">
+                      <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shrink-0">2</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-amber-300">Check Quality with Statistics Dashboard</h4>
+                        <p className="text-slate-400 text-sm">Review your dataset quality metrics. The dashboard shows success rates, motion smoothness, and LeRobot readiness. Identify which episodes need improvement.</p>
+                        <p className="text-amber-400/70 text-xs mt-1">Look for: Low smoothness scores, inconsistent durations, failed episodes</p>
+                      </div>
+                    </div>
+
+                    {/* Step 3: Refine */}
+                    <div className="flex items-start gap-4 bg-slate-800/60 p-4 rounded-lg border-l-4 border-violet-500">
+                      <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white font-bold shrink-0">3</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-violet-300">Refine with Guided Teleoperation</h4>
+                        <p className="text-slate-400 text-sm">For tricky tasks where chat-generated motion isn't smooth enough, use guided recording. Visual guides and real-time quality feedback help you record expert-level demonstrations.</p>
+                        <p className="text-violet-400/70 text-xs mt-1">Best for: High-quality demos, consistent technique, precision tasks</p>
+                      </div>
+                    </div>
+
+                    {/* Step 4: Scale */}
+                    <div className="flex items-start gap-4 bg-slate-800/60 p-4 rounded-lg border-l-4 border-blue-500">
+                      <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0">4</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-300">Scale with Augmentation & Batch Generation</h4>
+                        <p className="text-slate-400 text-sm">Once you have good base episodes, multiply them. Add trajectory noise, time stretching, and spatial jitter. Use LLM batch recording to generate variations automatically.</p>
+                        <p className="text-blue-400/70 text-xs mt-1">Best for: 100+ episodes, sim-to-real robustness, dataset diversity</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-slate-800/50 rounded-lg border border-slate-600/50">
+                    <p className="text-slate-300 text-sm">
+                      <strong className="text-white">Pro tip:</strong> You don't need all approaches. Chat Recording alone can produce training-ready datasets.
+                      Add other methods only when you need higher quality or more volume for specific tasks.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Quick Start Pipeline */}
                 <div className="bg-slate-900/50 border-2 border-slate-700/30 p-6">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">

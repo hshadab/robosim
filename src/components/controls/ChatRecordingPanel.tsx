@@ -571,6 +571,22 @@ export const ChatRecordingPanel: React.FC = () => {
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
+
+              {/* Workflow Tips - show when quality could be improved */}
+              {stats.avgQuality < 70 && stats.episodeCount >= 3 && (
+                <div className="mt-3 p-2 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                  <p className="text-xs text-amber-300">
+                    <strong>Tip:</strong> Quality score is {stats.avgQuality}%. For smoother demonstrations, try <strong>Guided Recording</strong> with visual guides.
+                  </p>
+                </div>
+              )}
+              {stats.episodeCount >= 10 && stats.episodeCount < 50 && (
+                <div className="mt-3 p-2 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                  <p className="text-xs text-blue-300">
+                    <strong>Tip:</strong> Good start! Use <strong>Data Augmentation</strong> or <strong>LLM Batch Recording</strong> to scale to 50+ episodes for better training.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -584,6 +600,9 @@ export const ChatRecordingPanel: React.FC = () => {
                 <li>Each command is recorded with the language instruction</li>
                 <li>Export as LeRobot dataset for training</li>
               </ol>
+              <p className="mt-2 text-slate-500 border-t border-slate-700/50 pt-2">
+                <strong className="text-slate-400">Workflow:</strong> Start here for quick data, then use Guided Recording for higher quality or Batch Generation for more volume.
+              </p>
             </div>
           )}
 
