@@ -550,18 +550,31 @@ for (let i = 0; i < 2; i++) {
 
     // Find an object to pick up
     if (grabbableObjects.length === 0) {
+      console.log('[simulateArmResponse] No grabbable objects found. Objects:', objects);
       return {
         action: 'explain',
-        description: "I don't see any objects to pick up. Try adding an object using the Image-to-3D panel first.",
+        description: "I don't see any objects to pick up. Try adding an object using the Object Library first.",
       };
     }
 
-    // Find closest object or one matching the name
+    console.log('[simulateArmResponse] Grabbable objects:', grabbableObjects.map(o => ({ name: o.name, id: o.id, position: o.position, isGrabbable: o.isGrabbable })));
+
+    // Find closest object or one matching the name/color
     let targetObject = grabbableObjects[0];
     for (const obj of grabbableObjects) {
       const name = (obj.name || '').toLowerCase();
-      if (message.includes(name) || message.includes(obj.id)) {
+      const color = (obj.color || '').toLowerCase();
+      // Check for name match, partial name match, or color match
+      const words = name.split(/\s+/);
+      const colorWords = ['red', 'blue', 'green', 'yellow', 'orange', 'white', 'black', 'pink', 'purple'];
+      const messageColor = colorWords.find(c => message.includes(c));
+
+      if (message.includes(name) ||
+          message.includes(obj.id) ||
+          words.some(word => message.includes(word)) ||
+          (messageColor && (name.includes(messageColor) || color.includes(messageColor)))) {
         targetObject = obj;
+        console.log('[simulateArmResponse] Matched object:', targetObject.name);
         break;
       }
     }

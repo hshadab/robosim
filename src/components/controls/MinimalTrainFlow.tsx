@@ -188,7 +188,15 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
-    spawnObject(objWithoutId);
+
+    // Make sure name property is set for LLM matching
+    const objToSpawn = {
+      ...objWithoutId,
+      name: template.name,
+    };
+
+    console.log('[MinimalTrainFlow] Spawning object:', objToSpawn);
+    spawnObject(objToSpawn);
 
     setState(s => ({ ...s, objectName: template.name, objectPlaced: true }));
     setStep('record-demo');
