@@ -25,6 +25,9 @@ export const STORAGE_CONFIG = {
     AUTOSAVE: 'robosim-autosave',
     CLAUDE_API_KEY: 'robosim-claude-api-key',
     GEMINI_API_KEY: 'robosim-gemini-api-key',
+    FAL_API_KEY: 'robosim-fal-api-key',
+    HF_TOKEN: 'robosim-hf-token',
+    CSM_API_KEY: 'robosim-csm-api-key',
   },
 } as const;
 

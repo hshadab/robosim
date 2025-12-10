@@ -23,6 +23,7 @@ import type { Episode, Frame } from '../../lib/datasetExporter';
 import { generateTrainableObject as generateFalObject } from '../../lib/falImageTo3D';
 import { useLLMChat } from '../../hooks/useLLMChat';
 import { getClaudeApiKey, setClaudeApiKey } from '../../lib/claudeApi';
+import { getFalApiKey, setFalApiKey, getHfToken, setHfToken } from '../../lib/apiKeys';
 import { getOptimalPlacement } from '../../lib/workspacePlacement';
 import {
   PRIMITIVE_OBJECTS,
@@ -57,11 +58,23 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // API keys
-  const [falApiKey, setFalApiKey] = useState('');
-  const [hfToken, setHfToken] = useState('');
+  // API keys - load from persistent storage
+  const [falApiKey, setFalApiKeyState] = useState(() => getFalApiKey() || '');
+  const [hfToken, setHfTokenState] = useState(() => getHfToken() || '');
   const [showKeyInput, setShowKeyInput] = useState<'fal' | 'hf' | null>(null);
   const [backendAvailable, setBackendAvailable] = useState(false);
+
+  // Wrapper to persist fal API key
+  const updateFalApiKey = useCallback((key: string) => {
+    setFalApiKeyState(key);
+    if (key) setFalApiKey(key); // Persist to localStorage
+  }, []);
+
+  // Wrapper to persist HF token
+  const updateHfToken = useCallback((key: string) => {
+    setHfTokenState(key);
+    if (key) setHfToken(key); // Persist to localStorage
+  }, []);
 
   // Object selection mode
   const [objectMode, setObjectMode] = useState<'choose' | 'library' | 'photo'>('choose');
@@ -169,10 +182,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     }
   }, [isRecording, isAnimating, isLLMLoading, state.demoEpisodes.length, state.objectName, selectedRobotId]);
 
-  // Save Claude API key
+  // Save Claude API key (persist to localStorage)
   const handleSaveClaudeKey = useCallback(() => {
     if (claudeKeyInput.trim()) {
-      setClaudeApiKey(claudeKeyInput.trim());
+      setClaudeApiKey(claudeKeyInput.trim(), true); // true = persist to storage
       setHasClaudeKey(true);
       setClaudeKeyInput('');
     }
@@ -339,7 +352,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           <input
             type="password"
             value={falApiKey}
-            onChange={(e) => setFalApiKey(e.target.value)}
+            onChange={(e) => updateFalApiKey(e.target.value)}
             placeholder="fal_..."
             className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
           />
@@ -367,7 +380,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           <input
             type="password"
             value={hfToken}
-            onChange={(e) => setHfToken(e.target.value)}
+            onChange={(e) => updateHfToken(e.target.value)}
             placeholder="hf_..."
             className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white"
           />
