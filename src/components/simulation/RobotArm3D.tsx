@@ -495,6 +495,24 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
             <div className="text-xs font-mono text-slate-300">
               Elbow: {joints.elbow.toFixed(0)}° | Wrist: {joints.wrist.toFixed(0)}°
             </div>
+            {/* Object positions */}
+            {objects && objects.length > 0 && (
+              <>
+                <div className="text-xs text-slate-400 mt-2 mb-1 border-t border-slate-700 pt-2">Objects in Scene</div>
+                {objects.slice(0, 3).map((obj, i) => {
+                  const [x, y, z] = obj.position;
+                  const dist = Math.sqrt(x * x + z * z);
+                  return (
+                    <div key={obj.id || i} className="text-xs font-mono text-slate-300">
+                      <span className="text-blue-400">{obj.name || obj.type}</span>: [{(x * 100).toFixed(0)}, {(y * 100).toFixed(0)}, {(z * 100).toFixed(0)}]cm <span className="text-slate-500">({(dist * 100).toFixed(0)}cm)</span>
+                    </div>
+                  );
+                })}
+                {objects.length > 3 && (
+                  <div className="text-xs text-slate-500">+{objects.length - 3} more</div>
+                )}
+              </>
+            )}
           </div>
           <div className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700/50">
             <div className="text-xs text-slate-400">Gripper</div>
