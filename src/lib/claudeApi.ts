@@ -577,6 +577,173 @@ await moveJoints({ base: ${liftIK.base.toFixed(1)}, shoulder: ${liftIK.shoulder.
   };
 }
 
+// Helper function to find an object by name, color, or type from a message
+function findObjectByDescription(message: string, objects: SimObject[]): SimObject | null {
+  const typeAliases: Record<string, string[]> = {
+    cube: ['cube', 'block', 'box', 'square'],
+    ball: ['ball', 'sphere', 'round'],
+    cylinder: ['cylinder', 'can', 'bottle', 'cup', 'tube'],
+  };
+  const colorWords = ['red', 'blue', 'green', 'yellow', 'orange', 'white', 'black', 'pink', 'purple'];
+
+  for (const obj of objects) {
+    const name = (obj.name || '').toLowerCase();
+    const objType = (obj.type || '').toLowerCase();
+    const color = (obj.color || '').toLowerCase();
+    const words = name.split(/\s+/);
+    const messageColor = colorWords.find(c => message.includes(c));
+    const typeMatches = typeAliases[objType]?.some(alias => message.includes(alias)) || message.includes(objType);
+
+    if (message.includes(name) ||
+        message.includes(obj.id) ||
+        words.some(word => word.length > 2 && message.includes(word)) ||
+        typeMatches ||
+        (messageColor && (name.includes(messageColor) || color.includes(messageColor)))) {
+      return obj;
+    }
+  }
+  return null;
+}
+
+// Handle "stack on" / "place on top of" commands
+function handleStackCommand(
+  message: string,
+  objects: SimObject[],
+  heldObject: SimObject | undefined,
+  state: JointState
+): ClaudeResponse {
+  // Must be holding something to stack
+  if (!heldObject) {
+    return {
+      action: 'explain',
+      description: "I need to be holding an object to stack it. Say 'pick up' first.",
+    };
+  }
+
+  // Find the target object to stack on
+  // Remove "stack", "on", "top", "place", "put" to find the target
+  const targetSearch = message
+    .replace(/stack|place|put|on top of|on|the/gi, '')
+    .trim()
+    .toLowerCase();
+
+  const targetObject = findObjectByDescription(targetSearch, objects.filter(o => o !== heldObject));
+
+  if (!targetObject) {
+    return {
+      action: 'explain',
+      description: `I couldn't find "${targetSearch}" to stack on. Available objects: ${objects.filter(o => o !== heldObject).map(o => o.name || o.id).join(', ')}`,
+    };
+  }
+
+  const [targetX, targetY, targetZ] = targetObject.position;
+  const targetName = targetObject.name || targetObject.id;
+  const heldName = heldObject.name || heldObject.id;
+
+  // Estimate target object height (default 0.05m if not specified)
+  const targetHeight = (targetObject as { dimensions?: [number, number, number] }).dimensions?.[1] || 0.05;
+  const stackHeight = targetY + targetHeight + 0.03; // Place 3cm above target object top
+
+  console.log(`[handleStackCommand] Stack "${heldName}" on "${targetName}" at height ${stackHeight.toFixed(3)}m`);
+
+  // Calculate IK for approach (above the stack position)
+  const approachHeight = stackHeight + 0.08;
+  const approachIK = calculateInverseKinematics(targetX, approachHeight, targetZ, state);
+
+  // Calculate IK for place position
+  const placeIK = calculateInverseKinematics(targetX, stackHeight, targetZ, state);
+
+  // Calculate IK for retreat (lift back up)
+  const retreatHeight = stackHeight + 0.1;
+  const retreatIK = calculateInverseKinematics(targetX, retreatHeight, targetZ, state);
+
+  if (approachIK && placeIK && retreatIK) {
+    console.log(`[handleStackCommand] IK success for stacking at [${targetX.toFixed(3)}, ${stackHeight.toFixed(3)}, ${targetZ.toFixed(3)}]`);
+    return {
+      action: 'sequence',
+      joints: [
+        { base: approachIK.base, shoulder: approachIK.shoulder, elbow: approachIK.elbow, wrist: approachIK.wrist },
+        { base: placeIK.base, shoulder: placeIK.shoulder, elbow: placeIK.elbow, wrist: placeIK.wrist },
+        { gripper: 100 }, // Release
+        { base: retreatIK.base, shoulder: retreatIK.shoulder, elbow: retreatIK.elbow, wrist: retreatIK.wrist },
+      ],
+      description: `Stacking "${heldName}" on top of "${targetName}" at height ${stackHeight.toFixed(2)}m using IK`,
+      code: `// Stack "${heldName}" on "${targetName}"
+await moveJoints({ base: ${approachIK.base.toFixed(1)}, shoulder: ${approachIK.shoulder.toFixed(1)}, elbow: ${approachIK.elbow.toFixed(1)}, wrist: ${approachIK.wrist.toFixed(1)} }); // Approach
+await moveJoints({ base: ${placeIK.base.toFixed(1)}, shoulder: ${placeIK.shoulder.toFixed(1)}, elbow: ${placeIK.elbow.toFixed(1)}, wrist: ${placeIK.wrist.toFixed(1)} }); // Place
+await openGripper();
+await moveJoints({ base: ${retreatIK.base.toFixed(1)}, shoulder: ${retreatIK.shoulder.toFixed(1)}, elbow: ${retreatIK.elbow.toFixed(1)}, wrist: ${retreatIK.wrist.toFixed(1)} }); // Retreat`,
+    };
+  }
+
+  // Fallback to heuristic
+  console.log('[handleStackCommand] IK failed, using heuristic fallback');
+  const baseAngle = calculateBaseAngleForPosition(targetX, targetZ);
+  return {
+    action: 'sequence',
+    joints: [
+      { base: baseAngle },
+      { shoulder: 20, elbow: -40 },
+      { shoulder: -10, elbow: -80 },
+      { gripper: 100 },
+      { shoulder: 30, elbow: -45 },
+    ],
+    description: `Stacking "${heldName}" on "${targetName}" (heuristic)`,
+    code: `// Stack (heuristic)\nawait moveJoint('base', ${baseAngle.toFixed(0)});\nawait openGripper();`,
+  };
+}
+
+// Handle "move to object" / "go to object" commands
+function handleMoveToCommand(
+  message: string,
+  objects: SimObject[],
+  state: JointState
+): ClaudeResponse {
+  // Remove common words to find target
+  const targetSearch = message
+    .replace(/move to|go to|reach|the|position|object/gi, '')
+    .trim()
+    .toLowerCase();
+
+  const targetObject = findObjectByDescription(targetSearch, objects);
+
+  if (!targetObject) {
+    // Maybe they meant a position? Fall through to regular movement
+    return {
+      action: 'explain',
+      description: `I couldn't find "${targetSearch}". Try "move to the [color] [object]" or use basic movement commands.`,
+    };
+  }
+
+  const [objX, objY, objZ] = targetObject.position;
+  const objName = targetObject.name || targetObject.id;
+
+  // Move gripper to hover above the object
+  const hoverHeight = Math.max(objY + 0.1, 0.15);
+
+  console.log(`[handleMoveToCommand] Moving to "${objName}" at [${objX.toFixed(3)}, ${hoverHeight.toFixed(3)}, ${objZ.toFixed(3)}]`);
+
+  const hoverIK = calculateInverseKinematics(objX, hoverHeight, objZ, state);
+
+  if (hoverIK) {
+    return {
+      action: 'move',
+      joints: { base: hoverIK.base, shoulder: hoverIK.shoulder, elbow: hoverIK.elbow, wrist: hoverIK.wrist },
+      description: `Moving to hover above "${objName}" at [${objX.toFixed(2)}, ${hoverHeight.toFixed(2)}, ${objZ.toFixed(2)}] using IK`,
+      code: `// Move to "${objName}"\nawait moveJoints({ base: ${hoverIK.base.toFixed(1)}, shoulder: ${hoverIK.shoulder.toFixed(1)}, elbow: ${hoverIK.elbow.toFixed(1)}, wrist: ${hoverIK.wrist.toFixed(1)} });`,
+    };
+  }
+
+  // Fallback to just rotating base
+  const baseAngle = calculateBaseAngleForPosition(objX, objZ);
+  return {
+    action: 'move',
+    joints: { base: baseAngle },
+    description: `Rotating toward "${objName}" (IK failed for full approach)`,
+    code: `await moveJoint('base', ${baseAngle.toFixed(0)});`,
+  };
+}
+
 function simulateArmResponse(message: string, state: JointState, objects?: SimObject[]): ClaudeResponse {
   console.log('[simulateArmResponse] Processing message:', message);
   const amount = parseAmount(message);
@@ -591,6 +758,18 @@ function simulateArmResponse(message: string, state: JointState, objects?: SimOb
   if (message.includes('pick') || message.includes('grab')) {
     console.log('[simulateArmResponse] Detected pick/grab command');
     return handlePickUpCommand(message, grabbableObjects, heldObject);
+  }
+
+  // Stack on / place on top of - check BEFORE "place"
+  if ((message.includes('stack') || message.includes('place on') || message.includes('put on')) &&
+      !message.includes('put down')) {
+    return handleStackCommand(message, objects || [], heldObject, state);
+  }
+
+  // Move to object position - check BEFORE basic movement commands
+  if ((message.includes('move to') || message.includes('go to') || message.includes('reach')) &&
+      objects && objects.length > 0) {
+    return handleMoveToCommand(message, objects, state);
   }
 
   // Movement commands - base rotation

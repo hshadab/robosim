@@ -363,7 +363,10 @@ RoboSim implements several features to ensure training data transfers well to re
 
 #### IK-Based Commands
 - **Pick-up Sequences** - "pick up the cube" calculates three IK solutions (approach, grasp, lift)
+- **Stack Commands** - "stack on the blue block" places held object on top of another using IK
 - **Place Commands** - "place" and "put down" use FK to find current position, then IK to lower
+- **Move to Object** - "move to the red cube" positions gripper above the specified object
+- **Elevated Objects** - Pick-up/stack automatically adjusts heights for objects on shelves or other surfaces
 - **Click-to-Move** - Click anywhere in 3D view and IK calculates joint angles to reach it
 - **Fallback Mode** - If IK fails (unreachable position), gracefully falls back to heuristic control
 
@@ -381,6 +384,9 @@ RoboSim implements several features to ensure training data transfers well to re
 | IK accuracy | Failed (~150mm) | <3mm error | <3mm error ✓ |
 | Pick-up planning | Heuristic | IK-based | IK-based ✓ |
 | Place commands | Hardcoded angles | FK→IK based | FK→IK based ✓ |
+| Stack commands | Not supported | IK-based | IK-based ✓ |
+| Move to object | Not supported | IK-based | IK-based ✓ |
+| Elevated objects | Height-unaware | Auto-adjusted | Auto-adjusted ✓ |
 
 Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve.
 
