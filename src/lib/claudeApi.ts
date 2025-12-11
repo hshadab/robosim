@@ -9,7 +9,7 @@ import { SYSTEM_PROMPTS } from '../hooks/useLLMChat';
 import { generateSemanticState } from './semanticState';
 import { API_CONFIG, STORAGE_CONFIG } from './config';
 import { loggers } from './logger';
-import { calculateInverseKinematics } from '../components/simulation/SO101Kinematics';
+import { calculateInverseKinematics, calculateSO101GripperPosition } from '../components/simulation/SO101Kinematics';
 
 const log = loggers.claude;
 
@@ -745,6 +745,37 @@ for (let i = 0; i < 2; i++) {
   }
 
   if (message.includes('place') || message.includes('put down') || message.includes('drop')) {
+    // Get current gripper position using FK
+    const currentGripperPos = calculateSO101GripperPosition(state);
+    const [gx, gy, gz] = currentGripperPos;
+
+    // Calculate IK for lowering to place position (lower Y to near table)
+    const placeHeight = Math.max(0.05, gy - 0.1); // Lower by 10cm or to table height
+    const placeIK = calculateInverseKinematics(gx, placeHeight, gz, state);
+
+    // Calculate IK for lifting back up after placing
+    const liftHeight = Math.max(0.15, placeHeight + 0.1);
+    const liftIK = calculateInverseKinematics(gx, liftHeight, gz, state);
+
+    if (placeIK && liftIK) {
+      console.log(`[place] Using IK to place at [${gx.toFixed(3)}, ${placeHeight.toFixed(3)}, ${gz.toFixed(3)}]`);
+      return {
+        action: 'sequence',
+        joints: [
+          { base: placeIK.base, shoulder: placeIK.shoulder, elbow: placeIK.elbow, wrist: placeIK.wrist },
+          { gripper: 100 }, // Open gripper to release
+          { base: liftIK.base, shoulder: liftIK.shoulder, elbow: liftIK.elbow, wrist: liftIK.wrist },
+        ],
+        description: `Placing object at [${gx.toFixed(2)}, ${placeHeight.toFixed(2)}, ${gz.toFixed(2)}] using IK`,
+        code: `// Place object using inverse kinematics
+await moveJoints({ base: ${placeIK.base.toFixed(1)}, shoulder: ${placeIK.shoulder.toFixed(1)}, elbow: ${placeIK.elbow.toFixed(1)}, wrist: ${placeIK.wrist.toFixed(1)} });
+await openGripper();
+await moveJoints({ base: ${liftIK.base.toFixed(1)}, shoulder: ${liftIK.shoulder.toFixed(1)}, elbow: ${liftIK.elbow.toFixed(1)}, wrist: ${liftIK.wrist.toFixed(1)} });`,
+      };
+    }
+
+    // Fallback to heuristic if IK fails
+    console.log('[place] IK failed, using heuristic fallback');
     return {
       action: 'sequence',
       joints: [
@@ -752,7 +783,7 @@ for (let i = 0; i < 2; i++) {
         { gripper: 100 },
         { shoulder: 20, elbow: -30 },
       ],
-      description: 'Placing object down',
+      description: 'Placing object down (heuristic)',
       code: `await moveJoint('shoulder', -20);
 await moveJoint('elbow', -100);
 await openGripper();
