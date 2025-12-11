@@ -660,10 +660,74 @@ function handlePickUpCommand(
         };
       }
 
-      // Verify mid positions are above table
-      const mid1Pos = calculateSO101GripperPosition(mid1IK);
-      const mid2Pos = calculateSO101GripperPosition(mid2IK);
-      console.log('[handlePickUpCommand] Mid1 pos:', mid1Pos, 'Mid2 pos:', mid2Pos);
+      // Verify mid positions are above table and fix if not
+      let mid1Pos = calculateSO101GripperPosition(mid1IK);
+      let mid2Pos = calculateSO101GripperPosition(mid2IK);
+      console.log('[handlePickUpCommand] Initial Mid1 pos:', mid1Pos, 'Mid2 pos:', mid2Pos);
+
+      // Table is at Y=0 - ensure all waypoints stay above it with margin
+      const MIN_HEIGHT = 0.01; // 1cm above table minimum
+
+      // If mid1 is below minimum, use a safe hover position
+      if (mid1Pos[1] < MIN_HEIGHT) {
+        console.log('[handlePickUpCommand] Mid1 below table, using safe position');
+        // Try IK for a position directly above object at safe height
+        const safeY1 = Math.max(objY + 0.08, 0.10);
+        const safeMid1IK = calculateInverseKinematics(objX, safeY1, objZ, defaultJoints);
+        if (safeMid1IK) {
+          mid1IK = safeMid1IK;
+          mid1Pos = calculateSO101GripperPosition(mid1IK);
+        } else {
+          // Use approach angles but with reduced shoulder to stay higher
+          mid1IK = {
+            base: graspIK.base,
+            shoulder: Math.max(approachIK.shoulder, 30),
+            elbow: Math.max(approachIK.elbow, 30),
+            wrist: approachIK.wrist,
+            wristRoll: 0,
+            gripper: 100,
+          };
+          mid1Pos = calculateSO101GripperPosition(mid1IK);
+        }
+      }
+
+      // If mid2 is below minimum, interpolate between mid1 and grasp positions
+      if (mid2Pos[1] < MIN_HEIGHT) {
+        console.log('[handlePickUpCommand] Mid2 below table, using safe position');
+        // Try IK for a position directly above object at safe height
+        const safeY2 = Math.max(objY + 0.04, 0.05);
+        const safeMid2IK = calculateInverseKinematics(objX, safeY2, objZ, defaultJoints);
+        if (safeMid2IK) {
+          mid2IK = safeMid2IK;
+          mid2Pos = calculateSO101GripperPosition(mid2IK);
+        } else {
+          // Interpolate between mid1 and grasp, ensuring Y stays above table
+          // Use mid1 angles blended toward grasp but keep shoulder higher
+          const blend = 0.5;
+          mid2IK = {
+            base: graspIK.base,
+            shoulder: mid1IK.shoulder * (1-blend) + graspIK.shoulder * blend,
+            elbow: mid1IK.elbow * (1-blend) + graspIK.elbow * blend,
+            wrist: mid1IK.wrist * (1-blend) + graspIK.wrist * blend,
+            wristRoll: 0,
+            gripper: 100,
+          };
+          mid2Pos = calculateSO101GripperPosition(mid2IK);
+
+          // If still below, use grasp angles with slightly higher shoulder
+          if (mid2Pos[1] < MIN_HEIGHT) {
+            mid2IK = {
+              ...graspIK,
+              shoulder: graspIK.shoulder + 10,
+              elbow: graspIK.elbow + 10,
+              gripper: 100,
+            };
+            mid2Pos = calculateSO101GripperPosition(mid2IK);
+          }
+        }
+      }
+
+      console.log('[handlePickUpCommand] Final Mid1 pos:', mid1Pos, 'Mid2 pos:', mid2Pos);
 
       // Build sequence with 2 intermediate waypoints for smooth, safe descent
       const sequence = [
