@@ -139,6 +139,24 @@ export async function callClaudeAPI(
                        robotType === 'drone' ? fullState.drone :
                        fullState.humanoid;
 
+  // For arm manipulation commands (pick, grab, stack, place), always use local IK-based handlers
+  // This ensures precise inverse kinematics calculations regardless of API key presence
+  const lowerMessage = message.toLowerCase();
+  const isManipulationCommand = robotType === 'arm' && (
+    lowerMessage.includes('pick') ||
+    lowerMessage.includes('grab') ||
+    lowerMessage.includes('stack') ||
+    lowerMessage.includes('place') ||
+    lowerMessage.includes('put down') ||
+    lowerMessage.includes('drop') ||
+    (lowerMessage.includes('move to') && fullState.objects && fullState.objects.length > 0)
+  );
+
+  if (isManipulationCommand) {
+    console.log('[callClaudeAPI] Using local IK handlers for manipulation command:', message);
+    return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
+  }
+
   // If no API key, use the demo mode with simulated responses
   if (!apiKey) {
     return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
