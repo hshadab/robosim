@@ -599,16 +599,20 @@ function handlePickUpCommand(
 
       console.log('[handlePickUpCommand] Using IK-derived sequence');
 
+      const sequence = [
+        { gripper: 100 }, // Open gripper wide
+        { base: graspIK.base }, // First rotate base to face object
+        { base: approachIK.base, shoulder: approachIK.shoulder, elbow: approachIK.elbow, wrist: approachIK.wrist }, // Approach (above object)
+        { base: graspIK.base, shoulder: graspIK.shoulder, elbow: graspIK.elbow, wrist: graspIK.wrist }, // Lower to grasp
+        { gripper: 0 }, // Close gripper
+        { base: liftIK.base, shoulder: liftIK.shoulder, elbow: liftIK.elbow, wrist: liftIK.wrist }, // Lift object
+      ];
+
+      console.log('[handlePickUpCommand] FULL SEQUENCE:', JSON.stringify(sequence, null, 2));
+
       return {
         action: 'sequence',
-        joints: [
-          { gripper: 100 }, // Open gripper wide
-          { base: graspIK.base }, // First rotate base to face object
-          { base: approachIK.base, shoulder: approachIK.shoulder, elbow: approachIK.elbow, wrist: approachIK.wrist }, // Approach (above object)
-          { base: graspIK.base, shoulder: graspIK.shoulder, elbow: graspIK.elbow, wrist: graspIK.wrist }, // Lower to grasp
-          { gripper: 0 }, // Close gripper
-          { base: liftIK.base, shoulder: liftIK.shoulder, elbow: liftIK.elbow, wrist: liftIK.wrist }, // Lift object
-        ],
+        joints: sequence,
         description: `Picking up "${objName}" at [${objX.toFixed(2)}, ${objY.toFixed(2)}, ${objZ.toFixed(2)}] using IK`,
         code: `// Pick up "${objName}" using inverse kinematics
 await openGripper();
