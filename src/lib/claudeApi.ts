@@ -512,8 +512,10 @@ function handlePickUpCommand(
   const baseAngle = Math.atan2(objX, objZ) * (180 / Math.PI);
 
   // Use inverse kinematics to calculate joint angles for grasp position
-  // Grasp position: at object height (gripper tip should reach object center)
-  const graspHeight = objY + 0.02; // Slightly above object center for gripper geometry
+  // Grasp position: gripper tip at object center height
+  // The object's Y position is its center, so we target that directly
+  // The gripper geometry means the tip needs to be AT or slightly BELOW the object center
+  const graspHeight = objY; // Target the object center directly
   const graspIK = calculateInverseKinematics(objX, graspHeight, objZ, defaultJoints);
 
   console.log('[handlePickUpCommand] Grasp IK:', graspIK ?
