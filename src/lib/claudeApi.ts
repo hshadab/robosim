@@ -611,74 +611,88 @@ function handlePickUpCommand(
       const approachY = Math.max(objY + 0.10, 0.12);
       let approachIK = calculateInverseKinematics(objX, approachY, objZ, defaultJoints);
 
+      // Validate approach IK - shoulder should be positive (arm forward) and similar direction to grasp
+      // Reject IK solutions that would swing the arm backwards
+      if (approachIK && (approachIK.shoulder < 0 || Math.abs(approachIK.shoulder - graspIK.shoulder) > 60)) {
+        console.log('[handlePickUpCommand] Approach IK has bad angles, will use fallback');
+        approachIK = null;
+      }
+
       // Try IK for lift position (15cm above object)
       const liftY = Math.max(objY + 0.15, 0.18);
       let liftIK = calculateInverseKinematics(objX, liftY, objZ, defaultJoints);
 
-      // If approach IK failed, we need a different strategy for close objects
-      // These close objects require extreme grasp angles - we can't smoothly derive approach from them
-      // Instead, use a "hover above" approach with the arm positioned to descend straight down
+      // Validate lift IK similarly
+      if (liftIK && (liftIK.shoulder < 0 || Math.abs(liftIK.shoulder - graspIK.shoulder) > 60)) {
+        console.log('[handlePickUpCommand] Lift IK has bad angles, will use fallback');
+        liftIK = null;
+      }
+
+      // If approach IK failed or was rejected, derive from grasp angles
+      // Key insight: to move UP from grasp, we typically DECREASE shoulder angle (more upright)
+      // and may need to adjust elbow to compensate
       if (!approachIK) {
-        // For close objects, use a raised position that's above the object
-        // Key: keep gripper pointing downward and positioned roughly over the object
-        // Use positive angles that keep the arm extended forward/down
+        // Derive approach from grasp by moving arm to a higher position
+        // Decrease shoulder (more negative = arm higher) and adjust elbow
+        const approachShoulder = Math.max(graspIK.shoulder - 20, -30); // Raise arm but not too far back
+        const approachElbow = Math.min(graspIK.elbow + 10, 95); // Bend elbow more
+        const approachWrist = graspIK.wrist;
+
         approachIK = {
-          base: graspIK.base,  // Same rotation to face the object
-          shoulder: 45,        // Arm tilted forward
-          elbow: 45,           // Elbow bent down
-          wrist: 0,            // Wrist neutral
+          base: graspIK.base,
+          shoulder: approachShoulder,
+          elbow: approachElbow,
+          wrist: approachWrist,
           wristRoll: 0,
           gripper: 100,
         };
 
         // Check the approach position
         let testPos = calculateSO101GripperPosition(approachIK);
-        console.log('[handlePickUpCommand] Initial approach pos:', testPos);
+        console.log('[handlePickUpCommand] Derived approach pos:', testPos, 'from grasp shoulder:', graspIK.shoulder);
 
-        // Make sure approach is above the object and in the right direction
-        // The X and Z should have the same SIGN as the object position
-        const approachInRightDirection =
-          (Math.sign(testPos[0]) === Math.sign(objX) || Math.abs(objX) < 0.02) &&
-          (Math.sign(testPos[2]) === Math.sign(objZ) || Math.abs(objZ) < 0.02);
-
-        if (!approachInRightDirection || testPos[1] < objY + 0.05) {
-          // Try a more upright position
-          approachIK.shoulder = 30;
-          approachIK.elbow = 60;
-          approachIK.wrist = 20;
+        // Verify approach is above grasp
+        const graspTestPos = calculateSO101GripperPosition(graspIK);
+        if (testPos[1] <= graspTestPos[1]) {
+          // If still not above, try adjusting more
+          approachIK.shoulder = Math.max(graspIK.shoulder - 30, -40);
+          approachIK.elbow = Math.min(graspIK.elbow + 15, 97);
           testPos = calculateSO101GripperPosition(approachIK);
           console.log('[handlePickUpCommand] Adjusted approach pos:', testPos);
         }
 
-        console.log('[handlePickUpCommand] Using hover approach for close object');
+        console.log('[handlePickUpCommand] Using derived approach from grasp angles');
       }
 
-      // If lift IK failed, use a safe raised position similar to approach
+      // If lift IK failed or was rejected, derive from grasp angles (higher than approach)
       if (!liftIK) {
-        // Use same strategy as approach - a raised position above the object
+        // Derive lift from grasp by moving arm even higher than approach
+        const liftShoulder = Math.max(graspIK.shoulder - 35, -50); // Raise arm more than approach
+        const liftElbow = Math.min(graspIK.elbow + 15, 97);
+        const liftWrist = graspIK.wrist;
+
         liftIK = {
           base: graspIK.base,
-          shoulder: 35,   // More upright than approach
-          elbow: 55,
-          wrist: 10,
+          shoulder: liftShoulder,
+          elbow: liftElbow,
+          wrist: liftWrist,
           wristRoll: 0,
           gripper: 0,
         };
 
         // Verify lift is above grasp
         let liftTestPos = calculateSO101GripperPosition(liftIK);
-        console.log('[handlePickUpCommand] Initial lift pos:', liftTestPos);
+        console.log('[handlePickUpCommand] Derived lift pos:', liftTestPos, 'from grasp shoulder:', graspIK.shoulder);
 
         if (liftTestPos[1] < graspPos[1] + 0.05) {
-          // Try even more upright
-          liftIK.shoulder = 25;
-          liftIK.elbow = 65;
-          liftIK.wrist = 15;
+          // If still not high enough, adjust more
+          liftIK.shoulder = Math.max(graspIK.shoulder - 45, -60);
+          liftIK.elbow = Math.min(graspIK.elbow + 20, 97);
           liftTestPos = calculateSO101GripperPosition(liftIK);
           console.log('[handlePickUpCommand] Adjusted lift pos:', liftTestPos);
         }
 
-        console.log('[handlePickUpCommand] Using hover lift for close object');
+        console.log('[handlePickUpCommand] Using derived lift from grasp angles');
       }
 
       // Verify positions
