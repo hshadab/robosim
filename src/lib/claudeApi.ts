@@ -499,20 +499,20 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
     // 2. Distant objects at LOW height (asymmetric: moderate shoulder, high elbow, low wrist)
     // 3. Distant objects at HIGH height (extended symmetric poses)
     const startConfigs: JointAngles[] = [
-      // HORIZONTAL GRASP POSES - for objects at ~10cm height (jaws ≈ tip height)
-      // With low wrist angles (15-35°), gripper is nearly horizontal so jaws and tip
-      // are at similar Y values. This allows grasping objects at medium height.
-      { base: baseAngle, shoulder: -55, elbow: 55, wrist: 25, wristRoll: 0 },   // Horizontal grasp ~15cm reach
-      { base: baseAngle, shoulder: -50, elbow: 50, wrist: 20, wristRoll: 0 },   // More extended horizontal
-      { base: baseAngle, shoulder: -45, elbow: 45, wrist: 15, wristRoll: 0 },   // Even more extended
-      { base: baseAngle, shoulder: -60, elbow: 60, wrist: 30, wristRoll: 0 },   // More bent horizontal
-      { base: baseAngle, shoulder: -65, elbow: 55, wrist: 35, wristRoll: 0 },   // Compact horizontal
-      { base: baseAngle, shoulder: -40, elbow: 45, wrist: 10, wristRoll: 0 },   // Very extended horizontal
+      // LEROBOT-STYLE COMPACT POSES - from real SO-101 training data
+      // Real grasps use: shoulder=-99°, elbow=92-98°, wrist=71-75° (steep, not horizontal!)
+      // These compact poses allow reaching close, low objects
+      { base: baseAngle, shoulder: -99, elbow: 97, wrist: 75, wristRoll: 0 },   // Real LeRobot grasp pose
+      { base: baseAngle, shoulder: -99, elbow: 95, wrist: 72, wristRoll: 0 },   // LeRobot variant
+      { base: baseAngle, shoulder: -98, elbow: 97, wrist: 74, wristRoll: 0 },   // Near max compact
+      { base: baseAngle, shoulder: -97, elbow: 96, wrist: 73, wristRoll: 0 },   // Compact variant
+      { base: baseAngle, shoulder: -95, elbow: 95, wrist: 72, wristRoll: 0 },   // Slightly less compact
+      { base: baseAngle, shoulder: -95, elbow: 92, wrist: 70, wristRoll: 0 },   // Medium compact
 
-      // COMPACT POSES - for close objects at low height
-      { base: baseAngle, shoulder: -99, elbow: 97, wrist: 75, wristRoll: 0 },   // Real grasp pose (reach ~9cm)
-      { base: baseAngle, shoulder: -95, elbow: 95, wrist: 75, wristRoll: 0 },   // Near grasp pose
-      { base: baseAngle, shoulder: -90, elbow: 90, wrist: 75, wristRoll: 0 },   // Good grasp pose
+      // MEDIUM COMPACT POSES - for slightly further objects
+      { base: baseAngle, shoulder: -90, elbow: 90, wrist: 70, wristRoll: 0 },   // Good grasp pose
+      { base: baseAngle, shoulder: -85, elbow: 85, wrist: 68, wristRoll: 0 },   // Medium-compact
+      { base: baseAngle, shoulder: -80, elbow: 80, wrist: 65, wristRoll: 0 },   // Less compact
 
       // MEDIUM POSES - for medium distance objects
       { base: baseAngle, shoulder: -86, elbow: 73, wrist: 75, wristRoll: 0 },   // Real reach pose (reach ~12cm)
@@ -636,24 +636,19 @@ const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not b
 // so the jaws can close AROUND the object (not below it)
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // IMPORTANT: gripper_frame_link is the gripper TIP, not the jaws!
-  // The jaws are ~7.5cm behind the tip along the gripper axis.
+  // LEROBOT INSIGHT: Real SO-101 grasps use compact poses with steep wrist angles (71-75°)
+  // The jaws are ~7.5cm behind the tip. With steep angles, jaws are above tip.
+  // But in compact poses, the arm folds tightly and can reach low objects.
   //
-  // For HORIZONTAL grasps (wrist ~15-35°):
-  //   - Jaws and tip are at similar heights (within ~2cm)
-  //   - Target tip at object center height for jaws to close around object
-  //
-  // For VERTICAL grasps (wrist ~75-90°):
-  //   - Jaws are ~7cm ABOVE the tip
-  //   - Would need tip far below object (often impossible)
-  //
-  // Strategy: Use horizontal grasps by targeting tip at object center.
-  // The IK solver with horizontal starting configs will find appropriate poses.
+  // Strategy: Try multiple heights to find what works with compact poses.
+  // Let IK find natural poses without constraining wrist angle.
   const graspHeightsToTry = [
-    objY,                           // At object center (horizontal grasp)
-    objY - 0.01,                    // 1cm below center
-    objY + 0.01,                    // 1cm above center
+    objY,                           // At object center
     objY - 0.02,                    // 2cm below center
+    objY + 0.02,                    // 2cm above center
+    objY - 0.03,                    // 3cm below center (tip below, jaws at object level)
+    Math.max(0.02, objY - 0.04),    // 4cm below center
+    Math.max(0.02, objY - 0.05),    // 5cm below center
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
@@ -661,8 +656,9 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
 
   for (const graspY of graspHeightsToTry) {
     const graspTarget: [number, number, number] = [objX, graspY, objZ];
-    // Use preferHorizontalGrasp=true to get low wrist angles where jaws ≈ tip height
-    const result = solveIKForTarget(graspTarget, 1000, baseAngle, true);
+    // Real SO-101 grasps use steep wrist angles (71-75°), not horizontal
+    // Don't penalize wrist angle - let IK find natural compact poses
+    const result = solveIKForTarget(graspTarget, 1000, baseAngle, false);
 
     // Calculate actual achieved position
     const achievedPos = calculateGripperPos(result.joints);

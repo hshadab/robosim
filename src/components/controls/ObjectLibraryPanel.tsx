@@ -27,24 +27,23 @@ export const ObjectLibraryPanel: React.FC = () => {
   );
 
   const handleAddObject = (template: ObjectTemplate) => {
-    // Random position in front of robot - WITHIN REACHABLE WORKSPACE
-    // Use polar coordinates: distance 14-18cm, angle ±40° from +X axis
-    // Closer distance makes pickup easier with natural arm poses
-    const distance = 0.14 + Math.random() * 0.04; // 14-18cm from base
-    const angle = (Math.random() - 0.5) * (Math.PI / 2.25); // ±40° from +X axis
+    // Random position in front of robot - WITHIN COMPACT GRASP RANGE
+    // LeRobot training data shows compact poses work best at 10-13cm distance
+    // Use polar coordinates with narrow angle to keep objects in front
+    const distance = 0.10 + Math.random() * 0.03; // 10-13cm from base (compact grasp range)
+    const angle = (Math.random() - 0.5) * (Math.PI / 3); // ±30° from +X axis (narrower)
 
     const x = distance * Math.cos(angle);
     const z = distance * Math.sin(angle);
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects with center at ~6cm height for reliable grasping
-    // With horizontal grip, jaws and tip at similar height
-    // For 2.4cm cube: center at 6cm, bottom at 4.8cm, top at 7.2cm
-    const y = scale / 2 + 0.05;
+    // Spawn objects with center at ~4-5cm height for compact grasp reach
+    // LeRobot compact poses (shoulder=-99°, elbow=97°) reach ~3-5cm tip height
+    const y = scale / 2 + 0.04;
 
     // Ensure minimum X to avoid dead zone
-    const adjustedX = Math.max(0.10, x);
+    const adjustedX = Math.max(0.08, x); // Closer minimum for compact poses
 
     const newObject = createSimObjectFromTemplate(template, [adjustedX, y, z]);
     // Remove the 'id' since spawnObject will generate one

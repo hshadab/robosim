@@ -218,10 +218,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects with center at ~6cm height for reliable grasping
-    // With horizontal grip, jaws and tip at similar height
-    // For 2.4cm cube: center at 6cm, bottom at 4.8cm, top at 7.2cm
-    const y = scale / 2 + 0.05;
+    // Spawn objects with center at ~4-5cm height for compact grasp reach
+    // LeRobot compact poses (shoulder=-99°, elbow=97°) reach ~3-5cm tip height
+    const y = scale / 2 + 0.04;
 
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
