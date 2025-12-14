@@ -38,7 +38,8 @@ export const ObjectLibraryPanel: React.FC = () => {
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    const y = scale + 0.01;
+    // Spawn objects higher so arm can use natural bent-down pose
+    const y = scale + 0.045;
 
     // Ensure minimum X to avoid dead zone
     const adjustedX = Math.max(0.10, x);

@@ -598,8 +598,10 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
   return { joints: bestJoints, error: bestError };
 }
 
-// Distance from gripper tip to grip center (must match useGripperInteraction.ts)
-const GRIP_CENTER_OFFSET = 0.045; // 4.5cm
+// Distance from gripper tip to grip center
+// The SO-101 jaws are ~5.5cm long, grip center is roughly 2.5cm from tip
+// Reduced from 4.5cm to allow grasping small objects near table level
+const GRIP_CENTER_OFFSET = 0.025; // 2.5cm
 
 // IK error threshold - if error is larger than this, the position may not be reachable
 const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not be grabbable
