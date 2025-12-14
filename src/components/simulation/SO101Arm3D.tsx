@@ -12,6 +12,7 @@ import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
 import type { JointState } from '../../types';
 import { SO101_DIMS, calculateJointPositions } from './SO101Kinematics';
+import { calculateGripperPositionURDF } from './SO101KinematicsURDF';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
 import { useAppStore } from '../../stores/useAppStore';
 
@@ -297,6 +298,31 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
         gripperWorldQuat.current.z,
         gripperWorldQuat.current.w,
       ]);
+
+      // Debug: compare FK calculated position with actual URDF position
+      // This helps identify mismatches between IK solver and visual model
+      const fkPos = calculateGripperPositionURDF({
+        base: joints.base,
+        shoulder: joints.shoulder,
+        elbow: joints.elbow,
+        wrist: joints.wrist,
+        wristRoll: joints.wristRoll,
+      });
+      const actualPos = [
+        gripperWorldPosVec.current.x,
+        gripperWorldPosVec.current.y,
+        gripperWorldPosVec.current.z,
+      ];
+      const error = Math.sqrt(
+        (fkPos[0] - actualPos[0]) ** 2 +
+        (fkPos[1] - actualPos[1]) ** 2 +
+        (fkPos[2] - actualPos[2]) ** 2
+      );
+      // Only log if there's a significant mismatch (>1cm)
+      if (error > 0.01) {
+        console.log(`[FK vs URDF] Mismatch! FK=[${fkPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, Actual=[${actualPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, Error=${(error*100).toFixed(1)}cm`);
+        console.log(`[FK vs URDF] Joints: base=${joints.base.toFixed(1)}°, shoulder=${joints.shoulder.toFixed(1)}°, elbow=${joints.elbow.toFixed(1)}°, wrist=${joints.wrist.toFixed(1)}°`);
+      }
     }
   });
 
