@@ -602,18 +602,18 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
 const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not be grabbable
 
 // Calculate grasp position with validation
-// For natural looking grasps, we target the object center height directly
-// This allows the arm to use a bent-down pose instead of an extended horizontal pose
+// For successful grasps, the gripper needs to go BELOW the object center
+// so the jaws can close around it from above
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // Try grasp heights starting AT object level (most natural) then progressively lower
-  // At object level, the gripper jaw tips close around the object center
-  // Lower heights only tried if object-level grasp fails
+  // Try grasp heights starting BELOW object center so jaws can close around it
+  // Object center is at objY, for a ~2.4cm cube bottom is at objY - 1.2cm
+  // Gripper needs to reach roughly at the bottom half of the object
   const graspHeightsToTry = [
-    objY,                           // First: gripper at object center height (natural bent pose)
-    objY - 0.01,                    // Slightly lower (1cm below center)
-    objY - 0.02,                    // 2cm below center
-    objY + 0.02,                    // Above object if nothing else works
+    Math.max(0.02, objY - 0.03),    // 3cm below center (near object bottom)
+    Math.max(0.02, objY - 0.02),    // 2cm below center
+    Math.max(0.02, objY - 0.01),    // 1cm below center
+    objY,                           // At object center (last resort)
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
