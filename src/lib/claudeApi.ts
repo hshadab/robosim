@@ -598,30 +598,22 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
   return { joints: bestJoints, error: bestError };
 }
 
-// Distance from gripper tip to grip center
-// The SO-101 jaws are ~5.5cm long, grip center is roughly 2.5cm from tip
-// Reduced from 4.5cm to allow grasping small objects near table level
-const GRIP_CENTER_OFFSET = 0.025; // 2.5cm
-
 // IK error threshold - if error is larger than this, the position may not be reachable
 const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not be grabbable
 
-// Calculate grasp position with validation (gripper tip must go BELOW object so grip center is AT object)
-// Tries multiple grasp heights if the ideal position is unreachable
+// Calculate grasp position with validation
+// For natural looking grasps, we target the object center height directly
+// This allows the arm to use a bent-down pose instead of an extended horizontal pose
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // The grip center is 4.5cm ABOVE the gripper tip (when pointing down).
-  // We need the grip center at object height, so tip should be BELOW object.
-  // tip_y = obj_y - grip_center_offset
-  const idealGraspY = Math.max(0.02, objY - GRIP_CENTER_OFFSET);
-
-  // Try multiple grasp heights - start with ideal, then try progressively higher
-  // This helps when the arm can't reach far horizontally at low heights
+  // Try grasp heights starting AT object level (most natural) then progressively lower
+  // At object level, the gripper jaw tips close around the object center
+  // Lower heights only tried if object-level grasp fails
   const graspHeightsToTry = [
-    idealGraspY,                    // Ideal: grip center at object height
-    objY,                           // Higher: gripper tip at object height
-    objY + 0.02,                    // Even higher: 2cm above object
-    objY + 0.04,                    // 4cm above object
+    objY,                           // First: gripper at object center height (natural bent pose)
+    objY - 0.01,                    // Slightly lower (1cm below center)
+    objY - 0.02,                    // 2cm below center
+    objY + 0.02,                    // Above object if nothing else works
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
