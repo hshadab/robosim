@@ -26,3 +26,13 @@ dist-ssr
 
 # E2E test screenshots
 e2e-*.png
+
+# Test files with potential secrets
+e2e-test.mjs
+test-*.mjs
+playwright*.mjs
+test-screenshots/
+test-results/
+trajectory-visualization.html
+visual-test.mjs
+windows-chrome-test.mjs
