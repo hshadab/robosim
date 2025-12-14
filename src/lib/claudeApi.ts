@@ -498,6 +498,16 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
     // 2. Distant objects at LOW height (asymmetric: moderate shoulder, high elbow, low wrist)
     // 3. Distant objects at HIGH height (extended symmetric poses)
     const startConfigs: JointAngles[] = [
+      // HORIZONTAL GRASP POSES - for objects at ~10cm height (jaws ≈ tip height)
+      // With low wrist angles (15-35°), gripper is nearly horizontal so jaws and tip
+      // are at similar Y values. This allows grasping objects at medium height.
+      { base: baseAngle, shoulder: -55, elbow: 55, wrist: 25, wristRoll: 0 },   // Horizontal grasp ~15cm reach
+      { base: baseAngle, shoulder: -50, elbow: 50, wrist: 20, wristRoll: 0 },   // More extended horizontal
+      { base: baseAngle, shoulder: -45, elbow: 45, wrist: 15, wristRoll: 0 },   // Even more extended
+      { base: baseAngle, shoulder: -60, elbow: 60, wrist: 30, wristRoll: 0 },   // More bent horizontal
+      { base: baseAngle, shoulder: -65, elbow: 55, wrist: 35, wristRoll: 0 },   // Compact horizontal
+      { base: baseAngle, shoulder: -40, elbow: 45, wrist: 10, wristRoll: 0 },   // Very extended horizontal
+
       // COMPACT POSES - for close objects at low height
       { base: baseAngle, shoulder: -99, elbow: 97, wrist: 75, wristRoll: 0 },   // Real grasp pose (reach ~9cm)
       { base: baseAngle, shoulder: -95, elbow: 95, wrist: 75, wristRoll: 0 },   // Near grasp pose
@@ -508,7 +518,7 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
       { base: baseAngle, shoulder: -80, elbow: 80, wrist: 70, wristRoll: 0 },   // Variant
       { base: baseAngle, shoulder: -75, elbow: 75, wrist: 65, wristRoll: 0 },   // Medium bent
 
-      // ASYMMETRIC POSES - for DISTANT objects at LOW height (key discovery!)
+      // ASYMMETRIC POSES - for DISTANT objects at LOW height
       // These have moderate shoulder, HIGH elbow, and LOW wrist to reach far while staying low
       { base: baseAngle, shoulder: -65, elbow: 85, wrist: 25, wristRoll: 0 },   // Optimal for ~19cm at Y=3cm
       { base: baseAngle, shoulder: -60, elbow: 85, wrist: 20, wristRoll: 0 },   // Variant for low+far
@@ -607,20 +617,23 @@ const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not b
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
   // IMPORTANT: gripper_frame_link is the gripper TIP, not the jaws!
-  // The jaws are ~7.5cm behind the tip. With near-vertical grip (wrist~85-90°),
-  // the jaws are ~7cm HIGHER than the tip.
+  // The jaws are ~7.5cm behind the tip along the gripper axis.
   //
-  // To position the JAWS around the object (at objY), we need the TIP LOWER.
-  // For vertical grip: jaw_Y ≈ tip_Y + 7cm
-  // So tip should be at objY - 7cm for jaws to be at objY.
+  // For HORIZONTAL grasps (wrist ~15-35°):
+  //   - Jaws and tip are at similar heights (within ~2cm)
+  //   - Target tip at object center height for jaws to close around object
   //
-  // But we can't go too low (table is at Y=0). Try a range of heights.
-  // With objects at ~10cm, we can target tip at 3-5cm for jaws at 10-12cm.
+  // For VERTICAL grasps (wrist ~75-90°):
+  //   - Jaws are ~7cm ABOVE the tip
+  //   - Would need tip far below object (often impossible)
+  //
+  // Strategy: Use horizontal grasps by targeting tip at object center.
+  // The IK solver with horizontal starting configs will find appropriate poses.
   const graspHeightsToTry = [
-    Math.max(0.03, objY - 0.07),    // 7cm below center (jaws at object level for vertical grip)
-    Math.max(0.03, objY - 0.06),    // 6cm below center
-    Math.max(0.03, objY - 0.05),    // 5cm below center
-    Math.max(0.03, objY - 0.04),    // 4cm below center
+    objY,                           // At object center (horizontal grasp)
+    objY - 0.01,                    // 1cm below center
+    objY + 0.01,                    // 1cm above center
+    objY - 0.02,                    // 2cm below center
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
