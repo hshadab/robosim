@@ -28,9 +28,9 @@ export const ObjectLibraryPanel: React.FC = () => {
 
   const handleAddObject = (template: ObjectTemplate) => {
     // Random position in front of robot - WITHIN REACHABLE WORKSPACE
-    // Use polar coordinates: distance 18-25cm, angle ±40° from +X axis
-    // Further out gives gripper room to approach from above
-    const distance = 0.18 + Math.random() * 0.07; // 18-25cm from base
+    // Use polar coordinates: distance 14-18cm, angle ±40° from +X axis
+    // Closer distance makes pickup easier with natural arm poses
+    const distance = 0.14 + Math.random() * 0.04; // 14-18cm from base
     const angle = (Math.random() - 0.5) * (Math.PI / 2.25); // ±40° from +X axis
 
     const x = distance * Math.cos(angle);
