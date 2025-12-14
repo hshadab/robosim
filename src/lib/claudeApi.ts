@@ -606,21 +606,20 @@ const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not b
 // so the jaws can close AROUND the object (not below it)
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // Try grasp heights AT or slightly BELOW object center
-  // For a top-down grasp, the gripper jaws need to close AROUND the object
-  // Object center is at objY - gripper tips should be at approximately this height
+  // IMPORTANT: gripper_frame_link is the gripper TIP, not the jaws!
+  // The jaws are ~7.5cm behind the tip. With typical wrist angles (60-80°),
+  // the jaws are ~5-7cm HIGHER than the tip.
   //
-  // For a ~2.4cm cube centered at Y=4.9cm:
-  //   - Object bottom is at ~3.7cm
-  //   - Object top is at ~6.1cm
-  //   - Gripper should be at ~4-5cm to close around the object's middle
+  // To position the JAWS around the object (at objY), we need the TIP higher.
+  // For an object at Y=5.2cm with wrist~70°, jaws are ~6cm above tip.
+  // So tip should be at objY + 1-2cm for jaws to be at objY.
   //
-  // The floor constraint (2cm minimum) should rarely be hit with proper spawn heights
+  // Try heights AT and ABOVE object center for proper jaw placement
   const graspHeightsToTry = [
-    Math.max(0.03, objY - 0.01),    // 1cm below center (gripper around object)
-    Math.max(0.03, objY),           // At object center
-    Math.max(0.03, objY - 0.015),   // 1.5cm below center
-    Math.max(0.03, objY + 0.01),    // 1cm above center (for larger objects)
+    objY + 0.02,                    // 2cm above center (jaws at object level)
+    objY + 0.01,                    // 1cm above center
+    objY,                           // At object center
+    objY + 0.03,                    // 3cm above center (for steeper angles)
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
