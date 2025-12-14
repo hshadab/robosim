@@ -38,8 +38,9 @@ export const ObjectLibraryPanel: React.FC = () => {
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects at moderate height for easier grasping
-    const y = scale + 0.025;
+    // Spawn objects with center at ~5cm height for reliable grasping
+    // For 2.4cm cube: center at 5cm, bottom at 3.8cm, top at 6.2cm
+    const y = scale / 2 + 0.04;
 
     // Ensure minimum X to avoid dead zone
     const adjustedX = Math.max(0.10, x);

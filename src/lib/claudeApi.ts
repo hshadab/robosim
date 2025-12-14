@@ -602,18 +602,25 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
 const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not be grabbable
 
 // Calculate grasp position with validation
-// For successful grasps, the gripper needs to go BELOW the object center
-// so the jaws can close around it from above
+// For successful grasps, the gripper tips need to be AT the object center height
+// so the jaws can close AROUND the object (not below it)
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // Try grasp heights starting BELOW object center so jaws can close around it
-  // Object center is at objY, for a ~2.4cm cube bottom is at objY - 1.2cm
-  // Gripper needs to reach roughly at the bottom half of the object
+  // Try grasp heights AT or slightly BELOW object center
+  // For a top-down grasp, the gripper jaws need to close AROUND the object
+  // Object center is at objY - gripper tips should be at approximately this height
+  //
+  // For a ~2.4cm cube centered at Y=4.9cm:
+  //   - Object bottom is at ~3.7cm
+  //   - Object top is at ~6.1cm
+  //   - Gripper should be at ~4-5cm to close around the object's middle
+  //
+  // The floor constraint (2cm minimum) should rarely be hit with proper spawn heights
   const graspHeightsToTry = [
-    Math.max(0.02, objY - 0.03),    // 3cm below center (near object bottom)
-    Math.max(0.02, objY - 0.02),    // 2cm below center
-    Math.max(0.02, objY - 0.01),    // 1cm below center
-    objY,                           // At object center (last resort)
+    Math.max(0.03, objY - 0.01),    // 1cm below center (gripper around object)
+    Math.max(0.03, objY),           // At object center
+    Math.max(0.03, objY - 0.015),   // 1.5cm below center
+    Math.max(0.03, objY + 0.01),    // 1cm above center (for larger objects)
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
