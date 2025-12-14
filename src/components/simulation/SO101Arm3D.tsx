@@ -12,6 +12,8 @@ import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
 import type { JointState } from '../../types';
 import { SO101_DIMS, calculateJointPositions } from './SO101Kinematics';
+import { RealisticGripperPhysics } from './RealisticGripperPhysics';
+import { useAppStore } from '../../stores/useAppStore';
 
 interface SO101ArmProps {
   joints: JointState;
@@ -55,7 +57,6 @@ const ArmPhysicsColliders: React.FC<{ joints: JointState }> = ({ joints }) => {
   const upperArmRef = useRef<RapierRigidBody>(null);
   const forearmRef = useRef<RapierRigidBody>(null);
   const wristRef = useRef<RapierRigidBody>(null);
-  const gripperRef = useRef<RapierRigidBody>(null);
 
   useFrame(() => {
     const positions = calculateJointPositions(joints);
@@ -124,23 +125,7 @@ const ArmPhysicsColliders: React.FC<{ joints: JointState }> = ({ joints }) => {
       wristRef.current.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
     }
 
-    // Gripper: at the end effector
-    if (gripperRef.current) {
-      gripperRef.current.setNextKinematicTranslation({
-        x: positions.gripper[0],
-        y: positions.gripper[1],
-        z: positions.gripper[2],
-      });
-
-      const q = new THREE.Quaternion();
-      q.setFromEuler(new THREE.Euler(
-        0,
-        -shoulderPanRad,
-        -(shoulderLiftRad + elbowFlexRad + wristFlexRad),
-        'YXZ'
-      ));
-      gripperRef.current.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
-    }
+    // Note: Gripper jaw colliders are now handled by RealisticGripperPhysics component
   });
 
   const dims = SO101_DIMS;
@@ -174,14 +159,7 @@ const ArmPhysicsColliders: React.FC<{ joints: JointState }> = ({ joints }) => {
         <CuboidCollider args={[0.015, (dims.link5Length + dims.gripperLength) / 2, 0.015]} />
       </RigidBody>
 
-      {/* Gripper collider */}
-      <RigidBody
-        ref={gripperRef}
-        type="kinematicPosition"
-        colliders={false}
-      >
-        <CuboidCollider args={[0.03, 0.02, 0.02]} />
-      </RigidBody>
+      {/* Gripper jaw colliders are now handled by RealisticGripperPhysics */}
     </>
   );
 };
@@ -190,6 +168,11 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [robot, setRobot] = useState<THREE.Object3D | null>(null);
   const robotRef = useRef<ReturnType<typeof URDFLoader.prototype.parse> | null>(null);
+  const setGripperWorldPosition = useAppStore((state) => state.setGripperWorldPosition);
+  const setGripperWorldQuaternion = useAppStore((state) => state.setGripperWorldQuaternion);
+  const gripperWorldPosVec = useRef(new THREE.Vector3()); // Reusable vector to avoid allocations
+  const gripperWorldQuat = useRef(new THREE.Quaternion()); // Reusable quaternion to avoid allocations
+  const linkDebugLoggedRef = useRef(false); // Track whether we've logged link info
 
   useEffect(() => {
     const loader = new URDFLoader();
@@ -271,9 +254,49 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
       robotInstance.joints[JOINT_MAP.wristRoll].setJointValue((joints.wristRoll * Math.PI) / 180);
     }
     if (robotInstance.joints[JOINT_MAP.gripper]) {
-      // Gripper: 0-100 maps to joint limits
-      const gripperRad = (joints.gripper / 100) * 1.74533;
+      // Gripper: 0 = closed, 100 = open
+      // URDF joint limits: lower=-0.174533 (-10°), upper=1.74533 (+100°)
+      // When closed (gripper=0), jaw should be at minimum angle (most closed)
+      // When open (gripper=100), jaw should be at maximum angle (most open)
+      // Map: 0 -> -0.174533 (closed), 100 -> 1.74533 (open)
+      const minRad = -0.174533; // Closed position
+      const maxRad = 1.74533;   // Open position
+      const gripperRad = minRad + (joints.gripper / 100) * (maxRad - minRad);
       robotInstance.joints[JOINT_MAP.gripper].setJointValue(gripperRad);
+    }
+
+    // Read actual gripper world position from URDF model
+    // gripper_frame_link is a dummy link at the gripper tip
+    const links = robotInstance.links as Record<string, THREE.Object3D> | undefined;
+    const gripperLink = links?.['gripper_frame_link'] || links?.['gripper_link'];
+
+    // Debug: log link finding once
+    if (!linkDebugLoggedRef.current) {
+      linkDebugLoggedRef.current = true;
+      console.log('[SO101Arm3D] Links found:', links ? Object.keys(links) : 'none');
+      console.log('[SO101Arm3D] Gripper link:', gripperLink ? 'found' : 'NOT FOUND');
+    }
+
+    if (gripperLink) {
+      // Force update of the world matrix hierarchy before reading position
+      // This ensures the URDF rotation (-90° on X) is applied
+      robotInstance.updateMatrixWorld(true);
+
+      gripperLink.getWorldPosition(gripperWorldPosVec.current);
+      gripperLink.getWorldQuaternion(gripperWorldQuat.current);
+
+      setGripperWorldPosition([
+        gripperWorldPosVec.current.x,
+        gripperWorldPosVec.current.y,
+        gripperWorldPosVec.current.z,
+      ]);
+
+      setGripperWorldQuaternion([
+        gripperWorldQuat.current.x,
+        gripperWorldQuat.current.y,
+        gripperWorldQuat.current.z,
+        gripperWorldQuat.current.w,
+      ]);
     }
   });
 
@@ -290,6 +313,9 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
 
       {/* Kinematic physics colliders for arm segments */}
       <ArmPhysicsColliders joints={joints} />
+
+      {/* Realistic gripper jaw physics - dynamic colliders that move with gripper value */}
+      <RealisticGripperPhysics joints={joints} />
     </group>
   );
 };

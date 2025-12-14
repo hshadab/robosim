@@ -263,36 +263,22 @@ interface PhysicsObjectProps {
   isNearGripper?: boolean;
 }
 
+// Physics friction coefficient for grippable objects
+// Higher friction makes objects easier to grip and hold
+const GRIPPABLE_FRICTION = 1.5;
+
 export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
   object,
   isNearGripper = false,
 }) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
 
-  // Determine emissive state
-  const emissiveColor = object.isGrabbed ? object.color : (isNearGripper ? '#FFFFFF' : '#000000');
-  const emissiveIntensity = object.isGrabbed ? 0.3 : (isNearGripper ? 0.15 : 0);
+  // Determine emissive state (visual feedback only, no kinematic switching)
+  const emissiveColor = isNearGripper ? '#FFFFFF' : '#000000';
+  const emissiveIntensity = isNearGripper ? 0.15 : 0;
 
-  // When grabbed, make it kinematic and follow gripper (handled by parent)
-  useEffect(() => {
-    if (rigidBodyRef.current) {
-      if (object.isGrabbed) {
-        rigidBodyRef.current.setBodyType(2, true); // Kinematic
-      } else {
-        rigidBodyRef.current.setBodyType(0, true); // Dynamic
-      }
-    }
-  }, [object.isGrabbed]);
-
-  // Update position when grabbed
-  useEffect(() => {
-    if (rigidBodyRef.current && object.isGrabbed) {
-      rigidBodyRef.current.setTranslation(
-        { x: object.position[0], y: object.position[1], z: object.position[2] },
-        true
-      );
-    }
-  }, [object.position, object.isGrabbed]);
+  // Objects are ALWAYS dynamic - physics handles gripping via friction
+  // No kinematic switching, no teleporting
 
   const renderShape = () => {
     switch (object.type) {
@@ -304,8 +290,8 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             rotation={object.rotation}
             colliders={false}
             mass={0.5}
-            restitution={0.2}
-            friction={0.8}
+            restitution={0.1}
+            friction={GRIPPABLE_FRICTION}
           >
             <CuboidCollider args={[object.scale / 2, object.scale / 2, object.scale / 2]} />
             <RoundedBox
@@ -332,8 +318,8 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             rotation={object.rotation}
             colliders={false}
             mass={0.3}
-            restitution={0.5}
-            friction={0.5}
+            restitution={0.2}
+            friction={GRIPPABLE_FRICTION}
           >
             <BallCollider args={[object.scale]} />
             <mesh castShadow>
@@ -357,8 +343,8 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             rotation={object.rotation}
             colliders={false}
             mass={0.4}
-            restitution={0.3}
-            friction={0.7}
+            restitution={0.1}
+            friction={GRIPPABLE_FRICTION}
           >
             <CylinderCollider args={[object.scale, object.scale]} />
             <mesh castShadow>

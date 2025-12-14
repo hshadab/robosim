@@ -43,6 +43,11 @@ interface AppState {
   humanoid: HumanoidState;
   isAnimating: boolean;
 
+  // Gripper world position - updated from Three.js scene each frame
+  gripperWorldPosition: [number, number, number];
+  // Gripper world quaternion - updated from Three.js scene each frame (for orientation-aware grab)
+  gripperWorldQuaternion: [number, number, number, number]; // [x, y, z, w]
+
   // Simulation State
   simulation: SimulationState;
   sensors: SensorReading;
@@ -80,6 +85,8 @@ interface AppState {
   setWheeledRobot: (state: Partial<WheeledRobotState>) => void;
   setDrone: (state: Partial<DroneState>) => void;
   setHumanoid: (state: Partial<HumanoidState>) => void;
+  setGripperWorldPosition: (position: [number, number, number]) => void;
+  setGripperWorldQuaternion: (quaternion: [number, number, number, number]) => void;
   setIsAnimating: (isAnimating: boolean) => void;
   setSimulationStatus: (status: SimulationState['status']) => void;
   setSensors: (sensors: Partial<SensorReading>) => void;
@@ -121,6 +128,8 @@ const getDefaultState = () => {
     selectedRobot: robot,
     activeRobotType: 'arm' as ActiveRobotType,
     joints: robot.defaultPosition,
+    gripperWorldPosition: [0, 0.15, 0] as [number, number, number], // Default gripper position
+    gripperWorldQuaternion: [0, 0, 0, 1] as [number, number, number, number], // Identity quaternion
     wheeledRobot: {
       leftWheelSpeed: 0,
       rightWheelSpeed: 0,
@@ -237,6 +246,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       humanoid: { ...s.humanoid, ...state },
     }));
+  },
+
+  setGripperWorldPosition: (position: [number, number, number]) => {
+    set({ gripperWorldPosition: position });
+  },
+
+  setGripperWorldQuaternion: (quaternion: [number, number, number, number]) => {
+    set({ gripperWorldQuaternion: quaternion });
   },
 
   setJoints: (joints: Partial<JointState>) => {
@@ -540,3 +557,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isCodeRunning: running });
   },
 }));
+
+// Expose store to window for testing
+if (typeof window !== 'undefined') {
+  (window as unknown as { __ZUSTAND_STORE__: typeof useAppStore }).__ZUSTAND_STORE__ = useAppStore;
+}

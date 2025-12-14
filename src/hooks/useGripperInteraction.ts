@@ -1,22 +1,20 @@
-import { useEffect, useRef, useCallback } from 'react';
+/**
+ * Gripper Interaction Hook - Physics-Based Version
+ *
+ * This hook handles gripper-object interactions using realistic physics:
+ * - Objects are held by friction forces from jaw colliders, NOT teleported
+ * - Detects when objects are placed in target zones
+ * - Updates challenge objectives
+ *
+ * The actual gripping is done by RealisticGripperPhysics component
+ * which creates kinematic jaw colliders with high friction.
+ */
+
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
-import type { SimObject } from '../types';
-import { calculateSO101GripperPosition } from '../components/simulation/SO101Kinematics';
 
-// Threshold for position updates (to avoid infinite loops)
-const POSITION_THRESHOLD = 0.001;
-
-// Calculate distance between two 3D points
-const distance3D = (
-  a: [number, number, number],
-  b: [number, number, number]
-): number => {
-  return Math.sqrt(
-    Math.pow(a[0] - b[0], 2) +
-    Math.pow(a[1] - b[1], 2) +
-    Math.pow(a[2] - b[2], 2)
-  );
-};
+// Distance threshold for detecting object in target zone
+const ZONE_CHECK_INTERVAL = 500; // Check every 500ms to reduce overhead
 
 // Check if object is in target zone
 const isInZone = (
@@ -31,120 +29,57 @@ const isInZone = (
 };
 
 export const useGripperInteraction = () => {
-  // Use selectors to avoid unnecessary re-renders
-  const joints = useAppStore((state) => state.joints);
-  const updateObject = useAppStore((state) => state.updateObject);
   const completeObjective = useAppStore((state) => state.completeObjective);
-
-  const prevGripperRef = useRef(joints.gripper);
-  const grabbedObjectIdRef = useRef<string | null>(null);
-  const lastPositionRef = useRef<[number, number, number]>([0, 0, 0]);
-
-  // Check if position changed significantly
-  const positionChanged = useCallback((newPos: [number, number, number], oldPos: [number, number, number]) => {
-    return (
-      Math.abs(newPos[0] - oldPos[0]) > POSITION_THRESHOLD ||
-      Math.abs(newPos[1] - oldPos[1]) > POSITION_THRESHOLD ||
-      Math.abs(newPos[2] - oldPos[2]) > POSITION_THRESHOLD
-    );
-  }, []);
+  const updateObject = useAppStore((state) => state.updateObject);
+  const lastCheckRef = useRef(0);
 
   useEffect(() => {
-    // Get current state directly from store to avoid dependency issues
-    const { objects, targetZones, challengeState } = useAppStore.getState();
+    // Periodic check for objects in target zones
+    // This is lightweight since we're not doing grab detection anymore
+    const checkInterval = setInterval(() => {
+      const { objects, targetZones, challengeState } = useAppStore.getState();
+      const now = Date.now();
 
-    const gripperPos = calculateSO101GripperPosition(joints);
-    const gripperClosed = joints.gripper < 30;
-    const wasClosing = prevGripperRef.current >= 30 && joints.gripper < 30;
-    const wasOpening = prevGripperRef.current <= 70 && joints.gripper > 70;
+      if (now - lastCheckRef.current < ZONE_CHECK_INTERVAL) return;
+      lastCheckRef.current = now;
 
-    // Check for grabbing (gripper just closed)
-    if (wasClosing && !grabbedObjectIdRef.current) {
-      // Find closest grabbable object within reach
-      let closestObj: SimObject | null = null;
-      let closestDist = Infinity;
-      const grabRadius = 0.1; // 10cm grab radius for easier grabbing
-
+      // Check each object against target zones
       for (const obj of objects) {
-        if (obj.isGrabbable && !obj.isGrabbed) {
-          const dist = distance3D(gripperPos, obj.position);
-          if (dist < grabRadius && dist < closestDist) {
-            closestObj = obj;
-            closestDist = dist;
-          }
-        }
-      }
+        // Skip non-grabbable objects
+        if (!obj.isGrabbable) continue;
 
-      if (closestObj) {
-        grabbedObjectIdRef.current = closestObj.id;
-        updateObject(closestObj.id, { isGrabbed: true });
-      }
-    }
-
-    // Check for releasing (gripper just opened)
-    if (wasOpening && grabbedObjectIdRef.current) {
-      const releasedId = grabbedObjectIdRef.current;
-      const releasedObj = objects.find((o) => o.id === releasedId);
-
-      if (releasedObj) {
-        // Calculate drop position (current gripper position, but on the ground)
-        const dropPos: [number, number, number] = [
-          gripperPos[0],
-          releasedObj.scale / 2 + 0.001, // Place on ground based on object size
-          gripperPos[2],
-        ];
-
-        // Check if dropped in a target zone
-        let inTargetZone = false;
+        // Check each target zone
         for (const zone of targetZones) {
-          if (zone.acceptedObjectIds.includes(releasedId) && isInZone(dropPos, zone.position, zone.size)) {
-            inTargetZone = true;
+          if (zone.acceptedObjectIds.includes(obj.id)) {
+            const wasInZone = obj.isInTargetZone;
+            const isNowInZone = isInZone(obj.position, zone.position, zone.size);
 
-            // Check challenge objectives
-            if (challengeState.activeChallenge) {
-              for (const obj of challengeState.activeChallenge.objectives) {
-                if (
-                  !obj.isCompleted &&
-                  obj.type === 'move_object' &&
-                  obj.target?.objectId === releasedId &&
-                  obj.target?.zoneId === zone.id
-                ) {
-                  completeObjective(obj.id);
+            // Update object's zone status if changed
+            if (wasInZone !== isNowInZone) {
+              updateObject(obj.id, { isInTargetZone: isNowInZone });
+
+              // Check challenge objectives when object enters zone
+              if (isNowInZone && challengeState.activeChallenge) {
+                for (const objective of challengeState.activeChallenge.objectives) {
+                  if (
+                    !objective.isCompleted &&
+                    objective.type === 'move_object' &&
+                    objective.target?.objectId === obj.id &&
+                    objective.target?.zoneId === zone.id
+                  ) {
+                    completeObjective(objective.id);
+                    console.log(`[GripperInteraction] ✓ Objective completed: ${objective.description}`);
+                  }
                 }
               }
             }
-            break;
           }
         }
-
-        updateObject(releasedId, {
-          isGrabbed: false,
-          position: dropPos,
-          isInTargetZone: inTargetZone,
-        });
       }
+    }, 100); // Check every 100ms
 
-      grabbedObjectIdRef.current = null;
-    }
-
-    // Update grabbed object position to follow gripper (only if position changed)
-    if (grabbedObjectIdRef.current && gripperClosed) {
-      // Position object slightly below gripper
-      const objPos: [number, number, number] = [
-        gripperPos[0],
-        gripperPos[1] - 0.02,
-        gripperPos[2],
-      ];
-
-      // Only update if position actually changed
-      if (positionChanged(objPos, lastPositionRef.current)) {
-        lastPositionRef.current = objPos;
-        updateObject(grabbedObjectIdRef.current, { position: objPos });
-      }
-    }
-
-    prevGripperRef.current = joints.gripper;
-  }, [joints, updateObject, completeObjective, positionChanged]);
+    return () => clearInterval(checkInterval);
+  }, [completeObjective, updateObject]);
 
   return null;
 };

@@ -207,19 +207,28 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
-    // Random position in front of robot
-    const x = (Math.random() - 0.5) * 0.2;
-    const z = 0.08 + Math.random() * 0.08;
-    const y = template.scale + 0.01;
+    // Random position in front of robot - WITHIN REACHABLE WORKSPACE
+    // Use polar coordinates: distance 18-25cm, angle -40° to +40° from +X axis
+    // Further out gives gripper room to approach from above
+    const distance = 0.18 + Math.random() * 0.07; // 18-25cm from base
+    const angle = (Math.random() - 0.5) * (Math.PI / 2.25); // ±40° from +X axis
+
+    const x = Math.max(0.10, distance * Math.cos(angle)); // Ensure minimum positive X
+    const z = distance * Math.sin(angle);
+
+    // Use smaller scale for easier gripping (60% of template size, min 2cm)
+    const scale = Math.max(0.02, template.scale * 0.6);
+    const y = scale + 0.01;
 
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
 
-    // Make sure name property is set for LLM matching
+    // Make sure name property is set for LLM matching, and use smaller scale
     const objToSpawn = {
       ...objWithoutId,
       name: template.name,
+      scale: scale, // Override with smaller scale for easier gripping
     };
 
     console.log('[MinimalTrainFlow] Spawning object:', objToSpawn);

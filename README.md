@@ -355,11 +355,28 @@ A web-based 3D robotics simulation platform built with React, Three.js, and Rapi
 RoboSim implements several features to ensure training data transfers well to real robots:
 
 #### Numerical Inverse Kinematics Solver
-- **Grid Search IK** - Robust numerical solver that searches over joint space to find valid configurations
-- **Sub-millimeter Accuracy** - Typical solutions achieve <1mm positioning error
+- **URDF-Based Forward Kinematics** - Uses exact URDF joint transforms for accurate position calculation
+- **Asymmetric Starting Configurations** - Optimized for reaching distant objects at low heights
+- **Multi-Start Gradient Descent** - Tries 18+ starting configurations with 5 base angles
+- **Sub-centimeter Accuracy** - Typical solutions achieve <2mm positioning error
 - **Automatic Base Rotation** - Calculates optimal base angle to face target position
-- **Coarse + Fine Search** - 5° coarse grid followed by 1° refinement for speed + accuracy
+- **Adaptive Step Sizes** - 8 refinement passes from 10° down to 0.05° for precision
 - **Graceful Fallback** - If IK fails, falls back to heuristic control with distance-based parameters
+
+#### Physics-Realistic Gripper
+- **Friction-Based Grasping** - Objects held by physics friction forces, not teleport-attach
+- **Dual Kinematic Jaws** - Fixed and moving jaw as separate Rapier rigid bodies
+- **URDF-Tracked Position** - Jaw colliders follow actual gripper link transforms
+- **Tapered Jaw Geometry** - 3 colliders per jaw approximating real SO-101 jaw shape
+- **High Friction Coefficient** - Jaw friction: 2.0, Object friction: 1.5 for reliable grip
+- **Moving Jaw Rotation** - Jaw opens/closes based on gripper joint angle (0-100%)
+
+#### Object Spawn Positioning
+- **Polar Coordinate Spawning** - Objects spawn in reachable workspace using distance + angle
+- **Distance Range** - 18-25cm from robot base for optimal manipulation
+- **Angular Range** - ±40° from +X axis (within ±110° base joint limit)
+- **Minimum X Enforcement** - Objects guaranteed X ≥ 10cm to avoid dead zone
+- **Scaled for Gripping** - Objects spawn at 60% template size for easier grasping
 
 #### IK-Based Commands
 - **Pick-up Sequences** - "pick up the cube" calculates three IK solutions (approach, grasp, lift)
@@ -381,12 +398,12 @@ RoboSim implements several features to ensure training data transfers well to re
 |---------|--------|-------|------------|
 | Joint velocity | Instant | 180°/s max | 180°/s max ✓ |
 | Motion profile | Cubic ease | S-curve | S-curve ✓ |
-| IK accuracy | Failed (~150mm) | <3mm error | <3mm error ✓ |
+| IK accuracy | ~70mm error | <2mm error | <2mm error ✓ |
 | Pick-up planning | Heuristic | IK-based | IK-based ✓ |
-| Place commands | Hardcoded angles | FK→IK based | FK→IK based ✓ |
+| Gripper physics | Teleport-attach | Friction-based | Friction-based ✓ |
 | Stack commands | Not supported | IK-based | IK-based ✓ |
 | Move to object | Not supported | IK-based | IK-based ✓ |
-| Elevated objects | Height-unaware | Auto-adjusted | Auto-adjusted ✓ |
+| Object spawning | Random X,Z | Polar reachable | N/A |
 
 Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve.
 

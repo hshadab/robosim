@@ -167,10 +167,10 @@ export const calculateInverseKinematics = (
   let bestSolution: { shoulder: number; elbow: number; wrist: number } | null = null;
   let bestError = Infinity;
 
-  // Coarse grid search
-  for (let shoulder = SO101_LIMITS.shoulder.min; shoulder <= SO101_LIMITS.shoulder.max; shoulder += 5) {
-    for (let elbow = SO101_LIMITS.elbow.min; elbow <= SO101_LIMITS.elbow.max; elbow += 5) {
-      for (let wrist = SO101_LIMITS.wrist.min; wrist <= SO101_LIMITS.wrist.max; wrist += 10) {
+  // Coarse grid search - use 3° step for better coverage
+  for (let shoulder = SO101_LIMITS.shoulder.min; shoulder <= SO101_LIMITS.shoulder.max; shoulder += 3) {
+    for (let elbow = SO101_LIMITS.elbow.min; elbow <= SO101_LIMITS.elbow.max; elbow += 3) {
+      for (let wrist = SO101_LIMITS.wrist.min; wrist <= SO101_LIMITS.wrist.max; wrist += 5) {
         const pos = fkForIK(baseAngle, shoulder, elbow, wrist);
         const error = Math.sqrt(
           (pos.x - targetX) ** 2 +
@@ -185,9 +185,9 @@ export const calculateInverseKinematics = (
     }
   }
 
-  // Refine search around best solution
-  if (bestSolution && bestError < 0.05) {
-    const refineRange = 5;
+  // Refine search around best solution - expanded range for better precision
+  if (bestSolution && bestError < 0.08) {
+    const refineRange = 8;
     const refineStep = 1;
     for (let ds = -refineRange; ds <= refineRange; ds += refineStep) {
       for (let de = -refineRange; de <= refineRange; de += refineStep) {
@@ -211,8 +211,8 @@ export const calculateInverseKinematics = (
     }
   }
 
-  // Return solution if within 3cm tolerance
-  if (bestSolution && bestError < 0.03) {
+  // Return solution if within 5cm tolerance (relaxed from 3cm for better success rate)
+  if (bestSolution && bestError < 0.05) {
     return {
       base: clamp(baseAngle, SO101_LIMITS.base.min, SO101_LIMITS.base.max),
       shoulder: bestSolution.shoulder,

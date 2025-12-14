@@ -27,15 +27,26 @@ export const ObjectLibraryPanel: React.FC = () => {
   );
 
   const handleAddObject = (template: ObjectTemplate) => {
-    // Random position in front of robot
-    const x = (Math.random() - 0.5) * 0.2;
-    const z = 0.08 + Math.random() * 0.08;
-    const y = template.scale + 0.01;
+    // Random position in front of robot - WITHIN REACHABLE WORKSPACE
+    // Use polar coordinates: distance 18-25cm, angle ±40° from +X axis
+    // Further out gives gripper room to approach from above
+    const distance = 0.18 + Math.random() * 0.07; // 18-25cm from base
+    const angle = (Math.random() - 0.5) * (Math.PI / 2.25); // ±40° from +X axis
 
-    const newObject = createSimObjectFromTemplate(template, [x, y, z]);
+    const x = distance * Math.cos(angle);
+    const z = distance * Math.sin(angle);
+
+    // Use smaller scale for easier gripping (60% of template size, min 2cm)
+    const scale = Math.max(0.02, template.scale * 0.6);
+    const y = scale + 0.01;
+
+    // Ensure minimum X to avoid dead zone
+    const adjustedX = Math.max(0.10, x);
+
+    const newObject = createSimObjectFromTemplate(template, [adjustedX, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
-    spawnObject(objWithoutId);
+    spawnObject({ ...objWithoutId, scale }); // Override with smaller scale
   };
 
   const handleLoadPreset = (presetId: string) => {
