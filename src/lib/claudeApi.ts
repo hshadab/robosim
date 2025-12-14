@@ -915,19 +915,26 @@ function handlePickUpCommand(
   console.log(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
   console.log(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
 
-  // Build simple sequence: approach -> grasp -> close -> lift
+  // Build sequence: approach -> lower slowly -> grasp -> hold -> close -> hold -> lift
+  // Extra hold steps give physics time to register contact and the visual time to settle
   const sequence: Partial<JointState>[] = [
-    // Step 1: Open gripper
+    // Step 1: Open gripper wide
     { gripper: 100 },
     // Step 2: Move to approach position (above object)
     { base: approachJoints.base, shoulder: approachJoints.shoulder, elbow: approachJoints.elbow, wrist: approachJoints.wrist },
     // Step 3: Lower to grasp position
     { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist },
-    // Step 4: Close gripper
+    // Step 4: HOLD at grasp position (let physics settle, visual confirmation)
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 100 },
+    // Step 5: Begin closing gripper (partial close)
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 30 },
+    // Step 6: Fully close gripper
     { gripper: 0 },
-    // Step 5: Hold position with gripper closed (ensure grab registers)
+    // Step 7: HOLD with gripper closed (ensure physics grab registers)
     { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 0 },
-    // Step 6: Lift
+    // Step 8: Hold again for physics stability
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 0 },
+    // Step 9: Lift
     { base: liftJoints.base, shoulder: liftJoints.shoulder, elbow: liftJoints.elbow, wrist: liftJoints.wrist, gripper: 0 },
   ];
 

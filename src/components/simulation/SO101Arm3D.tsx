@@ -310,12 +310,17 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
       const actualY = gripperWorldPosVec.current.y;
       const fkY = fkPos[1];
 
-      // Log every ~60 frames to avoid spam
-      if (Math.random() < 0.016) {
+      // Log MORE frequently when Y is low (during grasp attempts) - 10% of frames
+      // This helps catch the critical grasp position
+      const isLowPosition = actualY < 0.10; // Below 10cm
+      const logChance = isLowPosition ? 0.1 : 0.016; // 10% when low, 1.6% otherwise
+
+      if (Math.random() < logChance) {
         const yDiff = Math.abs(actualY - fkY);
         const linkName = links?.['gripper_frame_link'] ? 'gripper_frame_link' : 'gripper_link (fallback)';
-        console.log(`[GRIPPER DEBUG] Link: ${linkName} | Actual Y=${(actualY*100).toFixed(1)}cm, FK Y=${(fkY*100).toFixed(1)}cm, diff=${(yDiff*100).toFixed(1)}cm`);
-        console.log(`[GRIPPER DEBUG] Full pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(actualY*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkY*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
+        const prefix = isLowPosition ? '[GRASP HEIGHT]' : '[GRIPPER DEBUG]';
+        console.log(`${prefix} Link: ${linkName} | Actual Y=${(actualY*100).toFixed(1)}cm, FK Y=${(fkY*100).toFixed(1)}cm, diff=${(yDiff*100).toFixed(1)}cm`);
+        console.log(`${prefix} Full pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(actualY*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkY*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
       }
     }
   });
