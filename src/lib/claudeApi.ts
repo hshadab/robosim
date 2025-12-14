@@ -607,19 +607,20 @@ const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not b
 // If baseAngle is not provided, the IK will search for the optimal base angle
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
   // IMPORTANT: gripper_frame_link is the gripper TIP, not the jaws!
-  // The jaws are ~7.5cm behind the tip. With typical wrist angles (60-80°),
-  // the jaws are ~5-7cm HIGHER than the tip.
+  // The jaws are ~7.5cm behind the tip. With near-vertical grip (wrist~85-90°),
+  // the jaws are ~7cm HIGHER than the tip.
   //
-  // To position the JAWS around the object (at objY), we need the TIP higher.
-  // For an object at Y=5.2cm with wrist~70°, jaws are ~6cm above tip.
-  // So tip should be at objY + 1-2cm for jaws to be at objY.
+  // To position the JAWS around the object (at objY), we need the TIP LOWER.
+  // For vertical grip: jaw_Y ≈ tip_Y + 7cm
+  // So tip should be at objY - 7cm for jaws to be at objY.
   //
-  // Try heights AT and ABOVE object center for proper jaw placement
+  // But we can't go too low (table is at Y=0). Try a range of heights.
+  // With objects at ~10cm, we can target tip at 3-5cm for jaws at 10-12cm.
   const graspHeightsToTry = [
-    objY + 0.02,                    // 2cm above center (jaws at object level)
-    objY + 0.01,                    // 1cm above center
-    objY,                           // At object center
-    objY + 0.03,                    // 3cm above center (for steeper angles)
+    Math.max(0.03, objY - 0.07),    // 7cm below center (jaws at object level for vertical grip)
+    Math.max(0.03, objY - 0.06),    // 6cm below center
+    Math.max(0.03, objY - 0.05),    // 5cm below center
+    Math.max(0.03, objY - 0.04),    // 4cm below center
   ];
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };

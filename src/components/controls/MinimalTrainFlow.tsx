@@ -218,9 +218,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects with center at ~5cm height for reliable grasping
-    // For 2.4cm cube: center at 5cm, bottom at 3.8cm, top at 6.2cm
-    const y = scale / 2 + 0.04;
+    // Spawn objects with center at ~10cm height for reliable grasping
+    // With near-vertical grip, jaws are ~7cm above tip, so objects need to be higher
+    // For 2.4cm cube: center at 10cm, bottom at 8.8cm, top at 11.2cm
+    const y = scale / 2 + 0.09;
 
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
