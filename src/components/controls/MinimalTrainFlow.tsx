@@ -218,9 +218,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     // Use smaller scale for easier gripping (60% of template size, min 2cm)
     const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects higher (5-6cm center) so arm can use natural bent-down pose
-    // Natural grasp pose reaches Y~3cm, with 2.5cm grip offset, object center should be ~5.5cm
-    const y = scale + 0.045;
+    // Spawn objects at moderate height - not too high, not too low
+    // Center at ~4.5cm allows gripper to reach from above
+    const y = scale + 0.025;
 
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
