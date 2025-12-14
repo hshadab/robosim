@@ -463,7 +463,8 @@ function calculateGripperPos(joints: JointAngles): [number, number, number] {
 // Tries multiple starting configurations to avoid local minima
 // If fixedBaseAngle is provided, the base angle is locked to that value
 // Now also tries nearby base angles if the error is too large
-function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, fixedBaseAngle?: number): { joints: JointAngles; error: number } {
+// If preferHorizontalGrasp is true, penalize high wrist angles to get horizontal grasps
+function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, fixedBaseAngle?: number, preferHorizontalGrasp = false): { joints: JointAngles; error: number } {
   let bestJoints: JointAngles = { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 };
   let bestError = Infinity;
 
@@ -549,18 +550,26 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
       const iterations = stepSize < 0.2 ? 50 : 30;
       for (let iter = 0; iter < iterations; iter++) {
         const pos = calculateGripperPos(joints);
-        const error = Math.sqrt(
+        const positionError = Math.sqrt(
           (pos[0] - targetPos[0]) ** 2 +
           (pos[1] - targetPos[1]) ** 2 +
           (pos[2] - targetPos[2]) ** 2
         );
+
+        // For grasps, penalize high wrist angles to prefer horizontal grasps
+        // With horizontal grasp (wrist < 45°), jaws and tip are at similar heights
+        // Penalty: 0.3cm per degree over 45° - strong enough to change behavior
+        const wristPenalty = preferHorizontalGrasp
+          ? Math.max(0, Math.abs(joints.wrist) - 45) * 0.003
+          : 0;
+        const error = positionError + wristPenalty;
 
         if (error < bestError) {
           bestError = error;
           bestJoints = { ...joints };
         }
 
-        if (error < 0.002) break; // 2mm tolerance for precision
+        if (positionError < 0.002) break; // 2mm tolerance for precision (ignore wrist penalty here)
 
         // Gradient descent on joints (skip base if fixed)
         const jointNames: (keyof JointAngles)[] = optimizeBase
@@ -575,16 +584,27 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
           const posPlus = calculateGripperPos(testPlus);
           const posMinus = calculateGripperPos(testMinus);
 
-          const errorPlus = Math.sqrt(
+          const posErrorPlus = Math.sqrt(
             (posPlus[0] - targetPos[0]) ** 2 +
             (posPlus[1] - targetPos[1]) ** 2 +
             (posPlus[2] - targetPos[2]) ** 2
           );
-          const errorMinus = Math.sqrt(
+          const posErrorMinus = Math.sqrt(
             (posMinus[0] - targetPos[0]) ** 2 +
             (posMinus[1] - targetPos[1]) ** 2 +
             (posMinus[2] - targetPos[2]) ** 2
           );
+
+          // Include wrist penalty in gradient descent for horizontal grasp preference
+          const wristPenaltyPlus = preferHorizontalGrasp
+            ? Math.max(0, Math.abs(testPlus.wrist) - 45) * 0.003
+            : 0;
+          const wristPenaltyMinus = preferHorizontalGrasp
+            ? Math.max(0, Math.abs(testMinus.wrist) - 45) * 0.003
+            : 0;
+
+          const errorPlus = posErrorPlus + wristPenaltyPlus;
+          const errorMinus = posErrorMinus + wristPenaltyMinus;
 
           if (errorPlus < error && errorPlus <= errorMinus) {
             joints[jn] = clampJoint(jn, joints[jn] + stepSize);
@@ -641,7 +661,8 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
 
   for (const graspY of graspHeightsToTry) {
     const graspTarget: [number, number, number] = [objX, graspY, objZ];
-    const result = solveIKForTarget(graspTarget, 1000, baseAngle);
+    // Use preferHorizontalGrasp=true to get low wrist angles where jaws ≈ tip height
+    const result = solveIKForTarget(graspTarget, 1000, baseAngle, true);
 
     // Calculate actual achieved position
     const achievedPos = calculateGripperPos(result.joints);
