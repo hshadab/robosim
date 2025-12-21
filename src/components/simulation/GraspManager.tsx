@@ -10,10 +10,9 @@
  * for reliable picking behavior.
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useRapier } from '@react-three/rapier';
 import { useAppStore } from '../../stores/useAppStore';
 
 // Gripper thresholds
@@ -29,8 +28,6 @@ interface GraspState {
 }
 
 export const GraspManager: React.FC = () => {
-  const { world } = useRapier();
-
   // Get state from store
   const objects = useAppStore((state) => state.objects);
   const updateObject = useAppStore((state) => state.updateObject);
@@ -56,7 +53,6 @@ export const GraspManager: React.FC = () => {
 
   useFrame(() => {
     const currentGripper = joints.gripper;
-    const wasOpen = prevGripperValue.current >= GRIPPER_OPEN_THRESHOLD;
     const isClosed = currentGripper <= GRIPPER_CLOSED_THRESHOLD;
     const isOpen = currentGripper >= GRIPPER_OPEN_THRESHOLD;
 

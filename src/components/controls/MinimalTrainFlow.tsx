@@ -12,11 +12,11 @@ import {
   CheckCircle,
   Loader2,
   Settings,
-  ChevronRight,
   Sparkles,
   Box,
   ChevronLeft,
   Send,
+  Play,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Episode, Frame } from '../../lib/datasetExporter';
@@ -94,6 +94,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [chatInput, setChatInput] = useState('');
   const [hasClaudeKey, setHasClaudeKey] = useState(!!getClaudeApiKey());
   const [claudeKeyInput, setClaudeKeyInput] = useState('');
+
+  // Demo mode
+  const [isDemoRunning, setIsDemoRunning] = useState(false);
+  const [demoStatus, setDemoStatus] = useState<string | null>(null);
 
   // Check backend on mount
   useEffect(() => {
@@ -204,6 +208,74 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setClaudeKeyInput('');
     }
   }, [claudeKeyInput]);
+
+  // Demo pick up - one-click test
+  const handleDemoPickUp = useCallback(async () => {
+    if (isDemoRunning || isAnimating || isLLMLoading) return;
+
+    // Check for API key first
+    if (!hasClaudeKey) {
+      setError('Please enter your Claude API key first');
+      return;
+    }
+
+    setIsDemoRunning(true);
+    setError(null);
+
+    try {
+      // Step 1: Clear existing objects and reset arm
+      setDemoStatus('Resetting scene...');
+      const { clearObjects, setJoints } = useAppStore.getState();
+      clearObjects();
+
+      // Reset arm to home position
+      setJoints({
+        base: 0,
+        shoulder: 0,
+        elbow: 0,
+        wrist: 0,
+        wristRoll: 0,
+        gripper: 100, // Open
+      });
+
+      await new Promise(r => setTimeout(r, 500));
+
+      // Step 2: Spawn a LeRobot cube in optimal position
+      setDemoStatus('Adding cube...');
+      const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
+      if (!cubeTemplate) throw new Error('Cube template not found');
+
+      // Position in front of robot, easy reach
+      const x = 0.12;
+      const z = 0.15;
+      const y = cubeTemplate.scale / 2; // Half height above table
+
+      const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
+      const { id, ...objWithoutId } = newObject;
+      spawnObject({ ...objWithoutId, name: cubeTemplate.name });
+
+      setState(s => ({ ...s, objectName: cubeTemplate.name, objectPlaced: true }));
+      setStep('record-demo');
+
+      await new Promise(r => setTimeout(r, 1500));
+
+      // Step 3: Send pickup command
+      setDemoStatus('Picking up cube...');
+      sendMessage('Pick up the red cube');
+
+      // Wait for animation to complete
+      await new Promise(r => setTimeout(r, 8000));
+
+      setDemoStatus('Done!');
+      await new Promise(r => setTimeout(r, 1500));
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo failed');
+    } finally {
+      setIsDemoRunning(false);
+      setDemoStatus(null);
+    }
+  }, [isDemoRunning, isAnimating, isLLMLoading, hasClaudeKey, spawnObject, sendMessage]);
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
@@ -433,6 +505,34 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         if (objectMode === 'choose') {
           return (
             <div className="space-y-3">
+              {/* Demo Pick Up Button - One-click test */}
+              <button
+                onClick={handleDemoPickUp}
+                disabled={isDemoRunning || isAnimating || isLLMLoading}
+                className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-700 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 flex items-center justify-center gap-3 ring-2 ring-green-400/50 ring-offset-2 ring-offset-slate-900"
+              >
+                {isDemoRunning ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    {demoStatus || 'Running demo...'}
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-6 h-6" />
+                    Demo Pick Up
+                  </>
+                )}
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-slate-900 px-2 text-slate-500">or start training</span>
+                </div>
+              </div>
+
               <button
                 onClick={() => setObjectMode('library')}
                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"

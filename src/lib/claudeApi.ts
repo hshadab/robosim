@@ -10,7 +10,7 @@ import { generateSemanticState } from './semanticState';
 import { API_CONFIG, STORAGE_CONFIG } from './config';
 import { loggers } from './logger';
 import { calculateInverseKinematics, calculateSO101GripperPosition } from '../components/simulation/SO101Kinematics';
-import { calculateGripperPositionURDF, calculateJawPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+import { calculateJawPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 
 const log = loggers.claude;
 
@@ -470,7 +470,7 @@ function calculateGripperPos(joints: JointAngles): [number, number, number] {
 // If fixedBaseAngle is provided, the base angle is locked to that value
 // Now also tries nearby base angles if the error is too large
 // If preferHorizontalGrasp is true, penalize high wrist angles to get horizontal grasps
-function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, fixedBaseAngle?: number, preferHorizontalGrasp = false): { joints: JointAngles; error: number } {
+function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, fixedBaseAngle?: number, _preferHorizontalGrasp = false): { joints: JointAngles; error: number } {
   let bestJoints: JointAngles = { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 };
   let bestError = Infinity;
 
