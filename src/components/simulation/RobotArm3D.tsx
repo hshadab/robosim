@@ -4,7 +4,6 @@ import {
   OrbitControls,
   PerspectiveCamera,
   Environment,
-  ContactShadows,
   Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
@@ -416,22 +415,16 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         {/* Ambient for shadow fill */}
         <ambientLight intensity={0.15} />
 
-        {/* Contact shadows for grounding - all robot types */}
-        <ContactShadows
-          position={[
-            activeRobotType === 'wheeled' ? wheeledRobot.position.x :
-            activeRobotType === 'drone' ? drone.position.x : 0,
-            0,
-            activeRobotType === 'wheeled' ? wheeledRobot.position.z :
-            activeRobotType === 'drone' ? drone.position.z : 0
-          ]}
-          opacity={activeRobotType === 'drone' && drone.position.y > 0.1 ? 0.3 : 0.5}
-          scale={activeRobotType === 'humanoid' ? 1.5 : 1}
-          blur={2}
-          far={activeRobotType === 'humanoid' ? 1 : 0.5}
-          resolution={256}
-          color="#000000"
-        />
+        {/* Simple shadow plane - WebGPU compatible (ContactShadows uses MeshDepthMaterial which isn't supported yet) */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
+          <circleGeometry args={[0.8, 32]} />
+          <meshStandardMaterial
+            color="#000000"
+            transparent
+            opacity={0.3}
+            depthWrite={false}
+          />
+        </mesh>
 
         <Physics gravity={[0, -9.81, 0]} timeStep={1/60}>
           <FloorCollider />
