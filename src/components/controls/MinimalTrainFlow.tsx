@@ -240,28 +240,32 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
       await new Promise(r => setTimeout(r, 500));
 
-      // Step 2: Spawn a LeRobot cube in optimal position
+      // Step 2: Spawn a LARGER cube for demo visibility (5cm instead of 2.5cm)
       setDemoStatus('Adding cube...');
       const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
       if (!cubeTemplate) throw new Error('Cube template not found');
 
+      // Use larger scale for demo visibility
+      const demoScale = 0.05; // 5cm cube - easier to see and grab
+
       // Position in front of robot, easy reach
       const x = 0.12;
       const z = 0.15;
-      const y = cubeTemplate.scale / 2; // Half height above table
+      const y = demoScale / 2; // Half height above table
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
-      spawnObject({ ...objWithoutId, name: cubeTemplate.name });
+      // Override scale to make cube larger for demo
+      spawnObject({ ...objWithoutId, name: 'Demo Cube (Red)', scale: demoScale });
 
-      setState(s => ({ ...s, objectName: cubeTemplate.name, objectPlaced: true }));
+      setState(s => ({ ...s, objectName: 'Demo Cube (Red)', objectPlaced: true }));
       setStep('record-demo');
 
       await new Promise(r => setTimeout(r, 1500));
 
       // Step 3: Send pickup command
       setDemoStatus('Picking up cube...');
-      sendMessage('Pick up the red cube');
+      sendMessage('Pick up the demo cube');
 
       // Wait for animation to complete
       await new Promise(r => setTimeout(r, 8000));

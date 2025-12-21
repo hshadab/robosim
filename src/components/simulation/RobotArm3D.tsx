@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { Canvas, useLoader, extend } from '@react-three/fiber';
 import {
   OrbitControls,
   PerspectiveCamera,
@@ -8,7 +8,12 @@ import {
   Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import * as THREE from 'three';
+// Use WebGPU-enabled Three.js with automatic WebGL fallback
+import * as THREE from 'three/webgpu';
+import { WebGPURenderer } from 'three/webgpu';
+
+// Extend THREE for R3F WebGPU compatibility
+extend(THREE as any);
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
 import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
@@ -191,7 +196,8 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const [contextLost, setContextLost] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  // WebGPURenderer is compatible with WebGLRenderer interface
+  const rendererRef = useRef<WebGPURenderer | null>(null);
 
   // AI-generated content state
   const [aiBackgroundUrl, setAiBackgroundUrl] = useState<string | null>(null);
@@ -233,19 +239,26 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const gripperPosition = calculateGripperPosition(joints);
 
-  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
-    rendererRef.current = gl;
+  // Type as any to handle WebGPU/WebGL renderer differences
+  const handleCreated = useCallback(({ gl }: { gl: any }) => {
+    rendererRef.current = gl as WebGPURenderer;
     const canvas = gl.domElement;
 
     // Reduce GPU pressure to prevent context loss
     gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
-    gl.shadowMap.type = THREE.BasicShadowMap;
-    gl.shadowMap.autoUpdate = false;
-    gl.shadowMap.needsUpdate = true;
 
-    canvas.addEventListener('webglcontextlost', (event) => {
+    // Shadow map settings (WebGPU uses similar API)
+    if (gl.shadowMap) {
+      gl.shadowMap.type = THREE.BasicShadowMap;
+      // WebGPU shadow map has different properties
+      (gl.shadowMap as any).autoUpdate = false;
+      (gl.shadowMap as any).needsUpdate = true;
+    }
+
+    // Handle context loss (works for both WebGPU and WebGL fallback)
+    canvas.addEventListener('webglcontextlost', (event: Event) => {
       event.preventDefault();
-      console.warn('WebGL context lost, will attempt recovery...');
+      console.warn('GPU context lost, will attempt recovery...');
       setContextLost(true);
     });
 
@@ -314,14 +327,28 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         key={canvasKey}
         shadows
         dpr={[1, 1.5]}
-        gl={{
-          antialias: true,
-          alpha: false,
-          powerPreference: 'default',
-          failIfMajorPerformanceCaveat: false,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
-          preserveDrawingBuffer: true,
+        gl={async (props: any) => {
+          // Create WebGPU renderer with automatic WebGL fallback
+          const renderer = new WebGPURenderer({
+            canvas: props.canvas,
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+            // forceWebGL: false, // Set to true to force WebGL fallback for testing
+          });
+
+          // Initialize WebGPU (required - async operation)
+          await renderer.init();
+
+          // Configure tone mapping
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          renderer.toneMappingExposure = 1.1;
+
+          // Log which backend is being used
+          const backend = (renderer as any).backend?.isWebGPUBackend ? 'WebGPU' : 'WebGL';
+          console.log(`[RobotArm3D] 🚀 Using ${backend} renderer`);
+
+          return renderer;
         }}
         onCreated={handleCreated}
       >

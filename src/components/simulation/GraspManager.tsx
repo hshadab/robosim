@@ -97,11 +97,12 @@ export const GraspManager: React.FC = () => {
       if (closestObject) {
         graspState.current.graspedObjectId = closestObject.id;
 
-        // Calculate offset from gripper to object
+        // Calculate offset from JAW position to object (not gripper tip!)
+        // This ensures the object stays at the jaw position when following
         graspState.current.graspOffset.set(
-          closestObject.position[0] - gripperWorldPosition[0],
-          closestObject.position[1] - gripperWorldPosition[1],
-          closestObject.position[2] - gripperWorldPosition[2]
+          closestObject.position[0] - jawPosition.current.x,
+          closestObject.position[1] - jawPosition.current.y,
+          closestObject.position[2] - jawPosition.current.z
         );
 
         // Transform offset to gripper local space
@@ -140,18 +141,14 @@ export const GraspManager: React.FC = () => {
     }
 
     // === OBJECT FOLLOWING ===
-    // If we have a grasped object, make it follow the gripper
+    // If we have a grasped object, make it follow the JAW position
     if (graspState.current.graspedObjectId) {
       const graspedObj = objects.find(o => o.id === graspState.current.graspedObjectId);
       if (graspedObj) {
-        // Calculate new position: gripper position + rotated offset
+        // Calculate new position: JAW position + rotated offset
         newPosition.current.copy(graspState.current.graspOffset);
         newPosition.current.applyQuaternion(gripperQuat.current);
-        newPosition.current.add(new THREE.Vector3(
-          gripperWorldPosition[0],
-          gripperWorldPosition[1],
-          gripperWorldPosition[2]
-        ));
+        newPosition.current.add(jawPosition.current);
 
         // Calculate new rotation
         const newRotation = gripperQuat.current.clone();
