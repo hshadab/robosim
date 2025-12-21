@@ -16,6 +16,9 @@ import { calculateGripperPositionURDF } from './SO101KinematicsURDF';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
 import { GraspManager } from './GraspManager';
 import { useAppStore } from '../../stores/useAppStore';
+import { loggers } from '../../lib/logger';
+
+const log = loggers.urdf;
 
 interface SO101ArmProps {
   joints: JointState;
@@ -324,8 +327,8 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     // Debug: log link finding once
     if (!linkDebugLoggedRef.current) {
       linkDebugLoggedRef.current = true;
-      console.log('[SO101Arm3D] Links found:', links ? Object.keys(links) : 'none');
-      console.log('[SO101Arm3D] Gripper link:', gripperLink ? 'found' : 'NOT FOUND');
+      log.debug('Links found', { links: links ? Object.keys(links) : 'none' });
+      log.debug('Gripper link', { found: !!gripperLink });
     }
 
     if (gripperLink) {
@@ -352,8 +355,8 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
       // Debug: Log gripper position occasionally (1% of frames to reduce spam)
       if (Math.random() < 0.01) {
         const fkPos = calculateGripperPositionURDF({ base: joints.base, shoulder: joints.shoulder, elbow: joints.elbow, wrist: joints.wrist, wristRoll: joints.wristRoll });
-        console.log(`[GRIPPER] Joints: base=${joints.base.toFixed(1)}°, shoulder=${joints.shoulder.toFixed(1)}°, elbow=${joints.elbow.toFixed(1)}°, wrist=${joints.wrist.toFixed(1)}°`);
-        console.log(`[GRIPPER] Pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(gripperWorldPosVec.current.y*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkPos[1]*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
+        log.debug(`Gripper: base=${joints.base.toFixed(1)}°, shoulder=${joints.shoulder.toFixed(1)}°, elbow=${joints.elbow.toFixed(1)}°, wrist=${joints.wrist.toFixed(1)}°`);
+        log.debug(`Pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(gripperWorldPosVec.current.y*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkPos[1]*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
       }
     }
   });

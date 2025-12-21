@@ -157,7 +157,7 @@ export async function callClaudeAPI(
   );
 
   if (isManipulationCommand) {
-    console.log('[callClaudeAPI] Using local IK handlers for manipulation command:', message);
+    log.debug('Using local IK handlers for manipulation command', { message });
     return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
   }
 
@@ -307,19 +307,17 @@ async function simulateClaudeResponse(
     };
   }
 
-  console.log('[simulateClaudeResponse] Routing to robot handler:', {
+  log.debug('Routing to robot handler', {
     robotType,
     message: lowerMessage,
     objectCount: objects?.length || 0,
-    objects: objects?.map(o => ({ name: o.name, type: o.type, position: o.position }))
   });
 
   switch (robotType) {
     case 'arm':
       const response = simulateArmResponse(lowerMessage, currentState as JointState, objects);
-      console.log('[simulateClaudeResponse] Arm response:', {
+      log.debug('Arm response', {
         action: response.action,
-        description: response.description,
         hasJoints: !!response.joints,
         jointCount: Array.isArray(response.joints) ? response.joints.length : (response.joints ? 1 : 0)
       });
@@ -416,7 +414,7 @@ function calculateBaseAngleForPosition(x: number, z: number): number {
   // atan2(z, x) gives angle from X axis toward Z axis
   const angleRad = Math.atan2(z, x);
   const angleDeg = (angleRad * 180) / Math.PI;
-  console.log(`[calculateBaseAngle] x=${x.toFixed(3)}, z=${z.toFixed(3)} => angle=${angleDeg.toFixed(1)}°`);
+  log.debug(`[calculateBaseAngle] x=${x.toFixed(3)}, z=${z.toFixed(3)} => angle=${angleDeg.toFixed(1)}°`);
   return Math.max(-110, Math.min(110, angleDeg));
 }
 
@@ -700,13 +698,13 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
   } // end startConfigs loop
   } // end baseAnglesToTry loop
 
-  console.log(`[solveIKForTarget] Target: [${(targetPos[0]*100).toFixed(1)}, ${(targetPos[1]*100).toFixed(1)}, ${(targetPos[2]*100).toFixed(1)}]cm`);
-  console.log(`[solveIKForTarget] Result: base=${bestJoints.base.toFixed(1)}°, shoulder=${bestJoints.shoulder.toFixed(1)}°, elbow=${bestJoints.elbow.toFixed(1)}°, wrist=${bestJoints.wrist.toFixed(1)}°`);
-  console.log(`[solveIKForTarget] Error: ${(bestError*100).toFixed(2)}cm`);
+  log.debug(`[solveIKForTarget] Target: [${(targetPos[0]*100).toFixed(1)}, ${(targetPos[1]*100).toFixed(1)}, ${(targetPos[2]*100).toFixed(1)}]cm`);
+  log.debug(`[solveIKForTarget] Result: base=${bestJoints.base.toFixed(1)}°, shoulder=${bestJoints.shoulder.toFixed(1)}°, elbow=${bestJoints.elbow.toFixed(1)}°, wrist=${bestJoints.wrist.toFixed(1)}°`);
+  log.debug(`[solveIKForTarget] Error: ${(bestError*100).toFixed(2)}cm`);
 
   // Verify the final position
   const finalPos = calculateGripperPos(bestJoints);
-  console.log(`[solveIKForTarget] Achieved: [${(finalPos[0]*100).toFixed(1)}, ${(finalPos[1]*100).toFixed(1)}, ${(finalPos[2]*100).toFixed(1)}]cm`);
+  log.debug(`[solveIKForTarget] Achieved: [${(finalPos[0]*100).toFixed(1)}, ${(finalPos[1]*100).toFixed(1)}, ${(finalPos[2]*100).toFixed(1)}]cm`);
 
   return { joints: bestJoints, error: bestError };
 }
@@ -759,9 +757,9 @@ function estimateJawY(tipY: number, wristAngleDeg: number): number {
 function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number, forceSideGrasp = false): { joints: JointAngles; error: number; achievedY: number } {
   const MIN_GRASP_HEIGHT = 0.01; // 1cm above floor - allow very low reach
 
-  console.log(`[calculateGraspJoints] ========================================`);
-  console.log(`[calculateGraspJoints] Object at [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
-  console.log(`[calculateGraspJoints] Force side grasp: ${forceSideGrasp}`);
+  log.debug(`[calculateGraspJoints] ========================================`);
+  log.debug(`[calculateGraspJoints] Object at [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
+  log.debug(`[calculateGraspJoints] Force side grasp: ${forceSideGrasp}`);
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
   let bestAchievedY = 0;
@@ -772,7 +770,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
   // The IK solver with negative wrist angles can reach very low Y
   // These negative wrist poses put the tip LOW and jaws HIGHER (at object level)
   // For side grasps (cylinders), we FORCE horizontal gripper orientation
-  console.log(`[calculateGraspJoints] STRATEGY 0: Direct targeting at object height${forceSideGrasp ? ' (FORCING HORIZONTAL)' : ''}`);
+  log.debug(`[calculateGraspJoints] STRATEGY 0: Direct targeting at object height${forceSideGrasp ? ' (FORCING HORIZONTAL)' : ''}`);
 
   const directTargets: [number, number, number][] = [
     [objX, objY, objZ],                    // Exact object center
@@ -788,7 +786,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
     const achievedPos = calculateGripperPos(result.joints);
     const jawY = estimateJawY(achievedPos[1], result.joints.wrist);
 
-    console.log(`[calculateGraspJoints] Direct target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
+    log.debug(`[calculateGraspJoints] Direct target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
 
     // For low objects, prefer solutions where JAW height is close to object
     const jawError = Math.abs(jawY - objY);
@@ -802,7 +800,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
     }
 
     if (result.error < 0.02 && jawError < 0.05) {
-      console.log(`[calculateGraspJoints] Good direct solution found!`);
+      log.debug(`[calculateGraspJoints] Good direct solution found!`);
       break;
     }
   }
@@ -810,7 +808,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
   // STRATEGY 1: For low objects, try HORIZONTAL grasps
   // With wrist near 0°, jaw-tip offset is in Z direction, not Y
   if (objY < 0.08) {
-    console.log(`[calculateGraspJoints] STRATEGY 1: Horizontal grasp for low object`);
+    log.debug(`[calculateGraspJoints] STRATEGY 1: Horizontal grasp for low object`);
 
     const horizontalTargets: [number, number, number][] = [
       [objX, objY, objZ],
@@ -826,7 +824,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
       const jawError = Math.abs(jawY - objY);
       const combinedScore = result.error + jawError * 0.5;
 
-      console.log(`[calculateGraspJoints] Horizontal target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
+      log.debug(`[calculateGraspJoints] Horizontal target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
 
       if (combinedScore < bestResult.error + Math.abs(bestJawY - objY) * 0.5) {
         bestResult = result;
@@ -836,14 +834,14 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
       }
 
       if (result.error < 0.02 && Math.abs(result.joints.wrist) < 45) {
-        console.log(`[calculateGraspJoints] Good horizontal solution found!`);
+        log.debug(`[calculateGraspJoints] Good horizontal solution found!`);
         break;
       }
     }
   }
 
   // STRATEGY 2: Try angled grasps with jaw offset compensation
-  console.log(`[calculateGraspJoints] STRATEGY 2: Angled grasps with jaw compensation`);
+  log.debug(`[calculateGraspJoints] STRATEGY 2: Angled grasps with jaw compensation`);
 
   const wristAngles = [30, 45, 60]; // Moderate angles only
 
@@ -851,7 +849,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
     const tipY = calculateTipYForJawY(objY, wristAngle);
 
     if (tipY < MIN_GRASP_HEIGHT) {
-      console.log(`[calculateGraspJoints] Wrist ${wristAngle}° would require tip at Y=${(tipY*100).toFixed(1)}cm - skipping`);
+      log.debug(`[calculateGraspJoints] Wrist ${wristAngle}° would require tip at Y=${(tipY*100).toFixed(1)}cm - skipping`);
       continue;
     }
 
@@ -862,7 +860,7 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
     const jawError = Math.abs(actualJawY - objY);
     const combinedScore = result.error + jawError * 0.5;
 
-    console.log(`[calculateGraspJoints] Angled ${wristAngle}°: tip target Y=${(tipY*100).toFixed(1)}cm, achieved=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(actualJawY*100).toFixed(1)}cm, error=${(result.error*100).toFixed(2)}cm`);
+    log.debug(`[calculateGraspJoints] Angled ${wristAngle}°: tip target Y=${(tipY*100).toFixed(1)}cm, achieved=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(actualJawY*100).toFixed(1)}cm, error=${(result.error*100).toFixed(2)}cm`);
 
     if (combinedScore < bestResult.error + Math.abs(bestJawY - objY) * 0.5) {
       bestResult = result;
@@ -872,22 +870,22 @@ function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngl
     }
   }
 
-  console.log(`[calculateGraspJoints] ========================================`);
-  console.log(`[calculateGraspJoints] BEST RESULT: ${bestStrategy}`);
-  console.log(`[calculateGraspJoints]   Object Y: ${(objY*100).toFixed(1)}cm`);
-  console.log(`[calculateGraspJoints]   Tip Y: ${(bestAchievedY*100).toFixed(1)}cm`);
-  console.log(`[calculateGraspJoints]   Jaw Y: ${(bestJawY*100).toFixed(1)}cm`);
-  console.log(`[calculateGraspJoints]   Wrist: ${bestResult.joints.wrist.toFixed(1)}°`);
-  console.log(`[calculateGraspJoints]   IK Error: ${(bestResult.error*100).toFixed(2)}cm`);
+  log.debug(`[calculateGraspJoints] ========================================`);
+  log.debug(`[calculateGraspJoints] BEST RESULT: ${bestStrategy}`);
+  log.debug(`[calculateGraspJoints]   Object Y: ${(objY*100).toFixed(1)}cm`);
+  log.debug(`[calculateGraspJoints]   Tip Y: ${(bestAchievedY*100).toFixed(1)}cm`);
+  log.debug(`[calculateGraspJoints]   Jaw Y: ${(bestJawY*100).toFixed(1)}cm`);
+  log.debug(`[calculateGraspJoints]   Wrist: ${bestResult.joints.wrist.toFixed(1)}°`);
+  log.debug(`[calculateGraspJoints]   IK Error: ${(bestResult.error*100).toFixed(2)}cm`);
 
   // Check if jaws are close to object center
   const jawToObjectError = Math.abs(bestJawY - objY);
   if (jawToObjectError > 0.05) {
-    console.warn(`[calculateGraspJoints] WARNING: Jaw-object gap of ${(jawToObjectError*100).toFixed(1)}cm may prevent grasp!`);
+    log.warn(`[calculateGraspJoints] WARNING: Jaw-object gap of ${(jawToObjectError*100).toFixed(1)}cm may prevent grasp!`);
   }
 
   if (bestResult.error > IK_ERROR_THRESHOLD) {
-    console.warn(`[calculateGraspJoints] WARNING: IK error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold!`);
+    log.warn(`[calculateGraspJoints] WARNING: IK error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold!`);
   }
 
   return { ...bestResult, achievedY: bestAchievedY };
@@ -919,7 +917,7 @@ function calculateApproachJoints(
     // Try multiple offset distances to find one that works
     const offsets = [0.08, 0.06, 0.05, 0.10];
 
-    console.log(`[calculateApproachJoints] SIDE APPROACH: grasp pos=[${(graspPos[0]*100).toFixed(1)}, ${(graspPos[1]*100).toFixed(1)}, ${(graspPos[2]*100).toFixed(1)}]cm`);
+    log.debug(`[calculateApproachJoints] SIDE APPROACH: grasp pos=[${(graspPos[0]*100).toFixed(1)}, ${(graspPos[1]*100).toFixed(1)}, ${(graspPos[2]*100).toFixed(1)}]cm`);
 
     for (const offset of offsets) {
       const approachX = objX + normX * offset;  // Further from base
@@ -927,16 +925,16 @@ function calculateApproachJoints(
       const approachY = graspPos[1] + 0.01;  // Same height as grasp (+ tiny lift for clearance)
 
       const result = solveIKForTarget([approachX, approachY, approachZ], 1000, baseAngle, true);
-      console.log(`[calculateApproachJoints] SIDE APPROACH try offset=${(offset*100).toFixed(0)}cm: target=[${(approachX*100).toFixed(1)}, ${(approachY*100).toFixed(1)}, ${(approachZ*100).toFixed(1)}]cm, error=${(result.error*100).toFixed(1)}cm`);
+      log.debug(`[calculateApproachJoints] SIDE APPROACH try offset=${(offset*100).toFixed(0)}cm: target=[${(approachX*100).toFixed(1)}, ${(approachY*100).toFixed(1)}, ${(approachZ*100).toFixed(1)}]cm, error=${(result.error*100).toFixed(1)}cm`);
 
       if (result.error < 0.03) {
         const approachPos = calculateGripperPos(result.joints);
-        console.log(`[calculateApproachJoints] SIDE APPROACH SUCCESS: offset=${(offset*100).toFixed(0)}cm, approach=[${(approachPos[0]*100).toFixed(1)}, ${(approachPos[1]*100).toFixed(1)}, ${(approachPos[2]*100).toFixed(1)}]cm`);
+        log.debug(`[calculateApproachJoints] SIDE APPROACH SUCCESS: offset=${(offset*100).toFixed(0)}cm, approach=[${(approachPos[0]*100).toFixed(1)}, ${(approachPos[1]*100).toFixed(1)}, ${(approachPos[2]*100).toFixed(1)}]cm`);
         return result;
       }
     }
 
-    console.log(`[calculateApproachJoints] SIDE APPROACH failed (all offsets had error > 3cm), falling back to vertical approach`);
+    log.debug(`[calculateApproachJoints] SIDE APPROACH failed (all offsets had error > 3cm), falling back to vertical approach`);
   }
 
   // If we have grasp joints, derive approach from them for smooth vertical motion
@@ -969,12 +967,12 @@ function calculateApproachJoints(
           (approachPos[2] - objZ) ** 2
         ); // Only measure horizontal error for approach
 
-        console.log(`[calculateApproachJoints] Derived from grasp: approach Y=${(approachPos[1]*100).toFixed(1)}cm, grasp Y=${(graspPos[1]*100).toFixed(1)}cm, delta=${((approachPos[1]-graspPos[1])*100).toFixed(1)}cm, horiz_error=${(error*100).toFixed(1)}cm`);
+        log.debug(`[calculateApproachJoints] Derived from grasp: approach Y=${(approachPos[1]*100).toFixed(1)}cm, grasp Y=${(graspPos[1]*100).toFixed(1)}cm, delta=${((approachPos[1]-graspPos[1])*100).toFixed(1)}cm, horiz_error=${(error*100).toFixed(1)}cm`);
         return { joints: approachJoints, error };
       }
     }
     // Fall through to IK-based approach if no derived approach was high enough
-    console.log(`[calculateApproachJoints] All derived approaches too low, falling back to IK`);
+    log.debug(`[calculateApproachJoints] All derived approaches too low, falling back to IK`);
   }
 
   // Fallback: Use IK to find approach position (same X/Z but higher Y)
@@ -998,13 +996,13 @@ function calculateApproachJoints(
     }
 
     if (result.error < 0.02) {
-      console.log(`[calculateApproachJoints] Found good approach at Y=${(approachY*100).toFixed(1)}cm via IK`);
+      log.debug(`[calculateApproachJoints] Found good approach at Y=${(approachY*100).toFixed(1)}cm via IK`);
       break;
     }
   }
 
   if (bestResult.error > IK_ERROR_THRESHOLD) {
-    console.warn(`[calculateApproachJoints] WARNING: Best approach error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold`);
+    log.warn(`[calculateApproachJoints] WARNING: Best approach error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold`);
   }
 
   return bestResult;
@@ -1037,13 +1035,13 @@ function calculateLiftJoints(objX: number, objY: number, objZ: number, baseAngle
 
     // If we found a good solution, stop searching
     if (result.error < 0.02) {
-      console.log(`[calculateLiftJoints] Found good lift at Y=${(liftY*100).toFixed(1)}cm`);
+      log.debug(`[calculateLiftJoints] Found good lift at Y=${(liftY*100).toFixed(1)}cm`);
       break;
     }
   }
 
   if (bestResult.error > IK_ERROR_THRESHOLD) {
-    console.warn(`[calculateLiftJoints] WARNING: Best lift error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold`);
+    log.warn(`[calculateLiftJoints] WARNING: Best lift error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold`);
   }
 
   return bestResult;
@@ -1138,16 +1136,16 @@ function handlePickUpCommand(
   const objBottom = objY - cylHeight / 2;
   const objTop = objY + cylHeight / 2;
 
-  console.log(`[handlePickUpCommand] ========================================`);
-  console.log(`[handlePickUpCommand] Pick up "${objName}" (${objType})`);
-  console.log(`[handlePickUpCommand]   Scale: ${(objScale*100).toFixed(1)}cm`);
-  console.log(`[handlePickUpCommand]   Position (center): [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
-  console.log(`[handlePickUpCommand]   Distance from base: ${(distance*100).toFixed(1)}cm`);
+  log.debug(`[handlePickUpCommand] ========================================`);
+  log.debug(`[handlePickUpCommand] Pick up "${objName}" (${objType})`);
+  log.debug(`[handlePickUpCommand]   Scale: ${(objScale*100).toFixed(1)}cm`);
+  log.debug(`[handlePickUpCommand]   Position (center): [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
+  log.debug(`[handlePickUpCommand]   Distance from base: ${(distance*100).toFixed(1)}cm`);
   if (objType === 'cylinder') {
-    console.log(`[handlePickUpCommand]   Cylinder height: ${(cylHeight*100).toFixed(1)}cm, radius: ${(cylRadius*100).toFixed(1)}cm`);
-    console.log(`[handlePickUpCommand]   Cylinder bottom: Y=${(objBottom*100).toFixed(1)}cm, top: Y=${(objTop*100).toFixed(1)}cm`);
+    log.debug(`[handlePickUpCommand]   Cylinder height: ${(cylHeight*100).toFixed(1)}cm, radius: ${(cylRadius*100).toFixed(1)}cm`);
+    log.debug(`[handlePickUpCommand]   Cylinder bottom: Y=${(objBottom*100).toFixed(1)}cm, top: Y=${(objTop*100).toFixed(1)}cm`);
   }
-  console.log(`[handlePickUpCommand] ========================================`);
+  log.debug(`[handlePickUpCommand] ========================================`);
 
   // ========================================
   // URDF-BASED IK APPROACH
@@ -1155,7 +1153,7 @@ function handlePickUpCommand(
   // Use accurate FK from URDF to calculate joint angles via numerical IK.
   // The FK matches the actual robot within 0.1cm accuracy.
 
-  console.log(`[handlePickUpCommand] Using URDF-based IK approach`);
+  log.debug(`[handlePickUpCommand] Using URDF-based IK approach`);
 
   // For tall cylinders, target a graspable height (lower than center)
   // This helps the gripper close around the object at a reachable height
@@ -1165,7 +1163,7 @@ function handlePickUpCommand(
     // This is easier for the arm to reach and gives room for gripper to close
     const graspHeight = objBottom + cylHeight * 0.35;
     graspTargetY = Math.max(0.03, graspHeight); // At least 3cm above table
-    console.log(`[handlePickUpCommand] Cylinder grasp: targeting Y=${(graspTargetY*100).toFixed(1)}cm (1/3 up from bottom)`);
+    log.debug(`[handlePickUpCommand] Cylinder grasp: targeting Y=${(graspTargetY*100).toFixed(1)}cm (1/3 up from bottom)`);
   }
 
   // Calculate base angle ONCE and use for all phases to prevent spinning
@@ -1176,9 +1174,9 @@ function handlePickUpCommand(
 
   // Check if object is within rotation range
   if (Math.abs(rawBaseAngle) > 110) {
-    console.warn(`[handlePickUpCommand] WARNING: Object at angle ${rawBaseAngle.toFixed(1)}° is outside base rotation limits (±110°)`);
+    log.warn(`[handlePickUpCommand] WARNING: Object at angle ${rawBaseAngle.toFixed(1)}° is outside base rotation limits (±110°)`);
   }
-  console.log(`[handlePickUpCommand] Fixed base angle: ${baseAngle.toFixed(1)}° for object at X=${(objX*100).toFixed(1)}cm, Z=${(objZ*100).toFixed(1)}cm`);
+  log.debug(`[handlePickUpCommand] Fixed base angle: ${baseAngle.toFixed(1)}° for object at X=${(objX*100).toFixed(1)}cm, Z=${(objZ*100).toFixed(1)}cm`);
 
   // Calculate joint angles for each phase
   // First calculate grasp WITHOUT fixed base angle to find the best configuration
@@ -1188,7 +1186,7 @@ function handlePickUpCommand(
   const graspResult = calculateGraspJoints(objX, graspTargetY, objZ, undefined, forceSideGrasp);
   const optimalBaseAngle = graspResult.joints.base;
 
-  console.log(`[handlePickUpCommand] Optimal base from grasp IK: ${optimalBaseAngle.toFixed(1)}° (nominal was ${baseAngle.toFixed(1)}°)`);
+  log.debug(`[handlePickUpCommand] Optimal base from grasp IK: ${optimalBaseAngle.toFixed(1)}° (nominal was ${baseAngle.toFixed(1)}°)`);
 
   // Now use the optimal base angle for approach and lift
   // Pass grasp joints to approach so it can derive a smooth vertical descent trajectory
@@ -1198,7 +1196,7 @@ function handlePickUpCommand(
   const liftResult = calculateLiftJoints(objX, graspTargetY, objZ, optimalBaseAngle, graspResult.achievedY);
 
   // Log IK quality
-  console.log(`[handlePickUpCommand] IK errors: approach=${(approachResult.error*100).toFixed(1)}cm, grasp=${(graspResult.error*100).toFixed(1)}cm, lift=${(liftResult.error*100).toFixed(1)}cm`);
+  log.debug(`[handlePickUpCommand] IK errors: approach=${(approachResult.error*100).toFixed(1)}cm, grasp=${(graspResult.error*100).toFixed(1)}cm, lift=${(liftResult.error*100).toFixed(1)}cm`);
 
   // Check if object is in reachable workspace
   // The arm has a ~4cm X offset due to shoulder_pan joint origin
@@ -1209,16 +1207,16 @@ function handlePickUpCommand(
   // Check for "dead zone" - small X with large Z
   if (Math.abs(objX) < 0.05 && Math.abs(objZ) > 0.10) {
     reachabilityWarning = ` Warning: Object is in a difficult-to-reach zone (small X, large Z). The arm has a ~4cm X offset that limits reach to X < 0.05m at far distances.`;
-    console.warn(`[handlePickUpCommand] ${reachabilityWarning}`);
+    log.warn(`[handlePickUpCommand] ${reachabilityWarning}`);
   } else if (maxError > 0.06) { // 6cm error - likely unreachable
     reachabilityWarning = ` Warning: Object may be outside arm's reachable workspace (IK error: ${(maxError*100).toFixed(0)}cm). Try repositioning the object.`;
-    console.warn(`[handlePickUpCommand] ${reachabilityWarning}`);
+    log.warn(`[handlePickUpCommand] ${reachabilityWarning}`);
   } else if (maxError > 0.04) { // 4cm error - marginal reach
     reachabilityWarning = ` Note: Object is at edge of arm's reach (IK error: ${(maxError*100).toFixed(0)}cm).`;
   } else if (maxError > 0.02) {
-    console.log(`[handlePickUpCommand] Good reach with ${(maxError*100).toFixed(1)}cm error`);
+    log.debug(`[handlePickUpCommand] Good reach with ${(maxError*100).toFixed(1)}cm error`);
   } else {
-    console.log(`[handlePickUpCommand] Excellent reach with ${(maxError*100).toFixed(1)}cm error`);
+    log.debug(`[handlePickUpCommand] Excellent reach with ${(maxError*100).toFixed(1)}cm error`);
   }
 
   // Build the grasp sequence using IK-calculated angles
@@ -1254,18 +1252,18 @@ function handlePickUpCommand(
     gripper: 0,
   };
 
-  console.log(`[handlePickUpCommand] Approach: base=${approachJoints.base.toFixed(1)}°, shoulder=${approachJoints.shoulder.toFixed(1)}°, elbow=${approachJoints.elbow.toFixed(1)}°, wrist=${approachJoints.wrist.toFixed(1)}°`);
-  console.log(`[handlePickUpCommand] Grasp: base=${graspJoints.base.toFixed(1)}°, shoulder=${graspJoints.shoulder.toFixed(1)}°, elbow=${graspJoints.elbow.toFixed(1)}°, wrist=${graspJoints.wrist.toFixed(1)}°`);
-  console.log(`[handlePickUpCommand] Lift: base=${liftJoints.base.toFixed(1)}°, shoulder=${liftJoints.shoulder.toFixed(1)}°, elbow=${liftJoints.elbow.toFixed(1)}°, wrist=${liftJoints.wrist.toFixed(1)}°`);
-  console.log(`[handlePickUpCommand] WristRoll: ${cylinderWristRoll}° (${forceSideGrasp ? 'ROTATED for cylinder' : 'default'})`);
-  console.log(`[handlePickUpCommand] Approach type: ${forceSideGrasp ? 'SIDE (horizontal)' : 'VERTICAL (from above)'}`);
+  log.debug(`[handlePickUpCommand] Approach: base=${approachJoints.base.toFixed(1)}°, shoulder=${approachJoints.shoulder.toFixed(1)}°, elbow=${approachJoints.elbow.toFixed(1)}°, wrist=${approachJoints.wrist.toFixed(1)}°`);
+  log.debug(`[handlePickUpCommand] Grasp: base=${graspJoints.base.toFixed(1)}°, shoulder=${graspJoints.shoulder.toFixed(1)}°, elbow=${graspJoints.elbow.toFixed(1)}°, wrist=${graspJoints.wrist.toFixed(1)}°`);
+  log.debug(`[handlePickUpCommand] Lift: base=${liftJoints.base.toFixed(1)}°, shoulder=${liftJoints.shoulder.toFixed(1)}°, elbow=${liftJoints.elbow.toFixed(1)}°, wrist=${liftJoints.wrist.toFixed(1)}°`);
+  log.debug(`[handlePickUpCommand] WristRoll: ${cylinderWristRoll}° (${forceSideGrasp ? 'ROTATED for cylinder' : 'default'})`);
+  log.debug(`[handlePickUpCommand] Approach type: ${forceSideGrasp ? 'SIDE (horizontal)' : 'VERTICAL (from above)'}`);
 
   // Log expected tip positions from our FK
   const expectedGraspPos = calculateGripperPos(graspResult.joints);
   const expectedApproachPos = calculateGripperPos(approachResult.joints);
-  console.log(`[handlePickUpCommand] Expected approach tip: [${expectedApproachPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
-  console.log(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
-  console.log(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
+  log.debug(`[handlePickUpCommand] Expected approach tip: [${expectedApproachPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
+  log.debug(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
+  log.debug(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
 
   // Build sequence: approach -> intermediate steps -> grasp -> hold -> close -> hold -> lift
   // For cylinders: SIDE approach with horizontal movement (prevents arm passing through object)
@@ -1396,7 +1394,7 @@ function handleStackCommand(
   const targetHeight = (targetObject as { dimensions?: [number, number, number] }).dimensions?.[1] || 0.05;
   const stackHeight = targetY + targetHeight + 0.03; // Place 3cm above target object top
 
-  console.log(`[handleStackCommand] Stack "${heldName}" on "${targetName}" at height ${stackHeight.toFixed(3)}m`);
+  log.debug(`[handleStackCommand] Stack "${heldName}" on "${targetName}" at height ${stackHeight.toFixed(3)}m`);
 
   // Calculate IK for approach (above the stack position)
   const approachHeight = stackHeight + 0.08;
@@ -1410,7 +1408,7 @@ function handleStackCommand(
   const retreatIK = calculateInverseKinematics(targetX, retreatHeight, targetZ, state);
 
   if (approachIK && placeIK && retreatIK) {
-    console.log(`[handleStackCommand] IK success for stacking at [${targetX.toFixed(3)}, ${stackHeight.toFixed(3)}, ${targetZ.toFixed(3)}]`);
+    log.debug(`[handleStackCommand] IK success for stacking at [${targetX.toFixed(3)}, ${stackHeight.toFixed(3)}, ${targetZ.toFixed(3)}]`);
     return {
       action: 'sequence',
       joints: [
@@ -1473,7 +1471,7 @@ function handleMoveToCommand(
   // Move gripper to hover above the object
   const hoverHeight = Math.max(objY + 0.1, 0.15);
 
-  console.log(`[handleMoveToCommand] Moving to "${objName}" at [${objX.toFixed(3)}, ${hoverHeight.toFixed(3)}, ${objZ.toFixed(3)}]`);
+  log.debug(`[handleMoveToCommand] Moving to "${objName}" at [${objX.toFixed(3)}, ${hoverHeight.toFixed(3)}, ${objZ.toFixed(3)}]`);
 
   const hoverIK = calculateInverseKinematics(objX, hoverHeight, objZ, state);
 
@@ -1689,7 +1687,7 @@ for (let i = 0; i < 2; i++) {
     const liftIK = calculateInverseKinematics(gx, liftHeight, gz, state);
 
     if (placeIK && liftIK) {
-      console.log(`[place] Using IK to place at [${gx.toFixed(3)}, ${placeHeight.toFixed(3)}, ${gz.toFixed(3)}]`);
+      log.debug(`[place] Using IK to place at [${gx.toFixed(3)}, ${placeHeight.toFixed(3)}, ${gz.toFixed(3)}]`);
       return {
         action: 'sequence',
         joints: [

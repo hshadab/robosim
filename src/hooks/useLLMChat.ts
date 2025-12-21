@@ -3,6 +3,9 @@ import { useAppStore } from '../stores/useAppStore';
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
 import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('LLMChat');
 
 // System prompts for different robot types
 export const SYSTEM_PROMPTS: Record<ActiveRobotType, string> = {
@@ -261,21 +264,18 @@ export const useLLMChat = () => {
 
         // Use Claude API (falls back to simulation if no API key)
         const apiKey = getClaudeApiKey();
-        console.log('[useLLMChat] Calling Claude API with:', {
+        log.debug('Calling Claude API', {
           message,
           robotType: activeRobotType,
           hasApiKey: !!apiKey,
           objectCount: fullState.objects?.length || 0,
-          objects: fullState.objects?.map(o => ({ name: o.name, type: o.type, position: o.position }))
         });
 
         const response = await callClaudeAPI(message, activeRobotType, fullState, apiKey || undefined, conversationHistory);
 
-        console.log('[useLLMChat] Got response:', {
+        log.debug('Got response', {
           action: response.action,
-          description: response.description,
           hasJoints: !!response.joints,
-          joints: response.joints
         });
 
         if (response.action === 'error') {
@@ -303,7 +303,7 @@ export const useLLMChat = () => {
           }
 
           // Execute movements based on robot type
-          console.log('[useLLMChat] Checking for arm movement:', {
+          log.debug('Checking for arm movement', {
             activeRobotType,
             hasJoints: !!response.joints,
             isArray: Array.isArray(response.joints)
@@ -314,7 +314,7 @@ export const useLLMChat = () => {
               ? response.joints
               : [response.joints];
 
-            console.log('[useLLMChat] Executing arm sequence with', sequence.length, 'steps:', sequence);
+            log.debug(`Executing arm sequence with ${sequence.length} steps`);
 
             // Record action and start task tracking
             robotContext.startTask(response.description);

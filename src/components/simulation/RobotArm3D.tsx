@@ -238,29 +238,56 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const gripperPosition = calculateGripperPosition(joints);
 
-  const handleCreated = useCallback(({ gl }: { gl: any }) => {
+  // Store event listener refs for cleanup
+  const contextLostHandlerRef = useRef<((event: Event) => void) | null>(null);
+  const contextRestoredHandlerRef = useRef<(() => void) | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleCreated = useCallback((state: any) => {
+    const gl = state.gl as WebGPURenderer;
     rendererRef.current = gl;
     const canvas = gl.domElement;
+    canvasRef.current = canvas;
 
     // Reduce GPU pressure
     gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 
-    // Shadow settings
-    if (gl.shadowMap) {
-      gl.shadowMap.type = THREE.BasicShadowMap;
-      (gl.shadowMap as any).autoUpdate = false;
-      (gl.shadowMap as any).needsUpdate = true;
+    // Shadow settings - use type assertion for WebGPU/WebGL compatibility
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shadowMap = gl.shadowMap as any;
+    if (shadowMap) {
+      shadowMap.type = THREE.BasicShadowMap;
+      shadowMap.autoUpdate = false;
+      shadowMap.needsUpdate = true;
     }
 
-    canvas.addEventListener('webglcontextlost', (event: Event) => {
+    // Create handlers with refs for cleanup
+    contextLostHandlerRef.current = (event: Event) => {
       event.preventDefault();
-      console.warn('GPU context lost, will attempt recovery...');
       setContextLost(true);
-    });
-
-    canvas.addEventListener('webglcontextrestored', () => {
+    };
+    contextRestoredHandlerRef.current = () => {
       setContextLost(false);
-    });
+    };
+
+    canvas.addEventListener('webglcontextlost', contextLostHandlerRef.current);
+    canvas.addEventListener('webglcontextrestored', contextRestoredHandlerRef.current);
+  }, []);
+
+  // Cleanup event listeners on unmount
+  useEffect(() => {
+    return () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        if (contextLostHandlerRef.current) {
+          canvas.removeEventListener('webglcontextlost', contextLostHandlerRef.current);
+        }
+        if (contextRestoredHandlerRef.current) {
+          canvas.removeEventListener('webglcontextrestored', contextRestoredHandlerRef.current);
+        }
+      }
+    };
   }, []);
 
   const [canvasKey, setCanvasKey] = useState(0);

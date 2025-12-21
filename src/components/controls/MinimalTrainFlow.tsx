@@ -44,6 +44,9 @@ import {
   isBackendAPIAvailable,
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger('TrainFlow');
 
 type FlowStep = 'add-object' | 'record-demo' | 'generate' | 'upload' | 'done';
 
@@ -111,17 +114,17 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Handle chat send
   const handleChatSend = useCallback(() => {
-    console.log('[MinimalTrainFlow] handleChatSend called:', {
+    log.debug('handleChatSend called', {
       chatInput: chatInput.trim(),
       isLLMLoading,
       isRecording,
-      objectsInScene: objects.map(o => ({ name: o.name, type: o.type, position: o.position }))
+      objectCount: objects.length
     });
 
     if (chatInput.trim() && !isLLMLoading) {
       // Start recording when sending a command
       if (!isRecording) {
-        console.log('[MinimalTrainFlow] Starting recording...');
+        log.debug('Starting recording');
         setIsRecording(true);
         recordedFramesRef.current = [];
         const startTime = Date.now();
@@ -134,11 +137,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         recorderRef.current = { intervalId: interval };
       }
 
-      console.log('[MinimalTrainFlow] Sending message to LLM:', chatInput.trim());
+      log.debug('Sending message to LLM', { message: chatInput.trim() });
       sendMessage(chatInput.trim());
       setChatInput('');
     } else {
-      console.log('[MinimalTrainFlow] Chat send blocked:', {
+      log.debug('Chat send blocked', {
         emptyInput: !chatInput.trim(),
         isLoading: isLLMLoading
       });
@@ -310,7 +313,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       scale: scale, // Override with graspable scale (min 6cm)
     };
 
-    console.log('[MinimalTrainFlow] Spawning object:', objToSpawn);
+    log.debug('Spawning object', { name: objToSpawn.name });
     spawnObject(objToSpawn);
 
     setState(s => ({ ...s, objectName: template.name, objectPlaced: true }));
@@ -330,17 +333,16 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     try {
       const objectName = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_');
 
-      console.log('[MinimalTrainFlow] Starting 3D generation for:', objectName);
+      log.debug('Starting 3D generation', { objectName });
 
       const generated = await generateFalObject(
         { apiKey: falApiKey },
         file,
         { objectName, outputFormat: 'glb', removeBackground: true },
-        (status) => console.log('[MinimalTrainFlow] Generation status:', status)
+        (status) => log.debug('Generation status', { status })
       );
 
-      console.log('[MinimalTrainFlow] Generated object:', generated);
-      console.log('[MinimalTrainFlow] Mesh URL:', generated.meshUrl);
+      log.debug('Generated object', { hasMeshUrl: !!generated.meshUrl });
 
       if (!generated.meshUrl) {
         throw new Error('No mesh URL returned from 3D generation');
@@ -349,7 +351,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const existingPositions = objects.map(o => o.position as [number, number, number]);
       const placement = getOptimalPlacement(generated.dimensions, { avoidPositions: existingPositions });
 
-      console.log('[MinimalTrainFlow] Spawning at position:', placement.position);
+      log.debug('Spawning at position', { position: placement.position });
 
       spawnObject({
         type: 'glb',
@@ -364,7 +366,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         isInTargetZone: false,
       });
 
-      console.log('[MinimalTrainFlow] Object spawned successfully');
+      log.debug('Object spawned successfully');
 
       setState(s => ({ ...s, objectName, objectPlaced: true }));
       setStep('record-demo');
