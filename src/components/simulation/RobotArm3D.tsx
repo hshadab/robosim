@@ -7,7 +7,7 @@ import {
   Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-// Use WebGPU-enabled Three.js with automatic WebGL fallback
+// WebGPU with automatic WebGL fallback
 import * as THREE from 'three/webgpu';
 import { WebGPURenderer } from 'three/webgpu';
 
@@ -195,7 +195,6 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const [contextLost, setContextLost] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  // WebGPURenderer is compatible with WebGLRenderer interface
   const rendererRef = useRef<WebGPURenderer | null>(null);
 
   // AI-generated content state
@@ -238,23 +237,20 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const gripperPosition = calculateGripperPosition(joints);
 
-  // Type as any to handle WebGPU/WebGL renderer differences
   const handleCreated = useCallback(({ gl }: { gl: any }) => {
-    rendererRef.current = gl as WebGPURenderer;
+    rendererRef.current = gl;
     const canvas = gl.domElement;
 
-    // Reduce GPU pressure to prevent context loss
+    // Reduce GPU pressure
     gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 
-    // Shadow map settings (WebGPU uses similar API)
+    // Shadow settings
     if (gl.shadowMap) {
       gl.shadowMap.type = THREE.BasicShadowMap;
-      // WebGPU shadow map has different properties
       (gl.shadowMap as any).autoUpdate = false;
       (gl.shadowMap as any).needsUpdate = true;
     }
 
-    // Handle context loss (works for both WebGPU and WebGL fallback)
     canvas.addEventListener('webglcontextlost', (event: Event) => {
       event.preventDefault();
       console.warn('GPU context lost, will attempt recovery...');
@@ -327,26 +323,19 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         shadows
         dpr={[1, 1.5]}
         gl={async (props: any) => {
-          // Create WebGPU renderer with automatic WebGL fallback
+          // WebGPU renderer with automatic WebGL fallback
           const renderer = new WebGPURenderer({
             canvas: props.canvas,
             antialias: true,
             alpha: false,
             powerPreference: 'high-performance',
-            // forceWebGL: false, // Set to true to force WebGL fallback for testing
           });
-
-          // Initialize WebGPU (required - async operation)
           await renderer.init();
-
-          // Configure tone mapping
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
           renderer.toneMappingExposure = 1.1;
 
-          // Log which backend is being used
-          const backend = (renderer as any).backend?.isWebGPUBackend ? 'WebGPU' : 'WebGL';
-          console.log(`[RobotArm3D] 🚀 Using ${backend} renderer`);
-
+          const isWebGPU = (renderer as any).backend?.isWebGPUBackend;
+          console.log(`[RobotArm3D] 🚀 Using ${isWebGPU ? 'WebGPU' : 'WebGL'} renderer`);
           return renderer;
         }}
         onCreated={handleCreated}
@@ -415,15 +404,10 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         {/* Ambient for shadow fill */}
         <ambientLight intensity={0.15} />
 
-        {/* Simple shadow plane - WebGPU compatible (ContactShadows uses MeshDepthMaterial which isn't supported yet) */}
+        {/* Simple shadow - WebGPU compatible */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
           <circleGeometry args={[0.8, 32]} />
-          <meshStandardMaterial
-            color="#000000"
-            transparent
-            opacity={0.3}
-            depthWrite={false}
-          />
+          <meshStandardMaterial color="#000000" transparent opacity={0.3} depthWrite={false} />
         </mesh>
 
         <Physics gravity={[0, -9.81, 0]} timeStep={1/60}>
