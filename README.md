@@ -1,8 +1,16 @@
 # RoboSim - Interactive Robotics Simulation Platform
 
-A web-based 3D robotics simulation platform built with React, Three.js, and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
+A web-based 3D robotics simulation platform built with React, Three.js (WebGPU), and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
+
+> **WebGPU Powered** - Uses the next-generation WebGPU API for faster rendering with automatic WebGL fallback for older browsers.
 
 ## Recent Updates (December 2024)
+
+### WebGPU Renderer
+- **Migrated to WebGPU** - Now uses Three.js WebGPU renderer via React Three Fiber v9
+- **Node Materials** - All materials converted to TSL (Three Shading Language) node materials
+- **Automatic Fallback** - Seamlessly falls back to WebGL on unsupported browsers
+- **Browser Support**: Chrome 113+, Safari 18+, Edge 113+, Firefox (experimental)
 
 ### LeRobot Training Objects
 Objects now match the SO-101 training data from HuggingFace (svla_so101_pickplace, svla_so100_stacking):
@@ -37,6 +45,10 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 - **Humanoid** (Coming Soon) - Bipedal robot with manipulation
 
 ### 3D Visualization
+- **WebGPU Rendering** - Next-generation GPU API for faster rendering and better lighting
+  - Automatic WebGL fallback for unsupported browsers
+  - TSL (Three Shading Language) node materials
+  - Works on Chrome 113+, Safari 18+, Firefox (behind flag)
 - Real-time 3D rendering with PBR materials
 - Physics simulation using Rapier
 - Multiple environment options (empty, warehouse, outdoor, maze)
@@ -431,8 +443,10 @@ Training data generated with these improvements will transfer better to real SO-
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript
-- **3D Graphics**: Three.js, React Three Fiber, React Three Drei
+- **Frontend**: React 19, TypeScript
+- **3D Graphics**: Three.js (WebGPU), React Three Fiber v9, React Three Drei
+  - WebGPU renderer with automatic WebGL fallback
+  - TSL node materials for cross-renderer compatibility
 - **Physics**: Rapier (via @react-three/rapier)
 - **ML Inference**: ONNX Runtime Web, HuggingFace Transformers.js
 - **State Management**: Zustand
@@ -444,13 +458,14 @@ Training data generated with these improvements will transfer better to real SO-
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- Modern browser with WebGPU support (Chrome 113+, Safari 18+) or WebGL fallback
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/robotics-simulation.git
-cd robotics-simulation
+git clone https://github.com/hshadab/robosim.git
+cd robosim
 
 # Install dependencies
 npm install
