@@ -10,7 +10,7 @@ import { generateSemanticState } from './semanticState';
 import { API_CONFIG, STORAGE_CONFIG } from './config';
 import { loggers } from './logger';
 import { calculateInverseKinematics, calculateSO101GripperPosition } from '../components/simulation/SO101Kinematics';
-import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+import { calculateGripperPositionURDF, calculateJawPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 
 const log = loggers.claude;
 
@@ -455,8 +455,14 @@ function clampJoint(jointName: keyof typeof JOINT_LIMITS, value: number): number
  * Calculate gripper position using URDF-based FK
  * This matches the actual robot behavior exactly (verified by FK Compare logs)
  */
+/**
+ * Calculate position for IK targeting - uses JAW position, not tip position
+ * This ensures when we target an object position, the JAWS end up at that position
+ * (not the tip which is 7.3cm ahead of the jaws)
+ */
 function calculateGripperPos(joints: JointAngles): [number, number, number] {
-  return calculateGripperPositionURDF(joints);
+  // Use JAW position for IK - this is where the object will be grasped
+  return calculateJawPositionURDF(joints);
 }
 
 // Numerical IK solver using gradient descent with adaptive step size
@@ -477,9 +483,16 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
 
   // Try a range of base angles around the nominal to find the best fit
   // This helps when the workspace geometry makes the nominal angle suboptimal
+  // Extended range: due to arm geometry, optimal base can be +7° from atan2 calculation
   const baseAnglesToTry = fixedBaseAngle !== undefined
     ? [nominalBaseAngle] // If fixed, only use that angle
-    : [nominalBaseAngle, nominalBaseAngle - 5, nominalBaseAngle + 5, nominalBaseAngle - 10, nominalBaseAngle + 10].map(a => clampJoint('base', a));
+    : [
+        nominalBaseAngle,
+        nominalBaseAngle + 3, nominalBaseAngle - 3,
+        nominalBaseAngle + 6, nominalBaseAngle - 6,
+        nominalBaseAngle + 9, nominalBaseAngle - 9,
+        nominalBaseAngle + 12, nominalBaseAngle - 12,
+      ].map(a => clampJoint('base', a));
 
   const optimizeBase = false; // Don't optimize base during gradient descent - we try multiple angles instead
 
@@ -498,47 +511,127 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
     // 1. Close objects (compact poses with high shoulder/elbow)
     // 2. Distant objects at LOW height (asymmetric: moderate shoulder, high elbow, low wrist)
     // 3. Distant objects at HIGH height (extended symmetric poses)
+    // 4. FAR WORKSPACE (Z>15cm) - requires POSITIVE shoulder angles
     const startConfigs: JointAngles[] = [
-      // LEROBOT-STYLE COMPACT POSES - from real SO-101 training data
-      // Real grasps use: shoulder=-99°, elbow=92-98°, wrist=71-75° (steep, not horizontal!)
-      // These compact poses allow reaching close, low objects
-      { base: baseAngle, shoulder: -99, elbow: 97, wrist: 75, wristRoll: 0 },   // Real LeRobot grasp pose
-      { base: baseAngle, shoulder: -99, elbow: 95, wrist: 72, wristRoll: 0 },   // LeRobot variant
-      { base: baseAngle, shoulder: -98, elbow: 97, wrist: 74, wristRoll: 0 },   // Near max compact
-      { base: baseAngle, shoulder: -97, elbow: 96, wrist: 73, wristRoll: 0 },   // Compact variant
-      { base: baseAngle, shoulder: -95, elbow: 95, wrist: 72, wristRoll: 0 },   // Slightly less compact
-      { base: baseAngle, shoulder: -95, elbow: 92, wrist: 70, wristRoll: 0 },   // Medium compact
+      // ============================================================
+      // FAR WORKSPACE POSES (Z=15-25cm) - PRIORITY for actual robot workspace
+      // These use POSITIVE shoulder to reach far objects at low heights
+      // Based on FK analysis: optimal zone is Z=15-25cm, Y<5cm
+      // ============================================================
 
-      // MEDIUM COMPACT POSES - for slightly further objects
+      // OPTIMAL LOW-REACHING POSES - from exhaustive search
+      // Key insight: NEGATIVE wrist angles are needed to reach low Y values!
+      // Pattern: moderate positive shoulder + high positive elbow + negative wrist
+      { base: baseAngle, shoulder: 19, elbow: 75, wrist: -77, wristRoll: 0 },   // BEST: 0.1cm error for Y=2.5cm, Z=20cm!
+      { base: baseAngle, shoulder: 20, elbow: 73, wrist: -75, wristRoll: 0 },   // Variant
+      { base: baseAngle, shoulder: 15, elbow: 78, wrist: -80, wristRoll: 0 },   // Variant
+      { base: baseAngle, shoulder: 25, elbow: 70, wrist: -70, wristRoll: 0 },   // Variant
+      { base: baseAngle, shoulder: 30, elbow: 73, wrist: -90, wristRoll: 0 },   // From coarse search
+
+      // EXTENDED NEGATIVE-WRIST POSES - for reaching different Z distances
+      { base: baseAngle, shoulder: 10, elbow: 80, wrist: -85, wristRoll: 0 },   // Closer Z
+      { base: baseAngle, shoulder: 35, elbow: 65, wrist: -65, wristRoll: 0 },   // Further Z
+      { base: baseAngle, shoulder: 40, elbow: 60, wrist: -60, wristRoll: 0 },   // Even further
+      { base: baseAngle, shoulder: 55, elbow: 23, wrist: -80, wristRoll: 0 },   // For Z=25cm
+      { base: baseAngle, shoulder: 50, elbow: 30, wrist: -75, wristRoll: 0 },   // Variant
+
+      // MODERATE POSES with negative wrist for low reach
+      { base: baseAngle, shoulder: 5, elbow: 85, wrist: -90, wristRoll: 0 },    // Very low reach
+      { base: baseAngle, shoulder: 0, elbow: 88, wrist: -65, wristRoll: 0 },    // Y=2.5cm, Z=16.1cm from scan
+      { base: baseAngle, shoulder: -5, elbow: 90, wrist: -85, wristRoll: 0 },   // Compact but low
+
+      // FALLBACK POSITIVE-WRIST POSES (for higher Y targets)
+      { base: baseAngle, shoulder: 0, elbow: 28, wrist: 35, wristRoll: 0 },     // Higher Y targets
+      { base: baseAngle, shoulder: 10, elbow: 20, wrist: 45, wristRoll: 0 },    // More forward reach
+
+      // ============================================================
+      // HORIZONTAL GRASP POSES - wrist near 0° for side-grasping cylinders
+      // These are CRITICAL for picking up tall objects from the side
+      // Without horizontal approach, tall cylinders will tip over
+      // Discovered via exhaustive search for Y~4cm, Z~16cm with wrist ±20°
+      // ============================================================
+      // BEST configurations from scan - prioritized for cylinder grasp at Y=4cm
+      { base: baseAngle, shoulder: -50, elbow: 80, wrist: 10, wristRoll: 0 },   // BEST: Y=3.9cm, Z=16.5cm
+      { base: baseAngle, shoulder: -60, elbow: 80, wrist: 20, wristRoll: 0 },   // Y=4.7cm, Z=15.9cm
+      { base: baseAngle, shoulder: -50, elbow: 90, wrist: -10, wristRoll: 0 },  // Y=4.1cm, Z=16.8cm
+      { base: baseAngle, shoulder: -40, elbow: 70, wrist: 20, wristRoll: 0 },   // Y=3.1cm, Z=16.2cm
+      { base: baseAngle, shoulder: -60, elbow: 90, wrist: 0, wristRoll: 0 },    // Y=4.8cm, Z=16.6cm
+      { base: baseAngle, shoulder: -40, elbow: 90, wrist: -20, wristRoll: 0 },  // Y=3.4cm, Z=16.9cm
+      { base: baseAngle, shoulder: -70, elbow: 90, wrist: 10, wristRoll: 0 },   // Y=5.4cm, Z=16.3cm
+      { base: baseAngle, shoulder: -40, elbow: 80, wrist: 0, wristRoll: 0 },    // Y=3.0cm, Z=16.8cm
+      { base: baseAngle, shoulder: -30, elbow: 60, wrist: 20, wristRoll: 0 },   // Y=3.8cm, Z=17.7cm
+      // Additional variants for different heights/distances
+      { base: baseAngle, shoulder: -45, elbow: 85, wrist: 5, wristRoll: 0 },    // Interpolated
+      { base: baseAngle, shoulder: -55, elbow: 75, wrist: 15, wristRoll: 0 },   // Interpolated
+
+      // ============================================================
+      // LEROBOT-STYLE COMPACT POSES - for CLOSE objects (Z<12cm)
+      // Keep these for compatibility with close-range tasks
+      // ============================================================
+      { base: baseAngle, shoulder: -99, elbow: 97, wrist: 75, wristRoll: 0 },   // Real LeRobot grasp
+      { base: baseAngle, shoulder: -95, elbow: 95, wrist: 72, wristRoll: 0 },   // Slightly less compact
       { base: baseAngle, shoulder: -90, elbow: 90, wrist: 70, wristRoll: 0 },   // Good grasp pose
       { base: baseAngle, shoulder: -85, elbow: 85, wrist: 68, wristRoll: 0 },   // Medium-compact
+
+      // MEDIUM DISTANCE (Z=10-15cm)
       { base: baseAngle, shoulder: -80, elbow: 80, wrist: 65, wristRoll: 0 },   // Less compact
+      { base: baseAngle, shoulder: -75, elbow: 75, wrist: 60, wristRoll: 0 },   // Even less
+      { base: baseAngle, shoulder: -70, elbow: 70, wrist: 55, wristRoll: 0 },   // Extended
 
-      // MEDIUM POSES - for medium distance objects
-      { base: baseAngle, shoulder: -86, elbow: 73, wrist: 75, wristRoll: 0 },   // Real reach pose (reach ~12cm)
-      { base: baseAngle, shoulder: -80, elbow: 80, wrist: 70, wristRoll: 0 },   // Variant
-      { base: baseAngle, shoulder: -75, elbow: 75, wrist: 65, wristRoll: 0 },   // Medium bent
-
-      // ASYMMETRIC POSES - for DISTANT objects at LOW height
-      // These have moderate shoulder, HIGH elbow, and LOW wrist to reach far while staying low
-      { base: baseAngle, shoulder: -65, elbow: 85, wrist: 25, wristRoll: 0 },   // Optimal for ~19cm at Y=3cm
-      { base: baseAngle, shoulder: -60, elbow: 85, wrist: 20, wristRoll: 0 },   // Variant for low+far
-      { base: baseAngle, shoulder: -70, elbow: 90, wrist: 30, wristRoll: 0 },   // More bent shoulder
-      { base: baseAngle, shoulder: -55, elbow: 80, wrist: 15, wristRoll: 0 },   // Even more extended
-      { base: baseAngle, shoulder: -65, elbow: 75, wrist: 35, wristRoll: 0 },   // Lower elbow variant
-      { base: baseAngle, shoulder: -50, elbow: 75, wrist: 10, wristRoll: 0 },   // Very extended, low wrist
-
-      // EXTENDED SYMMETRIC POSES - for distant objects at higher height
-      { base: baseAngle, shoulder: -70, elbow: 70, wrist: 60, wristRoll: 0 },   // Less bent (reach ~15cm)
-      { base: baseAngle, shoulder: -60, elbow: 60, wrist: 50, wristRoll: 0 },   // Extended (reach ~18cm)
+      // TRANSITION POSES - bridging close and far
+      { base: baseAngle, shoulder: -60, elbow: 60, wrist: 50, wristRoll: 0 },   // Extended
       { base: baseAngle, shoulder: -50, elbow: 50, wrist: 40, wristRoll: 0 },   // More extended
-      { base: baseAngle, shoulder: -45, elbow: 45, wrist: 45, wristRoll: 0 },   // Very extended
-      { base: baseAngle, shoulder: -40, elbow: 40, wrist: 40, wristRoll: 0 },   // Almost straight
-      { base: baseAngle, shoulder: -30, elbow: 30, wrist: 30, wristRoll: 0 },   // Near straight (max reach)
+      { base: baseAngle, shoulder: -40, elbow: 40, wrist: 35, wristRoll: 0 },   // Near straight
+      { base: baseAngle, shoulder: -30, elbow: 30, wrist: 30, wristRoll: 0 },   // Almost straight
+      { base: baseAngle, shoulder: -20, elbow: 20, wrist: 25, wristRoll: 0 },   // Very straight
     ];
 
   for (const startConfig of startConfigs) {
     let joints = { ...startConfig };
+
+    // EARLY CHECK: If starting config is already good (< 2cm error), use it with light refinement
+    // This prevents gradient descent from drifting away from good starting positions
+    const startPos = calculateGripperPos(joints);
+    const startError = Math.sqrt(
+      (startPos[0] - targetPos[0]) ** 2 +
+      (startPos[1] - targetPos[1]) ** 2 +
+      (startPos[2] - targetPos[2]) ** 2
+    );
+
+    if (startError < 0.02) {
+      // Starting config is already excellent - just do fine refinement
+      if (startError < bestError) {
+        bestError = startError;
+        bestJoints = { ...joints };
+      }
+      // Only do fine-grained refinement, skip large steps that could drift
+      const fineSteps = [0.5, 0.25, 0.1, 0.05];
+      for (const stepSize of fineSteps) {
+        for (let iter = 0; iter < 20; iter++) {
+          const pos = calculateGripperPos(joints);
+          const error = Math.sqrt(
+            (pos[0] - targetPos[0]) ** 2 +
+            (pos[1] - targetPos[1]) ** 2 +
+            (pos[2] - targetPos[2]) ** 2
+          );
+          if (error < bestError) {
+            bestError = error;
+            bestJoints = { ...joints };
+          }
+          if (error < 0.005) break; // 5mm is good enough
+
+          for (const jn of ['shoulder', 'elbow', 'wrist'] as const) {
+            const testPlus = { ...joints, [jn]: clampJoint(jn, joints[jn] + stepSize) };
+            const testMinus = { ...joints, [jn]: clampJoint(jn, joints[jn] - stepSize) };
+            const errPlus = Math.sqrt((calculateGripperPos(testPlus)[0]-targetPos[0])**2 + (calculateGripperPos(testPlus)[1]-targetPos[1])**2 + (calculateGripperPos(testPlus)[2]-targetPos[2])**2);
+            const errMinus = Math.sqrt((calculateGripperPos(testMinus)[0]-targetPos[0])**2 + (calculateGripperPos(testMinus)[1]-targetPos[1])**2 + (calculateGripperPos(testMinus)[2]-targetPos[2])**2);
+            if (errPlus < error && errPlus <= errMinus) joints[jn] = clampJoint(jn, joints[jn] + stepSize);
+            else if (errMinus < error) joints[jn] = clampJoint(jn, joints[jn] - stepSize);
+          }
+        }
+      }
+      continue; // Skip the full optimization for this config
+    }
 
     // Multi-pass optimization with decreasing step sizes - more steps for finer control
     // Added very fine steps at the end for better precision
@@ -556,13 +649,10 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
           (pos[2] - targetPos[2]) ** 2
         );
 
-        // For grasps, penalize high wrist angles to prefer horizontal grasps
-        // With horizontal grasp (wrist < 45°), jaws and tip are at similar heights
-        // Penalty: 0.3cm per degree over 45° - strong enough to change behavior
-        const wristPenalty = preferHorizontalGrasp
-          ? Math.max(0, Math.abs(joints.wrist) - 45) * 0.003
-          : 0;
-        const error = positionError + wristPenalty;
+        // Based on LeRobot SO-101 training data, successful grasps use wrist ~75° (steep)
+        // NOT horizontal. Remove wrist penalty - let IK find natural solutions.
+        // Real data: shoulder_lift=-99°, elbow=73-100°, wrist=75°
+        const error = positionError;
 
         if (error < bestError) {
           bestError = error;
@@ -595,16 +685,9 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
             (posMinus[2] - targetPos[2]) ** 2
           );
 
-          // Include wrist penalty in gradient descent for horizontal grasp preference
-          const wristPenaltyPlus = preferHorizontalGrasp
-            ? Math.max(0, Math.abs(testPlus.wrist) - 45) * 0.003
-            : 0;
-          const wristPenaltyMinus = preferHorizontalGrasp
-            ? Math.max(0, Math.abs(testMinus.wrist) - 45) * 0.003
-            : 0;
-
-          const errorPlus = posErrorPlus + wristPenaltyPlus;
-          const errorMinus = posErrorMinus + wristPenaltyMinus;
+          // No wrist penalty - LeRobot data shows successful grasps use steep wrist (~75°)
+          const errorPlus = posErrorPlus;
+          const errorMinus = posErrorMinus;
 
           if (errorPlus < error && errorPlus <= errorMinus) {
             joints[jn] = clampJoint(jn, joints[jn] + stepSize);
@@ -631,75 +714,272 @@ function solveIKForTarget(targetPos: [number, number, number], _maxIter = 1000, 
 // IK error threshold - if error is larger than this, the position may not be reachable
 const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not be grabbable
 
-// Calculate grasp position with validation
-// For successful grasps, the gripper tips need to be AT the object center height
-// so the jaws can close AROUND the object (not below it)
-// If baseAngle is not provided, the IK will search for the optimal base angle
-function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number): { joints: JointAngles; error: number; achievedY: number } {
-  // LEROBOT INSIGHT: Real SO-101 grasps use compact poses with steep wrist angles (71-75°)
-  // The jaws are ~7.5cm behind the tip. With steep angles, jaws are above tip.
-  // But in compact poses, the arm folds tightly and can reach low objects.
-  //
-  // Strategy: Try multiple heights to find what works with compact poses.
-  // Let IK find natural poses without constraining wrist angle.
-  const graspHeightsToTry = [
-    objY,                           // At object center
-    objY - 0.02,                    // 2cm below center
-    objY + 0.02,                    // 2cm above center
-    objY - 0.03,                    // 3cm below center (tip below, jaws at object level)
-    Math.max(0.02, objY - 0.04),    // 4cm below center
-    Math.max(0.02, objY - 0.05),    // 5cm below center
-  ];
+// JAW-TIP OFFSET CONSTANT
+// The gripper_frame_link (tip) is 7.47cm ahead of the jaw closing position
+// This is measured from URDF: gripper_frame at Z=-0.0981, moving_jaw at Z=-0.0234
+// JAW_TIP_OFFSET is now handled in the FK model (SO101KinematicsURDF.ts)
+// calculateGripperPos() now returns JAW position directly, so no compensation needed here
+const JAW_TIP_OFFSET = 0.0; // No longer needed - FK returns jaw position directly
+
+/**
+ * Calculate where the TIP needs to be so that JAWS are at target position
+ * @param targetY - Desired jaw Y position (object center height)
+ * @param wristAngleDeg - Expected wrist angle (0=horizontal, 90=vertical)
+ * @returns Required tip Y position
+ */
+function calculateTipYForJawY(targetY: number, wristAngleDeg: number): number {
+  // With steep wrist angles, the jaw offset is mostly in Y (up/down)
+  // jaw_Y = tip_Y + offset * sin(wrist_angle)
+  // So: tip_Y = jaw_Y - offset * sin(wrist_angle)
+  const wristRad = (Math.abs(wristAngleDeg) * Math.PI) / 180;
+  const jawOffsetY = JAW_TIP_OFFSET * Math.sin(wristRad);
+  return targetY - jawOffsetY;
+}
+
+/**
+ * Estimate where jaws will be given tip position and wrist angle
+ */
+function estimateJawY(tipY: number, wristAngleDeg: number): number {
+  const wristRad = (Math.abs(wristAngleDeg) * Math.PI) / 180;
+  return tipY + JAW_TIP_OFFSET * Math.sin(wristRad);
+}
+
+/**
+ * Calculate grasp position using LeRobot-style configurations
+ *
+ * Based on real SO-101 training data from HuggingFace (lerobot/svla_so101_pickplace):
+ *   - shoulder_lift: -99° to -86° (pointing strongly downward)
+ *   - elbow_flex: 73° to 100° (bent)
+ *   - wrist_flex: ~75° (STEEP angle, NOT horizontal!)
+ *   - wrist_roll: -48° to +10°
+ *
+ * Key insight: Real robot grasps use TOP-DOWN approach with steep wrist (~75°),
+ * NOT horizontal side approach. The jaw-tip offset is compensated by positioning.
+ */
+function calculateGraspJoints(objX: number, objY: number, objZ: number, baseAngle?: number, forceSideGrasp = false): { joints: JointAngles; error: number; achievedY: number } {
+  const MIN_GRASP_HEIGHT = 0.01; // 1cm above floor - allow very low reach
+
+  console.log(`[calculateGraspJoints] ========================================`);
+  console.log(`[calculateGraspJoints] Object at [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
+  console.log(`[calculateGraspJoints] Force side grasp: ${forceSideGrasp}`);
 
   let bestResult = { joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0 } as JointAngles, error: Infinity };
   let bestAchievedY = 0;
+  let bestJawY = 0;
+  let bestStrategy = '';
 
-  for (const graspY of graspHeightsToTry) {
-    const graspTarget: [number, number, number] = [objX, graspY, objZ];
-    // Real SO-101 grasps use steep wrist angles (71-75°), not horizontal
-    // Don't penalize wrist angle - let IK find natural compact poses
-    const result = solveIKForTarget(graspTarget, 1000, baseAngle, false);
+  // STRATEGY 0: For low objects, DIRECTLY target the object position
+  // The IK solver with negative wrist angles can reach very low Y
+  // These negative wrist poses put the tip LOW and jaws HIGHER (at object level)
+  // For side grasps (cylinders), we FORCE horizontal gripper orientation
+  console.log(`[calculateGraspJoints] STRATEGY 0: Direct targeting at object height${forceSideGrasp ? ' (FORCING HORIZONTAL)' : ''}`);
 
-    // Calculate actual achieved position
+  const directTargets: [number, number, number][] = [
+    [objX, objY, objZ],                    // Exact object center
+    [objX, objY + 0.01, objZ],             // 1cm above
+    [objX, objY + 0.02, objZ],             // 2cm above
+    [objX, objY + 0.03, objZ],             // 3cm above
+  ];
+
+  for (const target of directTargets) {
+    // For side grasps (cylinders), prefer horizontal gripper orientation
+    // This ensures the gripper approaches from the side, not top-down
+    const result = solveIKForTarget(target, 1000, baseAngle, forceSideGrasp);
     const achievedPos = calculateGripperPos(result.joints);
-    const horizontalError = Math.sqrt(
-      (achievedPos[0] - objX) ** 2 +
-      (achievedPos[2] - objZ) ** 2
-    );
+    const jawY = estimateJawY(achievedPos[1], result.joints.wrist);
 
-    console.log(`[calculateGraspJoints] Trying Y=${(graspY*100).toFixed(1)}cm: error=${(result.error*100).toFixed(1)}cm, achieved=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, horiz_error=${(horizontalError*100).toFixed(1)}cm`);
+    console.log(`[calculateGraspJoints] Direct target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
 
-    // Accept if this is better OR if horizontal error is low enough (within 3cm)
-    // We prioritize horizontal accuracy for grasping
-    if (result.error < bestResult.error || (horizontalError < 0.03 && result.error < bestResult.error + 0.02)) {
+    // For low objects, prefer solutions where JAW height is close to object
+    const jawError = Math.abs(jawY - objY);
+    const combinedScore = result.error + jawError * 0.5; // Weight jaw accuracy
+
+    if (combinedScore < bestResult.error + Math.abs(bestJawY - objY) * 0.5 || bestResult.error === Infinity) {
       bestResult = result;
       bestAchievedY = achievedPos[1];
+      bestJawY = jawY;
+      bestStrategy = `Direct Y=${(target[1]*100).toFixed(1)}cm`;
     }
 
-    // If we found a good solution (error < 2cm), stop searching
-    if (result.error < 0.02) {
-      console.log(`[calculateGraspJoints] Found good solution at Y=${(graspY*100).toFixed(1)}cm`);
+    if (result.error < 0.02 && jawError < 0.05) {
+      console.log(`[calculateGraspJoints] Good direct solution found!`);
       break;
     }
   }
 
-  console.log(`[calculateGraspJoints] Object at Y=${(objY*100).toFixed(1)}cm, best grasp error=${(bestResult.error*100).toFixed(1)}cm, achieved Y=${(bestAchievedY*100).toFixed(1)}cm`);
+  // STRATEGY 1: For low objects, try HORIZONTAL grasps
+  // With wrist near 0°, jaw-tip offset is in Z direction, not Y
+  if (objY < 0.08) {
+    console.log(`[calculateGraspJoints] STRATEGY 1: Horizontal grasp for low object`);
+
+    const horizontalTargets: [number, number, number][] = [
+      [objX, objY, objZ],
+      [objX, objY + 0.01, objZ],
+      [objX, objY + 0.02, objZ],
+    ];
+
+    for (const target of horizontalTargets) {
+      // Solve with preference for horizontal wrist (wrist < 30°)
+      const result = solveIKForTarget(target, 1000, baseAngle, true); // preferHorizontalGrasp = true
+      const achievedPos = calculateGripperPos(result.joints);
+      const jawY = estimateJawY(achievedPos[1], result.joints.wrist);
+      const jawError = Math.abs(jawY - objY);
+      const combinedScore = result.error + jawError * 0.5;
+
+      console.log(`[calculateGraspJoints] Horizontal target Y=${(target[1]*100).toFixed(1)}cm: tip=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(jawY*100).toFixed(1)}cm, wrist=${result.joints.wrist.toFixed(1)}°, error=${(result.error*100).toFixed(2)}cm`);
+
+      if (combinedScore < bestResult.error + Math.abs(bestJawY - objY) * 0.5) {
+        bestResult = result;
+        bestAchievedY = achievedPos[1];
+        bestJawY = jawY;
+        bestStrategy = `Horizontal Y=${(target[1]*100).toFixed(1)}cm`;
+      }
+
+      if (result.error < 0.02 && Math.abs(result.joints.wrist) < 45) {
+        console.log(`[calculateGraspJoints] Good horizontal solution found!`);
+        break;
+      }
+    }
+  }
+
+  // STRATEGY 2: Try angled grasps with jaw offset compensation
+  console.log(`[calculateGraspJoints] STRATEGY 2: Angled grasps with jaw compensation`);
+
+  const wristAngles = [30, 45, 60]; // Moderate angles only
+
+  for (const wristAngle of wristAngles) {
+    const tipY = calculateTipYForJawY(objY, wristAngle);
+
+    if (tipY < MIN_GRASP_HEIGHT) {
+      console.log(`[calculateGraspJoints] Wrist ${wristAngle}° would require tip at Y=${(tipY*100).toFixed(1)}cm - skipping`);
+      continue;
+    }
+
+    const target: [number, number, number] = [objX, tipY, objZ];
+    const result = solveIKForTarget(target, 1000, baseAngle, false);
+    const achievedPos = calculateGripperPos(result.joints);
+    const actualJawY = estimateJawY(achievedPos[1], result.joints.wrist);
+    const jawError = Math.abs(actualJawY - objY);
+    const combinedScore = result.error + jawError * 0.5;
+
+    console.log(`[calculateGraspJoints] Angled ${wristAngle}°: tip target Y=${(tipY*100).toFixed(1)}cm, achieved=[${achievedPos.map(p => (p*100).toFixed(1)).join(', ')}]cm, jaw Y=${(actualJawY*100).toFixed(1)}cm, error=${(result.error*100).toFixed(2)}cm`);
+
+    if (combinedScore < bestResult.error + Math.abs(bestJawY - objY) * 0.5) {
+      bestResult = result;
+      bestAchievedY = achievedPos[1];
+      bestJawY = actualJawY;
+      bestStrategy = `Angled ${wristAngle}°`;
+    }
+  }
+
+  console.log(`[calculateGraspJoints] ========================================`);
+  console.log(`[calculateGraspJoints] BEST RESULT: ${bestStrategy}`);
+  console.log(`[calculateGraspJoints]   Object Y: ${(objY*100).toFixed(1)}cm`);
+  console.log(`[calculateGraspJoints]   Tip Y: ${(bestAchievedY*100).toFixed(1)}cm`);
+  console.log(`[calculateGraspJoints]   Jaw Y: ${(bestJawY*100).toFixed(1)}cm`);
+  console.log(`[calculateGraspJoints]   Wrist: ${bestResult.joints.wrist.toFixed(1)}°`);
+  console.log(`[calculateGraspJoints]   IK Error: ${(bestResult.error*100).toFixed(2)}cm`);
+
+  // Check if jaws are close to object center
+  const jawToObjectError = Math.abs(bestJawY - objY);
+  if (jawToObjectError > 0.05) {
+    console.warn(`[calculateGraspJoints] WARNING: Jaw-object gap of ${(jawToObjectError*100).toFixed(1)}cm may prevent grasp!`);
+  }
 
   if (bestResult.error > IK_ERROR_THRESHOLD) {
-    console.warn(`[calculateGraspJoints] WARNING: Best IK error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold ${IK_ERROR_THRESHOLD*100}cm - object may not be reachable!`);
+    console.warn(`[calculateGraspJoints] WARNING: IK error ${(bestResult.error*100).toFixed(1)}cm exceeds threshold!`);
   }
 
   return { ...bestResult, achievedY: bestAchievedY };
 }
 
-// Calculate approach position with validation (above object)
-// Uses achieved grasp Y to determine approach height for consistency
-function calculateApproachJoints(objX: number, objY: number, objZ: number, baseAngle: number, graspAchievedY?: number): { joints: JointAngles; error: number } {
-  // Approach from above: same X/Z but higher Y
-  // Use achieved grasp Y as reference if available, otherwise use object Y
+// Calculate approach position DERIVED from grasp joints for smooth vertical descent
+// Instead of independent IK (which can find different arm configurations causing sweep),
+// we derive approach from grasp by raising the shoulder to lift the arm while keeping similar shape
+function calculateApproachJoints(
+  objX: number, objY: number, objZ: number,
+  baseAngle: number,
+  graspAchievedY?: number,
+  graspJoints?: JointAngles,
+  forceSideApproach?: boolean
+): { joints: JointAngles; error: number } {
+  // For SIDE APPROACH (cylinders): approach horizontally from further away, NOT from above
+  // This prevents the arm from passing through the object during descent
+  if (forceSideApproach && graspJoints) {
+    const graspPos = calculateGripperPos(graspJoints);
+
+    // Calculate direction from base to object (this is the approach direction)
+    const dirX = objX;
+    const dirZ = objZ;
+    const dist = Math.sqrt(dirX * dirX + dirZ * dirZ);
+    const normX = dirX / dist;
+    const normZ = dirZ / dist;
+
+    // Approach from 5-8cm further away (more extended arm position)
+    // Try multiple offset distances to find one that works
+    const offsets = [0.08, 0.06, 0.05, 0.10];
+
+    console.log(`[calculateApproachJoints] SIDE APPROACH: grasp pos=[${(graspPos[0]*100).toFixed(1)}, ${(graspPos[1]*100).toFixed(1)}, ${(graspPos[2]*100).toFixed(1)}]cm`);
+
+    for (const offset of offsets) {
+      const approachX = objX + normX * offset;  // Further from base
+      const approachZ = objZ + normZ * offset;
+      const approachY = graspPos[1] + 0.01;  // Same height as grasp (+ tiny lift for clearance)
+
+      const result = solveIKForTarget([approachX, approachY, approachZ], 1000, baseAngle, true);
+      console.log(`[calculateApproachJoints] SIDE APPROACH try offset=${(offset*100).toFixed(0)}cm: target=[${(approachX*100).toFixed(1)}, ${(approachY*100).toFixed(1)}, ${(approachZ*100).toFixed(1)}]cm, error=${(result.error*100).toFixed(1)}cm`);
+
+      if (result.error < 0.03) {
+        const approachPos = calculateGripperPos(result.joints);
+        console.log(`[calculateApproachJoints] SIDE APPROACH SUCCESS: offset=${(offset*100).toFixed(0)}cm, approach=[${(approachPos[0]*100).toFixed(1)}, ${(approachPos[1]*100).toFixed(1)}, ${(approachPos[2]*100).toFixed(1)}]cm`);
+        return result;
+      }
+    }
+
+    console.log(`[calculateApproachJoints] SIDE APPROACH failed (all offsets had error > 3cm), falling back to vertical approach`);
+  }
+
+  // If we have grasp joints, derive approach from them for smooth vertical motion
+  if (graspJoints) {
+    // Try different shoulder/elbow adjustments to find one that raises the arm
+    const adjustments = [
+      { shoulder: 25, elbow: -15, wrist: -5 },   // Primary: raise shoulder, reduce elbow
+      { shoulder: 30, elbow: -20, wrist: -10 },  // More aggressive raise
+      { shoulder: 20, elbow: -10, wrist: 0 },    // Gentler raise
+      { shoulder: 35, elbow: -25, wrist: -15 },  // Very aggressive raise
+    ];
+
+    const graspPos = calculateGripperPos(graspJoints);
+
+    for (const adj of adjustments) {
+      const approachJoints: JointAngles = {
+        base: graspJoints.base,  // Keep same base angle!
+        shoulder: clampJoint('shoulder', graspJoints.shoulder + adj.shoulder),
+        elbow: clampJoint('elbow', graspJoints.elbow + adj.elbow),
+        wrist: clampJoint('wrist', graspJoints.wrist + adj.wrist),
+        wristRoll: 0,
+      };
+
+      const approachPos = calculateGripperPos(approachJoints);
+
+      // Approach must be at least 4cm higher than grasp for safe descent
+      if (approachPos[1] > graspPos[1] + 0.04) {
+        const error = Math.sqrt(
+          (approachPos[0] - objX) ** 2 +
+          (approachPos[2] - objZ) ** 2
+        ); // Only measure horizontal error for approach
+
+        console.log(`[calculateApproachJoints] Derived from grasp: approach Y=${(approachPos[1]*100).toFixed(1)}cm, grasp Y=${(graspPos[1]*100).toFixed(1)}cm, delta=${((approachPos[1]-graspPos[1])*100).toFixed(1)}cm, horiz_error=${(error*100).toFixed(1)}cm`);
+        return { joints: approachJoints, error };
+      }
+    }
+    // Fall through to IK-based approach if no derived approach was high enough
+    console.log(`[calculateApproachJoints] All derived approaches too low, falling back to IK`);
+  }
+
+  // Fallback: Use IK to find approach position (same X/Z but higher Y)
   const referenceY = graspAchievedY !== undefined ? graspAchievedY : objY;
 
-  // Try multiple approach heights to find a reachable one
   const approachHeights = [
     referenceY + 0.06,  // 6cm above reference
     referenceY + 0.08,  // 8cm above reference
@@ -717,9 +997,8 @@ function calculateApproachJoints(objX: number, objY: number, objZ: number, baseA
       bestResult = result;
     }
 
-    // If we found a good solution, stop searching
     if (result.error < 0.02) {
-      console.log(`[calculateApproachJoints] Found good approach at Y=${(approachY*100).toFixed(1)}cm`);
+      console.log(`[calculateApproachJoints] Found good approach at Y=${(approachY*100).toFixed(1)}cm via IK`);
       break;
     }
   }
@@ -846,11 +1125,29 @@ function handlePickUpCommand(
 
   const [objX, objY, objZ] = targetObject.position;
   const objName = targetObject.name || targetObject.id;
+  const objScale = targetObject.scale || 0.04;
+  const objType = targetObject.type || 'cube';
 
   // Calculate horizontal distance from robot base to object
   const distance = Math.sqrt(objX * objX + objZ * objZ);
 
-  console.log(`[handlePickUpCommand] Pick up "${objName}": pos=[${objX.toFixed(3)}, ${objY.toFixed(3)}, ${objZ.toFixed(3)}], distance=${distance.toFixed(3)}m`);
+  // For cylinders: height = 6*scale, radius = 0.5*scale
+  // Object center is at Y, bottom is at Y - height/2, top is at Y + height/2
+  const cylHeight = objType === 'cylinder' ? objScale * 6 : objScale;
+  const cylRadius = objType === 'cylinder' ? objScale * 0.5 : objScale / 2;
+  const objBottom = objY - cylHeight / 2;
+  const objTop = objY + cylHeight / 2;
+
+  console.log(`[handlePickUpCommand] ========================================`);
+  console.log(`[handlePickUpCommand] Pick up "${objName}" (${objType})`);
+  console.log(`[handlePickUpCommand]   Scale: ${(objScale*100).toFixed(1)}cm`);
+  console.log(`[handlePickUpCommand]   Position (center): [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
+  console.log(`[handlePickUpCommand]   Distance from base: ${(distance*100).toFixed(1)}cm`);
+  if (objType === 'cylinder') {
+    console.log(`[handlePickUpCommand]   Cylinder height: ${(cylHeight*100).toFixed(1)}cm, radius: ${(cylRadius*100).toFixed(1)}cm`);
+    console.log(`[handlePickUpCommand]   Cylinder bottom: Y=${(objBottom*100).toFixed(1)}cm, top: Y=${(objTop*100).toFixed(1)}cm`);
+  }
+  console.log(`[handlePickUpCommand] ========================================`);
 
   // ========================================
   // URDF-BASED IK APPROACH
@@ -859,6 +1156,17 @@ function handlePickUpCommand(
   // The FK matches the actual robot within 0.1cm accuracy.
 
   console.log(`[handlePickUpCommand] Using URDF-based IK approach`);
+
+  // For tall cylinders, target a graspable height (lower than center)
+  // This helps the gripper close around the object at a reachable height
+  let graspTargetY = objY;
+  if (objType === 'cylinder') {
+    // Target 1/3 up from bottom instead of center
+    // This is easier for the arm to reach and gives room for gripper to close
+    const graspHeight = objBottom + cylHeight * 0.35;
+    graspTargetY = Math.max(0.03, graspHeight); // At least 3cm above table
+    console.log(`[handlePickUpCommand] Cylinder grasp: targeting Y=${(graspTargetY*100).toFixed(1)}cm (1/3 up from bottom)`);
+  }
 
   // Calculate base angle ONCE and use for all phases to prevent spinning
   // URDF FK coordinate system: base=0° points along +X, base=90° points along +Z
@@ -875,14 +1183,19 @@ function handlePickUpCommand(
   // Calculate joint angles for each phase
   // First calculate grasp WITHOUT fixed base angle to find the best configuration
   // Then use the resulting base angle for approach/lift to ensure smooth motion
-  const graspResult = calculateGraspJoints(objX, objY, objZ);  // Let IK find best base angle
+  // For cylinders, force side grasp (horizontal orientation) to avoid tipping them over
+  const forceSideGrasp = objType === 'cylinder';
+  const graspResult = calculateGraspJoints(objX, graspTargetY, objZ, undefined, forceSideGrasp);
   const optimalBaseAngle = graspResult.joints.base;
 
   console.log(`[handlePickUpCommand] Optimal base from grasp IK: ${optimalBaseAngle.toFixed(1)}° (nominal was ${baseAngle.toFixed(1)}°)`);
 
   // Now use the optimal base angle for approach and lift
-  const approachResult = calculateApproachJoints(objX, objY, objZ, optimalBaseAngle, graspResult.achievedY);
-  const liftResult = calculateLiftJoints(objX, objY, objZ, optimalBaseAngle, graspResult.achievedY);
+  // Pass grasp joints to approach so it can derive a smooth vertical descent trajectory
+  // Use graspTargetY (adjusted for cylinders) instead of objY
+  // Based on LeRobot data: use VERTICAL descent (top-down) with steep wrist (~75°), NOT side approach
+  const approachResult = calculateApproachJoints(objX, graspTargetY, objZ, optimalBaseAngle, graspResult.achievedY, graspResult.joints, false);
+  const liftResult = calculateLiftJoints(objX, graspTargetY, objZ, optimalBaseAngle, graspResult.achievedY);
 
   // Log IK quality
   console.log(`[handlePickUpCommand] IK errors: approach=${(approachResult.error*100).toFixed(1)}cm, grasp=${(graspResult.error*100).toFixed(1)}cm, lift=${(liftResult.error*100).toFixed(1)}cm`);
@@ -909,12 +1222,17 @@ function handlePickUpCommand(
   }
 
   // Build the grasp sequence using IK-calculated angles
+  // For side grasp of vertical cylinders, keep wristRoll=0° so jaws close HORIZONTALLY
+  // around the cylinder (left-right closing). wristRoll=90° would make jaws close vertically.
+  // The key is the arm approach direction (horizontal), not the jaw rotation.
+  const cylinderWristRoll = 0;  // Always 0° - horizontal jaw closing works for both side and top grasps
+
   const graspJoints: JointState = {
     base: graspResult.joints.base,
     shoulder: graspResult.joints.shoulder,
     elbow: graspResult.joints.elbow,
     wrist: graspResult.joints.wrist,
-    wristRoll: 0,
+    wristRoll: cylinderWristRoll,
     gripper: 0,
   };
 
@@ -923,7 +1241,7 @@ function handlePickUpCommand(
     shoulder: approachResult.joints.shoulder,
     elbow: approachResult.joints.elbow,
     wrist: approachResult.joints.wrist,
-    wristRoll: 0,
+    wristRoll: cylinderWristRoll,
     gripper: 100,
   };
 
@@ -932,40 +1250,67 @@ function handlePickUpCommand(
     shoulder: liftResult.joints.shoulder,
     elbow: liftResult.joints.elbow,
     wrist: liftResult.joints.wrist,
-    wristRoll: 0,
+    wristRoll: cylinderWristRoll,
     gripper: 0,
   };
 
   console.log(`[handlePickUpCommand] Approach: base=${approachJoints.base.toFixed(1)}°, shoulder=${approachJoints.shoulder.toFixed(1)}°, elbow=${approachJoints.elbow.toFixed(1)}°, wrist=${approachJoints.wrist.toFixed(1)}°`);
   console.log(`[handlePickUpCommand] Grasp: base=${graspJoints.base.toFixed(1)}°, shoulder=${graspJoints.shoulder.toFixed(1)}°, elbow=${graspJoints.elbow.toFixed(1)}°, wrist=${graspJoints.wrist.toFixed(1)}°`);
   console.log(`[handlePickUpCommand] Lift: base=${liftJoints.base.toFixed(1)}°, shoulder=${liftJoints.shoulder.toFixed(1)}°, elbow=${liftJoints.elbow.toFixed(1)}°, wrist=${liftJoints.wrist.toFixed(1)}°`);
+  console.log(`[handlePickUpCommand] WristRoll: ${cylinderWristRoll}° (${forceSideGrasp ? 'ROTATED for cylinder' : 'default'})`);
+  console.log(`[handlePickUpCommand] Approach type: ${forceSideGrasp ? 'SIDE (horizontal)' : 'VERTICAL (from above)'}`);
 
   // Log expected tip positions from our FK
   const expectedGraspPos = calculateGripperPos(graspResult.joints);
+  const expectedApproachPos = calculateGripperPos(approachResult.joints);
+  console.log(`[handlePickUpCommand] Expected approach tip: [${expectedApproachPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
   console.log(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
   console.log(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
 
-  // Build sequence: approach -> lower slowly -> grasp -> hold -> close -> hold -> lift
+  // Build sequence: approach -> intermediate steps -> grasp -> hold -> close -> hold -> lift
+  // For cylinders: SIDE approach with horizontal movement (prevents arm passing through object)
+  // For other objects: VERTICAL approach with descent from above
   // Extra hold steps give physics time to register contact and the visual time to settle
+
+  // Create intermediate waypoints between approach and grasp for smooth motion
+  // Interpolate joint angles: 33%, 66% between approach and grasp
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const preGrasp1 = {
+    base: lerp(approachJoints.base, graspJoints.base, 0.33),
+    shoulder: lerp(approachJoints.shoulder, graspJoints.shoulder, 0.33),
+    elbow: lerp(approachJoints.elbow, graspJoints.elbow, 0.33),
+    wrist: lerp(approachJoints.wrist, graspJoints.wrist, 0.33),
+  };
+  const preGrasp2 = {
+    base: lerp(approachJoints.base, graspJoints.base, 0.66),
+    shoulder: lerp(approachJoints.shoulder, graspJoints.shoulder, 0.66),
+    elbow: lerp(approachJoints.elbow, graspJoints.elbow, 0.66),
+    wrist: lerp(approachJoints.wrist, graspJoints.wrist, 0.66),
+  };
+
   const sequence: Partial<JointState>[] = [
-    // Step 1: Open gripper wide
-    { gripper: 100 },
-    // Step 2: Move to approach position (above object)
-    { base: approachJoints.base, shoulder: approachJoints.shoulder, elbow: approachJoints.elbow, wrist: approachJoints.wrist },
-    // Step 3: Lower to grasp position
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist },
+    // Step 1: Open gripper wide and set wrist roll for cylinder if needed
+    { gripper: 100, wristRoll: cylinderWristRoll },
+    // Step 2: Move to approach position (side for cylinders, above for others)
+    { base: approachJoints.base, shoulder: approachJoints.shoulder, elbow: approachJoints.elbow, wrist: approachJoints.wrist, wristRoll: cylinderWristRoll },
+    // Step 3a: Move 1/3 toward grasp (horizontal for cylinders, vertical for others)
+    { base: preGrasp1.base, shoulder: preGrasp1.shoulder, elbow: preGrasp1.elbow, wrist: preGrasp1.wrist, wristRoll: cylinderWristRoll },
+    // Step 3b: Move 2/3 toward grasp
+    { base: preGrasp2.base, shoulder: preGrasp2.shoulder, elbow: preGrasp2.elbow, wrist: preGrasp2.wrist, wristRoll: cylinderWristRoll },
+    // Step 3c: Final grasp position
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll },
     // Step 4: HOLD at grasp position (let physics settle, visual confirmation)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 100 },
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 100 },
     // Step 5: Begin closing gripper (partial close)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 30 },
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 30 },
     // Step 6: Fully close gripper
-    { gripper: 0 },
+    { gripper: 0, wristRoll: cylinderWristRoll },
     // Step 7: HOLD with gripper closed (ensure physics grab registers)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 0 },
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
     // Step 8: Hold again for physics stability
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, gripper: 0 },
+    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
     // Step 9: Lift
-    { base: liftJoints.base, shoulder: liftJoints.shoulder, elbow: liftJoints.elbow, wrist: liftJoints.wrist, gripper: 0 },
+    { base: liftJoints.base, shoulder: liftJoints.shoulder, elbow: liftJoints.elbow, wrist: liftJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
   ];
 
   console.log('[handlePickUpCommand] FULL SEQUENCE:', JSON.stringify(sequence, null, 2));

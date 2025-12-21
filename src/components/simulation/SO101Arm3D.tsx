@@ -14,6 +14,7 @@ import type { JointState } from '../../types';
 import { SO101_DIMS, calculateJointPositions } from './SO101Kinematics';
 import { calculateGripperPositionURDF } from './SO101KinematicsURDF';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
+import { GraspManager } from './GraspManager';
 import { useAppStore } from '../../stores/useAppStore';
 
 interface SO101ArmProps {
@@ -36,6 +37,55 @@ const LoadingFallback: React.FC = () => (
     <meshStandardMaterial color="gray" wireframe />
   </mesh>
 );
+
+// Debug visualization showing gripper TIP (cone) and JAW position (sphere)
+// The jaws are ~7.5cm BEHIND the tip along the gripper direction
+const GripperDebugVisualization: React.FC<{
+  tipPosition: [number, number, number];
+  gripperQuaternion: [number, number, number, number]; // Gripper orientation for proper offset calculation
+  visible?: boolean;
+}> = ({ tipPosition, gripperQuaternion, visible = true }) => {
+  // Memoize jaw position calculation to avoid creating objects every frame
+  const jawPosition = React.useMemo((): [number, number, number] => {
+    if (!visible) return [0, 0, 0];
+
+    // Calculate jaw position using proper transform based on gripper orientation
+    // In gripper_frame local coords, jaws are at Z=-0.075 (behind tip toward body)
+    const jawLocalOffset = new THREE.Vector3(0, 0, -0.075);
+    const quat = new THREE.Quaternion(
+      gripperQuaternion[0],
+      gripperQuaternion[1],
+      gripperQuaternion[2],
+      gripperQuaternion[3]
+    );
+    jawLocalOffset.applyQuaternion(quat);
+
+    return [
+      tipPosition[0] + jawLocalOffset.x,
+      tipPosition[1] + jawLocalOffset.y,
+      tipPosition[2] + jawLocalOffset.z,
+    ];
+  }, [tipPosition, gripperQuaternion, visible]);
+
+  if (!visible) return null;
+
+  return (
+    <group>
+      {/* Gripper TIP - cyan cone pointing down */}
+      <mesh position={tipPosition} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.008, 0.02, 8]} />
+        <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
+      </mesh>
+
+      {/* JAW position - magenta sphere showing where jaws close */}
+      <mesh position={jawPosition}>
+        <sphereGeometry args={[0.012, 12, 12]} />
+        <meshBasicMaterial color="#ff00ff" transparent opacity={0.6} />
+      </mesh>
+
+    </group>
+  );
+};
 
 // Materials
 const PRINTED_MATERIAL = new THREE.MeshStandardMaterial({
@@ -299,29 +349,17 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
         gripperWorldQuat.current.w,
       ]);
 
-      // Debug: Compare FK calculation with actual URDF position
-      const fkPos = calculateGripperPositionURDF({
-        base: joints.base,
-        shoulder: joints.shoulder,
-        elbow: joints.elbow,
-        wrist: joints.wrist,
-        wristRoll: joints.wristRoll,
-      });
-      const actualY = gripperWorldPosVec.current.y;
-      const fkY = fkPos[1];
-
-      // Log MORE frequently when Y is low (during grasp attempts) - 10% of frames
-      // This helps catch the critical grasp position
-      const isLowPosition = actualY < 0.10; // Below 10cm
-      const logChance = isLowPosition ? 0.1 : 0.016; // 10% when low, 1.6% otherwise
-
-      if (Math.random() < logChance) {
-        const prefix = isLowPosition ? '[GRASP HEIGHT]' : '[GRIPPER DEBUG]';
-        console.log(`${prefix} Joints: base=${joints.base.toFixed(1)}°, shoulder=${joints.shoulder.toFixed(1)}°, elbow=${joints.elbow.toFixed(1)}°, wrist=${joints.wrist.toFixed(1)}°`);
-        console.log(`${prefix} Pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(actualY*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkY*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
+      // Debug: Log gripper position occasionally (1% of frames to reduce spam)
+      if (Math.random() < 0.01) {
+        const fkPos = calculateGripperPositionURDF({ base: joints.base, shoulder: joints.shoulder, elbow: joints.elbow, wrist: joints.wrist, wristRoll: joints.wristRoll });
+        console.log(`[GRIPPER] Joints: base=${joints.base.toFixed(1)}°, shoulder=${joints.shoulder.toFixed(1)}°, elbow=${joints.elbow.toFixed(1)}°, wrist=${joints.wrist.toFixed(1)}°`);
+        console.log(`[GRIPPER] Pos: actual=[${(gripperWorldPosVec.current.x*100).toFixed(1)}, ${(gripperWorldPosVec.current.y*100).toFixed(1)}, ${(gripperWorldPosVec.current.z*100).toFixed(1)}]cm, FK=[${(fkPos[0]*100).toFixed(1)}, ${(fkPos[1]*100).toFixed(1)}, ${(fkPos[2]*100).toFixed(1)}]cm`);
       }
     }
   });
+
+  // Get debug visualization state from store (default: enabled for debugging)
+  const showGripperDebug = useAppStore((state) => state.showGripperDebug ?? true);
 
   return (
     <group ref={groupRef}>
@@ -339,6 +377,25 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
 
       {/* Realistic gripper jaw physics - dynamic colliders that move with gripper value */}
       <RealisticGripperPhysics joints={joints} />
+
+      {/* Grasp manager - handles object attachment when gripper closes */}
+      <GraspManager />
+
+      {/* Debug visualization: cyan cone = TIP, magenta sphere = JAW position */}
+      <GripperDebugVisualization
+        tipPosition={[
+          gripperWorldPosVec.current.x,
+          gripperWorldPosVec.current.y,
+          gripperWorldPosVec.current.z,
+        ]}
+        gripperQuaternion={[
+          gripperWorldQuat.current.x,
+          gripperWorldQuat.current.y,
+          gripperWorldQuat.current.z,
+          gripperWorldQuat.current.w,
+        ]}
+        visible={showGripperDebug}
+      />
     </group>
   );
 };

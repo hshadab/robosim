@@ -77,6 +77,7 @@ interface AppState {
   // Advanced Control State
   controlMode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad';
   showWorkspace: boolean;
+  showGripperDebug: boolean; // Show gripper tip/jaw debug visualization
 
   // Actions
   setSelectedRobot: (robotId: string) => void;
@@ -98,6 +99,7 @@ interface AppState {
   setSkillLevel: (level: SkillLevel) => void;
   setControlMode: (mode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad') => void;
   setShowWorkspace: (show: boolean) => void;
+  setShowGripperDebug: (show: boolean) => void;
   resetToDefaults: () => void;
 
   // Environment Actions
@@ -204,6 +206,7 @@ const getDefaultState = () => {
     skillLevel: 'prompter' as const,
     controlMode: 'manual' as const,
     showWorkspace: false,
+    showGripperDebug: true, // Enable gripper debug visualization by default
   };
 };
 
@@ -332,6 +335,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setControlMode: (mode: 'manual' | 'click-to-move' | 'keyboard' | 'gamepad') => set({ controlMode: mode }),
 
   setShowWorkspace: (show: boolean) => set({ showWorkspace: show }),
+
+  setShowGripperDebug: (show: boolean) => set({ showGripperDebug: show }),
 
   resetToDefaults: () => set(getDefaultState()),
 

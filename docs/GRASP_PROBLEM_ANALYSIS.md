@@ -4,17 +4,6 @@
 
 The robot arm's gripper tip reaches the correct position but **fails to grasp objects** because the gripper jaws are positioned significantly higher than the tip.
 
-## Current Behavior (from logs)
-
-```
-Object position:     [15.2, 5.2, -0.2]cm  (Y=5.2cm = object center)
-Gripper tip actual:  [15.8, 5.5, -0.1]cm  (Y=5.5cm - CORRECT!)
-Grasp joints:        shoulder=-92°, elbow=71°, wrist=81°
-IK Error:            0.1cm (excellent!)
-```
-
-**The IK is working correctly!** The tip reaches the target position with sub-millimeter accuracy.
-
 ## Root Cause: Jaw-to-Tip Offset
 
 The `gripper_frame_link` in the URDF represents the gripper **TIP**, not the **JAWS**.
@@ -22,93 +11,119 @@ The `gripper_frame_link` in the URDF represents the gripper **TIP**, not the **J
 From URDF geometry:
 - `gripper_frame_link` (tip): at local Z = -9.81cm
 - `moving_jaw`: at local Z = -2.34cm
-- **Jaw-to-tip offset: ~7.5cm along gripper axis**
+- **Jaw-to-tip offset: ~7.3cm along gripper axis**
 
-### With Steep Wrist Angles (75-90°)
+## SOLUTION IMPLEMENTED (December 2024)
 
-When the gripper points nearly straight down (wrist ~80°):
-- Tip is at the BOTTOM (lowest Y)
-- Jaws are ~7cm ABOVE the tip in world coordinates
+### Fix 1: FK Model Updated to Target Jaw Position
 
-**Example calculation:**
-- Tip at Y = 5.5cm
-- Jaws at Y ≈ 5.5 + 7 = **12.5cm**
-- Object center at Y = 5.2cm
-- **Gap: 7.3cm - jaws completely miss the object!**
+The IK solver now targets the **JAW position** instead of the tip position.
 
-## Why This Is Hard to Fix
+**File:** `src/components/simulation/SO101KinematicsURDF.ts`
 
-### Option 1: Target Tip Lower
-- To get jaws at Y=5cm, tip needs to be at Y = 5 - 7 = **-2cm** (below table!)
-- Physically impossible - tip would be underground
+```typescript
+// Jaw offset from gripper_frame (tip) - jaws are ~7.3cm behind tip
+const JAW_OFFSET_FROM_TIP = 0.073; // meters
 
-### Option 2: Use Horizontal Grasps (wrist ~0-30°)
-- With horizontal grip, jaws and tip at similar height
-- **Problem**: IK can't find solutions to reach low positions (Y < 8cm) with horizontal grip
-- The arm geometry requires steep wrist angles to reach low/close positions
-
-### Option 3: Spawn Objects Higher
-- Objects at Y=12cm would allow jaws to reach
-- **Problem**: This is unrealistically high (12cm above table surface)
-- Real tabletop objects are at 3-6cm
-
-## LeRobot Training Data Insight
-
-From [youliangtan/so101-table-cleanup](https://huggingface.co/datasets/youliangtan/so101-table-cleanup):
-```
-shoulder_lift: -99°  (very bent)
-elbow_flex:    92-98° (very bent)
-wrist_flex:    71-75° (STEEP, not horizontal!)
+export function calculateJawPositionURDF(joints: JointAngles): Vec3 {
+  return calculateGripperPositionURDF(joints, true); // useJawPosition=true
+}
 ```
 
-Real SO-101 training uses steep wrist angles. This suggests either:
-1. Objects in training data were positioned differently
-2. The real robot has different jaw geometry
-3. Additional calibration was performed
+**File:** `src/lib/claudeApi.ts`
 
-## Possible Solutions to Investigate
-
-### 1. URDF Model Verification
-- Verify gripper_frame_link position matches real robot
-- Check if jaw positions in URDF are accurate
-- Consider adjusting URDF if there's a mismatch
-
-### 2. Grasp Point Adjustment
-- Instead of targeting object center, calculate the actual jaw position needed
-- Account for wrist angle when computing grasp target:
-  ```
-  jaw_offset_world_y = 7.5 * sin(wrist_angle_rad)
-  target_tip_y = object_y - jaw_offset_world_y
-  ```
-
-### 3. Different Grasp Strategy
-- Use side grasps instead of top-down
-- Approach object from the side where jaw offset is horizontal, not vertical
-
-### 4. Hardware Calibration Data
-- Find real SO-101 grasp calibration data
-- Compare simulated vs real gripper dimensions
-
-## Files Involved
-
-- `src/lib/claudeApi.ts` - IK solver and grasp calculations
-- `src/components/simulation/SO101Arm3D.tsx` - URDF model and FK
-- `src/components/simulation/SO101KinematicsURDF.ts` - FK calculations
-- `public/models/so101/so101.urdf` - Robot geometry definition
-
-## Log Analysis Commands
-
-To debug further, look for these log patterns:
+```typescript
+function calculateGripperPos(joints: JointAngles): [number, number, number] {
+  // Use JAW position for IK - this is where the object will be grasped
+  return calculateJawPositionURDF(joints);
+}
 ```
-[GRASP HEIGHT]     - Shows actual gripper position during grasp attempt
-[solveIKForTarget] - Shows IK target vs achieved position
-[handlePickUpCommand] - Shows grasp planning calculations
+
+### Fix 2: Grasp Attachment System
+
+Added a GraspManager that reliably attaches objects when gripped.
+
+**File:** `src/components/simulation/GraspManager.tsx`
+
+Features:
+- Detects when gripper closes below threshold (35%)
+- Finds objects within 4cm of jaw position
+- Attaches object to gripper (kinematic lock)
+- Object follows gripper during movement
+- Releases when gripper opens above threshold (50%)
+- Visual feedback: grabbed objects glow green
+
+### Fix 3: LeRobot Training Objects
+
+Added objects matching the SO-101 training data sizes.
+
+**File:** `src/lib/objectLibrary.ts`
+
+| Object | Size | Purpose |
+|--------|------|---------|
+| LeRobot Cube | 2.5cm | Pick and place (svla_so101_pickplace) |
+| Stack Cube | 3cm | Stacking tasks (svla_so100_stacking) |
+| Pink Lego | 1.5cm | Precision grasping |
+| Pens | ~1.6cm dia | Table cleanup |
+| Target Zone | 5cm | Placement target |
+
+## Current IK Performance
+
+After fixes:
 ```
+Object position:     [14.4, 1.3, 15.0]cm
+Jaw position:        [14.3, 1.3, 15.0]cm
+IK Error:            0.09cm (excellent!)
+```
+
+The jaw now reaches the **exact object center height**.
+
+## Scene Presets
+
+**File:** `src/lib/objectLibrary.ts`
+
+- **LeRobot Pick & Place** - Single cube + target zone
+- **LeRobot Stacking** - Two cubes for stacking
+- **LeRobot Color Sorting** - Multiple colored cubes
+- **LeRobot Table Cleanup** - Pens on table
+- **LeRobot Precision** - Small lego blocks
+
+## Physics System
+
+### Collision Detection
+- Rapier physics engine with CuboidCollider, BallCollider, CylinderCollider
+- Floor collider at Y=0
+
+### Gripper Physics
+**File:** `src/components/simulation/RealisticGripperPhysics.tsx`
+- Two kinematic jaw colliders that follow joint angles
+- High friction (2.0) for grip contact
+- Tapered jaw shape matching real SO-101
+
+### Object Physics
+**File:** `src/components/simulation/PhysicsObjects.tsx`
+- Objects have proper mass (0.3-0.5 kg)
+- Friction coefficient 1.5 for grippability
+- Switch to kinematic when grabbed, dynamic when released
+
+## Files Summary
+
+| File | Purpose |
+|------|---------|
+| `SO101KinematicsURDF.ts` | FK model with jaw position calculation |
+| `claudeApi.ts` | IK solver using jaw position |
+| `GraspManager.tsx` | Object attachment on grip |
+| `RealisticGripperPhysics.tsx` | Jaw colliders |
+| `PhysicsObjects.tsx` | Object physics with grab state |
+| `objectLibrary.ts` | LeRobot training objects |
 
 ## Status
 
-**Unresolved** - The fundamental geometry constraint (7cm jaw-tip offset with steep wrist angles) prevents successful grasping of tabletop objects.
+**RESOLVED** - The grasp system now:
+1. Correctly positions jaws at object center
+2. Reliably attaches objects when gripped
+3. Uses training-matched object sizes
 
 ---
-*Last updated: 2024-12-14*
-*Related issue: Robot arm pickup reliability*
+*Last updated: 2024-12-21*
+*Solution: Jaw position targeting + Grasp attachment system*

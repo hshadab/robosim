@@ -18,7 +18,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import type { SimObject } from '../../types';
 
 export const ObjectLibraryPanel: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('toy');
+  const [selectedCategory, setSelectedCategory] = useState<string>('lerobot');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const { objects, spawnObject, removeObject, clearObjects } = useAppStore();
 
@@ -27,28 +27,25 @@ export const ObjectLibraryPanel: React.FC = () => {
   );
 
   const handleAddObject = (template: ObjectTemplate) => {
-    // Random position in front of robot - WITHIN COMPACT GRASP RANGE
-    // LeRobot training data shows compact poses work best at 10-13cm distance
-    // Use polar coordinates with narrow angle to keep objects in front
-    const distance = 0.10 + Math.random() * 0.03; // 10-13cm from base (compact grasp range)
-    const angle = (Math.random() - 0.5) * (Math.PI / 3); // ±30° from +X axis (narrower)
+    // Random position in front of robot - optimal workspace zone
+    // Use polar coordinates: distance 16-22cm, angle 30° to 60° from +X axis
+    const distance = 0.16 + Math.random() * 0.06; // 16-22cm from base
+    const angle = (Math.PI / 6) + Math.random() * (Math.PI / 6); // 30° to 60° from +X axis
 
-    const x = distance * Math.cos(angle);
-    const z = distance * Math.sin(angle);
+    const x = Math.max(0.12, distance * Math.cos(angle)); // Ensure minimum X (12cm+)
+    const z = Math.max(0.15, distance * Math.sin(angle)); // Ensure positive Z (15cm+)
 
-    // Use smaller scale for easier gripping (60% of template size, min 2cm)
-    const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects with center at ~4-5cm height for compact grasp reach
-    // LeRobot compact poses (shoulder=-99°, elbow=97°) reach ~3-5cm tip height
-    const y = scale / 2 + 0.04;
+    // Use the template's actual scale - Easy Grasp objects are already sized correctly
+    const scale = template.scale;
+    // Spawn objects ON the table (Y=0) - object center at half height
+    // Cylinders are tall (height = 6*scale), cubes/balls use scale directly
+    const y = template.type === 'cylinder' ? scale * 3 : scale / 2;
 
-    // Ensure minimum X to avoid dead zone
-    const adjustedX = Math.max(0.08, x); // Closer minimum for compact poses
-
-    const newObject = createSimObjectFromTemplate(template, [adjustedX, y, z]);
+    const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
-    spawnObject({ ...objWithoutId, scale }); // Override with smaller scale
+    console.log('[ObjectLibraryPanel] Spawning object:', { name: template.name, scale, position: [x, y, z] });
+    spawnObject({ ...objWithoutId, scale });
   };
 
   const handleLoadPreset = (presetId: string) => {

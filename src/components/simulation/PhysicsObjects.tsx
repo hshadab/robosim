@@ -273,12 +273,41 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
 }) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
 
-  // Determine emissive state (visual feedback only, no kinematic switching)
-  const emissiveColor = isNearGripper ? '#FFFFFF' : '#000000';
-  const emissiveIntensity = isNearGripper ? 0.15 : 0;
+  // Determine emissive state (visual feedback)
+  const emissiveColor = object.isGrabbed ? '#00FF00' : (isNearGripper ? '#FFFFFF' : '#000000');
+  const emissiveIntensity = object.isGrabbed ? 0.3 : (isNearGripper ? 0.15 : 0);
 
-  // Objects are ALWAYS dynamic - physics handles gripping via friction
-  // No kinematic switching, no teleporting
+  // When object is grabbed, update its rigid body position to follow gripper
+  // The GraspManager updates the object.position, we sync it to physics here
+  useEffect(() => {
+    if (rigidBodyRef.current && object.isGrabbed) {
+      // Set to kinematic so it follows position updates
+      rigidBodyRef.current.setBodyType(2, true); // 2 = kinematic
+    } else if (rigidBodyRef.current && !object.isGrabbed) {
+      // Return to dynamic when released
+      rigidBodyRef.current.setBodyType(0, true); // 0 = dynamic
+    }
+  }, [object.isGrabbed]);
+
+  // Sync position when grabbed (object position is updated by GraspManager)
+  useEffect(() => {
+    if (rigidBodyRef.current && object.isGrabbed) {
+      rigidBodyRef.current.setNextKinematicTranslation({
+        x: object.position[0],
+        y: object.position[1],
+        z: object.position[2],
+      });
+      // Also set rotation
+      const euler = new THREE.Euler(object.rotation[0], object.rotation[1], object.rotation[2]);
+      const quat = new THREE.Quaternion().setFromEuler(euler);
+      rigidBodyRef.current.setNextKinematicRotation({
+        x: quat.x,
+        y: quat.y,
+        z: quat.z,
+        w: quat.w,
+      });
+    }
+  }, [object.position, object.rotation, object.isGrabbed]);
 
   const renderShape = () => {
     switch (object.type) {
@@ -336,6 +365,10 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
         );
 
       case 'cylinder':
+        // Tall cylinder (peg/stick shape) - height is 6x scale, radius is 0.5x scale
+        // Radius increased from 0.3 to 0.5 for better collision detection
+        const cylRadius = object.scale * 0.5;
+        const cylHeight = object.scale * 6;
         return (
           <RigidBody
             ref={rigidBodyRef}
@@ -345,10 +378,11 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             mass={0.4}
             restitution={0.1}
             friction={GRIPPABLE_FRICTION}
+            ccd={true}
           >
-            <CylinderCollider args={[object.scale, object.scale]} />
+            <CylinderCollider args={[cylHeight / 2, cylRadius]} />
             <mesh castShadow>
-              <cylinderGeometry args={[object.scale, object.scale, object.scale * 2, 24]} />
+              <cylinderGeometry args={[cylRadius, cylRadius, cylHeight, 24]} />
               <meshStandardMaterial
                 color={object.color}
                 metalness={0.15}

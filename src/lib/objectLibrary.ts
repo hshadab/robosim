@@ -10,7 +10,7 @@ import type { SimObject } from '../types';
 export interface ObjectTemplate {
   id: string;
   name: string;
-  category: 'container' | 'food' | 'tool' | 'toy' | 'kitchen' | 'office';
+  category: 'container' | 'food' | 'tool' | 'toy' | 'kitchen' | 'office' | 'lerobot';
   description: string;
   type: SimObject['type'];
   scale: number;
@@ -28,6 +28,188 @@ export interface ObjectTemplate {
  * These don't require external model loading
  */
 export const PRIMITIVE_OBJECTS: ObjectTemplate[] = [
+  // ===========================================
+  // LEROBOT TRAINING OBJECTS
+  // These match the objects used in LeRobot SO-101 training datasets:
+  // - svla_so101_pickplace: Small cubes, pick and place to target box
+  // - svla_so100_stacking: 3D-printed cubes for stacking
+  // - table-cleanup: Pens and markers
+  // ===========================================
+  {
+    id: 'lerobot-cube-red',
+    name: 'LeRobot Cube (Red)',
+    category: 'lerobot',
+    description: '2.5cm cube - matches training data',
+    type: 'cube',
+    scale: 0.025, // 2.5cm - graspable by SO-101 gripper
+    color: '#e74c3c',
+    mass: 0.03,
+    friction: 0.8,
+  },
+  {
+    id: 'lerobot-cube-blue',
+    name: 'LeRobot Cube (Blue)',
+    category: 'lerobot',
+    description: '2.5cm cube - matches training data',
+    type: 'cube',
+    scale: 0.025,
+    color: '#3498db',
+    mass: 0.03,
+    friction: 0.8,
+  },
+  {
+    id: 'lerobot-cube-green',
+    name: 'LeRobot Cube (Green)',
+    category: 'lerobot',
+    description: '2.5cm cube - matches training data',
+    type: 'cube',
+    scale: 0.025,
+    color: '#2ecc71',
+    mass: 0.03,
+    friction: 0.8,
+  },
+  {
+    id: 'lerobot-cube-yellow',
+    name: 'LeRobot Cube (Yellow)',
+    category: 'lerobot',
+    description: '2.5cm cube - matches training data',
+    type: 'cube',
+    scale: 0.025,
+    color: '#f1c40f',
+    mass: 0.03,
+    friction: 0.8,
+  },
+  {
+    id: 'lerobot-stack-cube',
+    name: 'Stack Cube (3cm)',
+    category: 'lerobot',
+    description: '3cm cube for stacking tasks',
+    type: 'cube',
+    scale: 0.03, // 3cm - good for stacking
+    color: '#9b59b6',
+    mass: 0.04,
+    friction: 0.9,
+  },
+  {
+    id: 'lerobot-lego-pink',
+    name: 'Pink Lego Block',
+    category: 'lerobot',
+    description: 'Small lego-size block (1.5cm)',
+    type: 'cube',
+    scale: 0.015, // 1.5cm - precision grasping
+    color: '#ff69b4',
+    mass: 0.01,
+    friction: 0.7,
+  },
+  {
+    id: 'lerobot-target-zone',
+    name: 'Target Zone (Box)',
+    category: 'lerobot',
+    description: 'Place objects here - flat target area',
+    type: 'cube',
+    scale: 0.05, // 5cm flat box as target
+    color: '#1a1a2e', // Dark so it looks like a tray
+    mass: 1.0, // Heavy so it doesn't move
+    friction: 0.9,
+  },
+  {
+    id: 'lerobot-pen-black',
+    name: 'Pen (Black)',
+    category: 'lerobot',
+    description: 'Marker pen for table cleanup',
+    type: 'cylinder',
+    scale: 0.008, // ~1.6cm diameter, 4.8cm height
+    color: '#2c3e50',
+    mass: 0.015,
+  },
+  {
+    id: 'lerobot-pen-red',
+    name: 'Pen (Red)',
+    category: 'lerobot',
+    description: 'Marker pen for table cleanup',
+    type: 'cylinder',
+    scale: 0.008,
+    color: '#c0392b',
+    mass: 0.015,
+  },
+  {
+    id: 'lerobot-pen-blue',
+    name: 'Pen (Blue)',
+    category: 'lerobot',
+    description: 'Marker pen for table cleanup',
+    type: 'cylinder',
+    scale: 0.008,
+    color: '#2980b9',
+    mass: 0.015,
+  },
+  // ===========================================
+  // EASY GRASP OBJECTS - Tall and thin for side grasping
+  // These are designed to be graspable at comfortable heights (5-10cm)
+  // The robot can approach from the side instead of from above
+  // ===========================================
+  {
+    id: 'red-peg',
+    name: 'Red Peg (Easy Grasp)',
+    category: 'toy',
+    description: 'Small red cylinder - easy side grasp',
+    type: 'cylinder',
+    scale: 0.02, // ~2cm diameter, 12cm tall
+    color: '#e74c3c',
+    mass: 0.03,
+  },
+  {
+    id: 'blue-peg',
+    name: 'Blue Peg (Easy Grasp)',
+    category: 'toy',
+    description: 'Small blue cylinder - easy side grasp',
+    type: 'cylinder',
+    scale: 0.02,
+    color: '#3498db',
+    mass: 0.03,
+  },
+  {
+    id: 'green-peg',
+    name: 'Green Peg (Easy Grasp)',
+    category: 'toy',
+    description: 'Small green cylinder - easy side grasp',
+    type: 'cylinder',
+    scale: 0.02,
+    color: '#2ecc71',
+    mass: 0.03,
+  },
+  {
+    id: 'yellow-peg',
+    name: 'Yellow Peg (Easy Grasp)',
+    category: 'toy',
+    description: 'Small yellow cylinder - easy side grasp',
+    type: 'cylinder',
+    scale: 0.02,
+    color: '#f1c40f',
+    mass: 0.03,
+  },
+  {
+    id: 'tall-red-stick',
+    name: 'Red Stick (Tall)',
+    category: 'toy',
+    description: 'Red stick - easy to grip',
+    type: 'cylinder',
+    scale: 0.025, // ~2.5cm diameter
+    color: '#c0392b',
+    mass: 0.03,
+  },
+  {
+    id: 'tall-blue-stick',
+    name: 'Blue Stick (Tall)',
+    category: 'toy',
+    description: 'Blue stick - easy to grip',
+    type: 'cylinder',
+    scale: 0.025,
+    color: '#2980b9',
+    mass: 0.03,
+  },
+  // ===========================================
+  // Standard blocks (harder to grasp - require top-down approach)
+  // ===========================================
   // Containers
   {
     id: 'red-cube',
@@ -429,6 +611,93 @@ export interface ScenePreset {
 }
 
 export const SCENE_PRESETS: ScenePreset[] = [
+  // ===========================================
+  // LEROBOT TRAINING PRESETS - Match actual training scenarios
+  // ===========================================
+  {
+    id: 'lerobot-pickplace',
+    name: '🤖 LeRobot Pick & Place',
+    description: 'Single cube to target - matches svla_so101_pickplace',
+    objects: [
+      // Cube in front of robot (varied positions in training)
+      { templateId: 'lerobot-cube-red', position: [0.12, 0.0125, 0.12] },
+      // Target zone to the side
+      { templateId: 'lerobot-target-zone', position: [0.18, 0.01, 0.05] },
+    ],
+  },
+  {
+    id: 'lerobot-stacking',
+    name: '🤖 LeRobot Stacking',
+    description: 'Two cubes for stacking - matches svla_so100_stacking',
+    objects: [
+      // Bottom cube (placed first)
+      { templateId: 'lerobot-stack-cube', position: [0.15, 0.015, 0.10] },
+      // Top cube to pick up
+      { templateId: 'lerobot-stack-cube', position: [0.08, 0.015, 0.15] },
+    ],
+  },
+  {
+    id: 'lerobot-sorting',
+    name: '🤖 LeRobot Color Sorting',
+    description: 'Mixed cubes for color sorting task',
+    objects: [
+      { templateId: 'lerobot-cube-red', position: [0.08, 0.0125, 0.14] },
+      { templateId: 'lerobot-cube-blue', position: [0.12, 0.0125, 0.12] },
+      { templateId: 'lerobot-cube-red', position: [0.16, 0.0125, 0.10] },
+      { templateId: 'lerobot-cube-blue', position: [0.10, 0.0125, 0.16] },
+      // Target zones on sides
+      { templateId: 'lerobot-target-zone', position: [0.05, 0.01, 0.08] },
+      { templateId: 'lerobot-target-zone', position: [0.20, 0.01, 0.08] },
+    ],
+  },
+  {
+    id: 'lerobot-table-cleanup',
+    name: '🤖 LeRobot Table Cleanup',
+    description: 'Pens on table - matches table cleanup task',
+    objects: [
+      { templateId: 'lerobot-pen-black', position: [0.10, 0.024, 0.12], rotation: [Math.PI / 2, 0, 0.3] },
+      { templateId: 'lerobot-pen-red', position: [0.14, 0.024, 0.14], rotation: [Math.PI / 2, 0, -0.2] },
+      { templateId: 'lerobot-pen-blue', position: [0.08, 0.024, 0.16], rotation: [Math.PI / 2, 0, 0.5] },
+      // Pen holder target
+      { templateId: 'lerobot-target-zone', position: [0.18, 0.01, 0.10] },
+    ],
+  },
+  {
+    id: 'lerobot-precision',
+    name: '🤖 LeRobot Precision',
+    description: 'Small lego blocks - precision grasping',
+    objects: [
+      { templateId: 'lerobot-lego-pink', position: [0.10, 0.0075, 0.12] },
+      { templateId: 'lerobot-lego-pink', position: [0.14, 0.0075, 0.14] },
+      { templateId: 'lerobot-target-zone', position: [0.16, 0.01, 0.08] },
+    ],
+  },
+  // ===========================================
+  // EASY GRASP PRESETS
+  // ===========================================
+  {
+    id: 'easy-grasp-pegs',
+    name: '⭐ Easy Grasp Pegs',
+    description: 'Skinny pegs at comfortable height - easy to grasp!',
+    objects: [
+      // Skinny pegs (2cm dia) at comfortable grasp height
+      { templateId: 'red-peg', position: [0.05, 0.06, 0.16] },
+      { templateId: 'blue-peg', position: [0.10, 0.06, 0.13] },
+      { templateId: 'green-peg', position: [0.15, 0.06, 0.08] },
+    ],
+  },
+  {
+    id: 'easy-grasp-sticks',
+    name: '⭐ Easy Grasp Sticks',
+    description: 'Pencil-thin sticks at comfortable height',
+    objects: [
+      { templateId: 'tall-red-stick', position: [0.02, 0.075, 0.17] },
+      { templateId: 'tall-blue-stick', position: [0.12, 0.075, 0.12] },
+    ],
+  },
+  // ===========================================
+  // STANDARD PRESETS
+  // ===========================================
   {
     id: 'stacking-blocks',
     name: 'Block Stacking',
@@ -522,10 +791,11 @@ export function createSceneFromPreset(presetId: string): SimObject[] {
  * Categories with display names
  */
 export const OBJECT_CATEGORIES = [
+  { id: 'lerobot', name: 'LeRobot', icon: '🤖' },
+  { id: 'toy', name: 'Toys & Blocks', icon: '🧱' },
   { id: 'container', name: 'Containers', icon: '🫙' },
   { id: 'food', name: 'Food Items', icon: '🍎' },
   { id: 'tool', name: 'Tools', icon: '🔧' },
-  { id: 'toy', name: 'Toys & Blocks', icon: '🧱' },
   { id: 'kitchen', name: 'Kitchen', icon: '☕' },
   { id: 'office', name: 'Office', icon: '✏️' },
 ] as const;

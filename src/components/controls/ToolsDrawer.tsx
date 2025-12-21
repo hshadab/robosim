@@ -99,18 +99,14 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({ isOpen, onClose }) => 
     },
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
-      {/* Backdrop */}
+      {/* Drawer - slides in from right without darkening backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-80 bg-slate-900 border-l border-slate-700 z-50 flex flex-col shadow-2xl transform transition-transform">
+        className={`fixed right-0 top-0 h-full w-80 bg-slate-900 border-l border-slate-700 z-50 flex flex-col shadow-2xl transform transition-transform duration-300 ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <h2 className="text-lg font-semibold text-white">Tools</h2>

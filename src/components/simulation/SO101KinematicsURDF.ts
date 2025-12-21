@@ -155,12 +155,20 @@ export interface JointAngles {
   wristRoll: number; // wrist_roll in degrees
 }
 
+// Jaw offset from gripper_frame (tip) - jaws are ~7.5cm behind tip toward gripper body
+// In gripper_link local coords, tip is at Z=-0.0981, jaws are at approximately Z=-0.025
+// So jaw offset from tip is about 0.0981 - 0.025 = 0.073m (7.3cm) in +Z direction (toward body)
+const JAW_OFFSET_FROM_TIP = 0.073; // meters
+
 /**
  * Calculate gripper frame position using exact URDF transforms
  * Returns position in meters, in the world coordinate system
  * (Y-up, as used by Three.js after the -90° X rotation)
+ *
+ * @param joints - Joint angles in degrees
+ * @param useJawPosition - If true, return jaw position instead of tip position
  */
-export function calculateGripperPositionURDF(joints: JointAngles): Vec3 {
+export function calculateGripperPositionURDF(joints: JointAngles, useJawPosition = false): Vec3 {
   // Convert degrees to radians
   const baseRad = (joints.base * Math.PI) / 180;
   const shoulderRad = (joints.shoulder * Math.PI) / 180;
@@ -212,8 +220,17 @@ export function calculateGripperPositionURDF(joints: JointAngles): Vec3 {
   );
 
   // gripper_frame (fixed joint, no rotation)
+  // If useJawPosition, use a shorter offset to get jaw position instead of tip
+  const gripperFrameXYZ = useJawPosition
+    ? [
+        URDF_JOINTS.gripper_frame.xyz[0],
+        URDF_JOINTS.gripper_frame.xyz[1],
+        URDF_JOINTS.gripper_frame.xyz[2] + JAW_OFFSET_FROM_TIP, // Move toward body (less negative Z)
+      ] as Vec3
+    : URDF_JOINTS.gripper_frame.xyz as Vec3;
+
   const T6 = createJointTransform(
-    URDF_JOINTS.gripper_frame.xyz as Vec3,
+    gripperFrameXYZ,
     URDF_JOINTS.gripper_frame.rpy as Vec3,
     0,
     'z'
@@ -240,6 +257,14 @@ export function calculateGripperPositionURDF(joints: JointAngles): Vec3 {
   ];
 
   return posThreeJS;
+}
+
+/**
+ * Calculate JAW position (for grasping) instead of tip position
+ * This is a convenience function that calls calculateGripperPositionURDF with useJawPosition=true
+ */
+export function calculateJawPositionURDF(joints: JointAngles): Vec3 {
+  return calculateGripperPositionURDF(joints, true);
 }
 
 /**

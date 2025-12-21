@@ -78,7 +78,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Object selection mode
   const [objectMode, setObjectMode] = useState<'choose' | 'library' | 'photo'>('choose');
-  const [selectedCategory, setSelectedCategory] = useState<string>('toy');
+  const [selectedCategory, setSelectedCategory] = useState<string>('lerobot');
 
   // Recording
   const [isRecording, setIsRecording] = useState(false);
@@ -207,30 +207,31 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
-    // Random position in front of robot - WITHIN REACHABLE WORKSPACE
-    // Use polar coordinates: distance 14-18cm, angle -40° to +40° from +X axis
-    // Closer distance makes pickup easier with natural arm poses
-    const distance = 0.14 + Math.random() * 0.04; // 14-18cm from base
-    const angle = (Math.random() - 0.5) * (Math.PI / 2.25); // ±40° from +X axis
+    // Random position in FRONT of robot - within optimal workspace zone
+    // Use polar coordinates: distance 16-22cm, angle 30° to 60° from +X axis
+    // This ensures objects are in the +X, +Z quadrant (front-right of robot)
+    // where the arm has best reach and can approach from above
+    const distance = 0.16 + Math.random() * 0.06; // 16-22cm from base
+    const angle = (Math.PI / 6) + Math.random() * (Math.PI / 6); // 30° to 60° from +X axis (always positive Z)
 
-    const x = Math.max(0.10, distance * Math.cos(angle)); // Ensure minimum positive X
-    const z = distance * Math.sin(angle);
+    const x = Math.max(0.12, distance * Math.cos(angle)); // Ensure minimum positive X (12cm+)
+    const z = Math.max(0.15, distance * Math.sin(angle)); // Ensure minimum positive Z (15cm+)
 
-    // Use smaller scale for easier gripping (60% of template size, min 2cm)
-    const scale = Math.max(0.02, template.scale * 0.6);
-    // Spawn objects with center at ~4-5cm height for compact grasp reach
-    // LeRobot compact poses (shoulder=-99°, elbow=97°) reach ~3-5cm tip height
-    const y = scale / 2 + 0.04;
+    // Use the template's actual scale - Easy Grasp objects are already sized correctly
+    const scale = template.scale;
+    // Spawn objects ON the table (Y=0) - object center at half height
+    // Cylinders are tall (height = 6*scale), cubes/balls use scale directly
+    const y = template.type === 'cylinder' ? scale * 3 : scale / 2;
 
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
 
-    // Make sure name property is set for LLM matching, and use smaller scale
+    // Make sure name property is set for LLM matching, and use graspable scale
     const objToSpawn = {
       ...objWithoutId,
       name: template.name,
-      scale: scale, // Override with smaller scale for easier gripping
+      scale: scale, // Override with graspable scale (min 6cm)
     };
 
     console.log('[MinimalTrainFlow] Spawning object:', objToSpawn);
@@ -434,20 +435,20 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             <div className="space-y-3">
               <button
                 onClick={() => setObjectMode('library')}
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
               >
                 <Box className="w-6 h-6" />
-                Use Standard Object
+                Use LeRobot Objects
               </button>
               <button
                 onClick={() => setObjectMode('photo')}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                className="w-full py-4 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
               >
                 <Camera className="w-6 h-6" />
                 Upload Photo
               </button>
               <p className="text-center text-sm text-slate-500 mt-2">
-                Standard objects work instantly. Photos take ~20s to convert.
+                LeRobot objects match SO-101 training data. Photos take ~20s.
               </p>
             </div>
           );
@@ -456,6 +457,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         // Library object selection
         if (objectMode === 'library') {
           const filteredObjects = PRIMITIVE_OBJECTS.filter(obj => obj.category === selectedCategory);
+          // LeRobot objects - match training data for best compatibility
+          const lerobotObjects = PRIMITIVE_OBJECTS.filter(obj => obj.category === 'lerobot');
+
           return (
             <div className="space-y-3">
               <button
@@ -465,6 +469,37 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 <ChevronLeft className="w-4 h-4" />
                 Back
               </button>
+
+              {/* LeRobot Training Objects - Recommended */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">LeRobot Training Objects</span>
+                </div>
+                <p className="text-xs text-slate-500">Match SO-101 training data for best results</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {lerobotObjects.slice(0, 6).map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleAddLibraryObject(template)}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-500/30 hover:border-blue-400/50 transition text-left"
+                    >
+                      <div
+                        className="w-8 h-8 rounded-lg flex-shrink-0"
+                        style={{ backgroundColor: template.color }}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-blue-300 truncate">{template.name}</div>
+                        <div className="text-xs text-slate-400 truncate">{template.description?.split(' - ')[0] || template.type}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700/50 pt-3">
+                <span className="text-xs text-slate-500">Or pick other objects:</span>
+              </div>
 
               {/* Category tabs */}
               <div className="flex flex-wrap gap-1">
@@ -768,18 +803,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         {renderStep()}
       </div>
 
-      {/* Footer hint */}
-      {step !== 'done' && (
-        <div className="p-4 border-t border-slate-800">
-          <button
-            onClick={onOpenDrawer}
-            className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 text-sm transition"
-          >
-            Need manual controls?
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

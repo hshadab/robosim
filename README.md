@@ -2,6 +2,28 @@
 
 A web-based 3D robotics simulation platform built with React, Three.js, and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
 
+## Recent Updates (December 2024)
+
+### LeRobot Training Objects
+Objects now match the SO-101 training data from HuggingFace (svla_so101_pickplace, svla_so100_stacking):
+- **LeRobot Cubes (2.5cm)** - Graspable by SO-101 gripper
+- **Stack Cubes (3cm)** - For stacking tasks
+- **Pink Lego Blocks (1.5cm)** - Precision grasping
+- **Pens** - Table cleanup tasks
+- **Target Zones** - Placement targets
+
+### Reliable Object Grasping
+- **Grasp Manager** - Detects gripper closing, attaches objects kinematically
+- **Jaw Position Targeting** - IK now targets jaw position (not tip), fixing 7.3cm offset issue
+- **Physics System** - Proper collision, friction, and mass for all objects
+- **Visual Feedback** - Grabbed objects glow green
+
+### Improved UI
+- **Floating Tools Button** - Access manual controls from right edge
+- **No Screen Darkening** - Drawer slides without overlay
+
+See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technical details.
+
 ## Features
 
 ### Robot Support

@@ -79,9 +79,11 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     // The fixed jaw is attached to the gripper body
     // It extends from the gripper in a fixed orientation
     if (fixedJawRef.current) {
-      // Position the fixed jaw - it's offset to one side of the gripper
-      // In gripper local coords, the fixed jaw is on the +X side
-      const fixedJawLocalOffset = new THREE.Vector3(0.012, 0.025, 0); // Offset from tip
+      // Position the fixed jaw - offset from tip to jaw pivot in gripper_frame local coords
+      // From URDF: jaw at Z=-0.0234, tip at Z=-0.0981 in gripper_link coords
+      // gripper_frame has 180° Y rotation, so Z is flipped: jaw is at local Z=-0.075 from tip
+      // X offset positions jaws on opposite sides, Y is slight vertical offset
+      const fixedJawLocalOffset = new THREE.Vector3(0.012, 0.019, -0.075);
 
       // Rotate offset to world coords
       jawOffset.current.copy(fixedJawLocalOffset);
@@ -111,7 +113,8 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
       // We apply the gripper joint rotation to position the moving jaw
 
       // Start with base position (on -X side, opposite to fixed jaw)
-      const movingJawBaseOffset = new THREE.Vector3(-0.012, 0.025, 0);
+      // Same Z offset as fixed jaw (-0.075) to position at correct height
+      const movingJawBaseOffset = new THREE.Vector3(-0.012, 0.019, -0.075);
 
       // Create rotation for the moving jaw angle
       // The jaw rotates about the Z axis in gripper local space

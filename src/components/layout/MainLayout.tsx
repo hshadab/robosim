@@ -7,7 +7,7 @@ import { ToolsDrawer } from '../controls/ToolsDrawer';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
 import { FirstRunModal, useFirstRun } from '../onboarding/FirstRunModal';
-import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, Brain, Database, Mic, Eye, Box, Sparkles, FileText, Clock, CheckCircle, AlertCircle, Menu, X } from 'lucide-react';
+import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, Brain, Database, Mic, Eye, Box, Sparkles, FileText, Clock, CheckCircle, AlertCircle, Menu, X, Sliders } from 'lucide-react';
 import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAppStore } from '../../stores/useAppStore';
@@ -362,6 +362,17 @@ const SimulateTab: React.FC<SimulateTabProps> = ({ openTutorial }) => {
           </div>
         </div>
 
+        {/* Floating Tools Toggle Button - Right Edge */}
+        <button
+          onClick={() => setDrawerOpen(!drawerOpen)}
+          className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-l-lg p-2 shadow-lg transition-all duration-300 ${
+            drawerOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+          }`}
+          title="Open Tools"
+        >
+          <Sliders className="w-5 h-5 text-slate-300" />
+        </button>
+
         {/* Slide-out Tools Drawer */}
         <ToolsDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       </div>
@@ -385,6 +396,17 @@ const SimulateTab: React.FC<SimulateTabProps> = ({ openTutorial }) => {
           </div>
         </div>
       </div>
+
+      {/* Floating Tools Toggle Button - Right Edge */}
+      <button
+        onClick={() => setDrawerOpen(!drawerOpen)}
+        className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-l-lg p-2 shadow-lg transition-all duration-300 ${
+          drawerOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+        }`}
+        title="Open Tools"
+      >
+        <Sliders className="w-5 h-5 text-slate-300" />
+      </button>
 
       {/* Slide-out Tools Drawer */}
       <ToolsDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />

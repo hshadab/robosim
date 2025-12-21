@@ -159,14 +159,16 @@ export const ConsolidatedToolsPanel: React.FC<ConsolidatedToolsPanelProps> = () 
               <PresetButtons />
             </CollapsibleSection>
 
+            {/* Object Library - Top level for easy access */}
+            <CollapsibleSection title="Object Library" icon={<Box className="w-4 h-4" />} defaultOpen={true}>
+              <ObjectLibraryPanel />
+            </CollapsibleSection>
+
             {/* Advanced - Everything else hidden */}
             <CollapsibleSection title="More Options" icon={<Settings className="w-4 h-4" />} defaultOpen={false}>
               <div className="p-2 space-y-2">
                 <CollapsibleSection title="Environment" icon={<Gamepad2 className="w-4 h-4" />}>
                   <EnvironmentSelector />
-                </CollapsibleSection>
-                <CollapsibleSection title="Object Library" icon={<Box className="w-4 h-4" />}>
-                  <ObjectLibraryPanel />
                 </CollapsibleSection>
                 <CollapsibleSection title="Trajectory" icon={<BarChart3 className="w-4 h-4" />}>
                   <JointTrajectoryGraph height={120} />
