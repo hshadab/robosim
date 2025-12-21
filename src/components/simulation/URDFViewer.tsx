@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import {
   URDFParser,
   urdfGeometryToThree,

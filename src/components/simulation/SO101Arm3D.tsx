@@ -6,7 +6,7 @@
 
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import URDFLoader from 'urdf-loader';
 import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
@@ -34,7 +34,7 @@ const JOINT_MAP = {
 const LoadingFallback: React.FC = () => (
   <mesh position={[0, 0.15, 0]}>
     <boxGeometry args={[0.05, 0.3, 0.05]} />
-    <meshStandardMaterial color="gray" wireframe />
+    <meshStandardNodeMaterial color="gray" wireframe />
   </mesh>
 );
 
@@ -74,27 +74,27 @@ const GripperDebugVisualization: React.FC<{
       {/* Gripper TIP - cyan cone pointing down */}
       <mesh position={tipPosition} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.008, 0.02, 8]} />
-        <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
+        <meshBasicNodeMaterial color="#00ffff" transparent opacity={0.7} />
       </mesh>
 
       {/* JAW position - magenta sphere showing where jaws close */}
       <mesh position={jawPosition}>
         <sphereGeometry args={[0.012, 12, 12]} />
-        <meshBasicMaterial color="#ff00ff" transparent opacity={0.6} />
+        <meshBasicNodeMaterial color="#ff00ff" transparent opacity={0.6} />
       </mesh>
 
     </group>
   );
 };
 
-// Materials
-const PRINTED_MATERIAL = new THREE.MeshStandardMaterial({
+// Materials - using WebGPU node materials
+const PRINTED_MATERIAL = new THREE.MeshStandardNodeMaterial({
   color: '#F5F0E6',
   metalness: 0.0,
   roughness: 0.4,
 });
 
-const SERVO_MATERIAL = new THREE.MeshStandardMaterial({
+const SERVO_MATERIAL = new THREE.MeshStandardNodeMaterial({
   color: '#1a1a1a',
   metalness: 0.2,
   roughness: 0.3,

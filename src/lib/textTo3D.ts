@@ -12,7 +12,7 @@
  * - Simple object composition
  */
 
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { generateObjectTexture, type AIObjectRequest } from './aiImageGeneration';
 import { createLogger } from './logger';
 

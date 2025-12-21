@@ -6,7 +6,7 @@
 
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type * as THREE from 'three';
+import type * as THREE from 'three/webgpu';
 import type { HumanoidState } from '../../types';
 import { HUMANOID_DIMENSIONS } from './defaults';
 
@@ -90,7 +90,7 @@ const Limb: React.FC<{
 }> = ({ length, radius, position = [0, 0, 0], rotation = [0, 0, 0] }) => (
   <mesh position={position} rotation={rotation} castShadow>
     <capsuleGeometry args={[radius, length, 8, 16]} />
-    <meshPhysicalMaterial {...MATERIALS.limb} />
+    <meshPhysicalNodeMaterial {...MATERIALS.limb} />
   </mesh>
 );
 
@@ -101,7 +101,7 @@ const Joint: React.FC<{
 }> = ({ radius, position = [0, 0, 0] }) => (
   <mesh position={position} castShadow>
     <sphereGeometry args={[radius, 16, 16]} />
-    <meshPhysicalMaterial {...MATERIALS.joint} />
+    <meshPhysicalNodeMaterial {...MATERIALS.joint} />
   </mesh>
 );
 
@@ -137,25 +137,25 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
       {/* Torso - main body */}
       <mesh castShadow>
         <boxGeometry args={[d.torsoWidth, d.torsoHeight, d.torsoDepth]} />
-        <meshPhysicalMaterial {...MATERIALS.body} />
+        <meshPhysicalNodeMaterial {...MATERIALS.body} />
       </mesh>
 
       {/* Torso panel lines */}
       <mesh position={[0, 0, d.torsoDepth / 2 + 0.001]}>
         <planeGeometry args={[d.torsoWidth * 0.9, d.torsoHeight * 0.9]} />
-        <meshStandardMaterial color="#d0d0d0" metalness={0.7} roughness={0.4} />
+        <meshStandardNodeMaterial color="#d0d0d0" metalness={0.7} roughness={0.4} />
       </mesh>
 
       {/* Chest detail - accent panel */}
       <mesh position={[0, d.torsoHeight * 0.1, d.torsoDepth * 0.45]} castShadow>
         <boxGeometry args={[d.torsoWidth * 0.6, d.torsoHeight * 0.4, 0.015]} />
-        <meshPhysicalMaterial {...MATERIALS.accent} />
+        <meshPhysicalNodeMaterial {...MATERIALS.accent} />
       </mesh>
 
       {/* Chest logo/sensor */}
       <mesh position={[0, d.torsoHeight * 0.15, d.torsoDepth / 2 + 0.008]}>
         <circleGeometry args={[0.02, 24]} />
-        <meshStandardMaterial color="#0ea5e9" emissive="#0ea5e9" emissiveIntensity={0.3} />
+        <meshStandardNodeMaterial color="#0ea5e9" emissive="#0ea5e9" emissiveIntensity={0.3} />
       </mesh>
 
       {/* Side vents */}
@@ -164,7 +164,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
           {Array.from({ length: 3 }).map((_, i) => (
             <mesh key={i} position={[0, (i - 1) * 0.03, 0]}>
               <planeGeometry args={[d.torsoDepth * 0.6, 0.008]} />
-              <meshStandardMaterial color="#1a1a1a" />
+              <meshStandardNodeMaterial color="#1a1a1a" />
             </mesh>
           ))}
         </group>
@@ -173,39 +173,39 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
       {/* Neck - metallic cylinder */}
       <mesh position={[0, d.torsoHeight / 2 + d.neckHeight / 2, 0]} castShadow>
         <cylinderGeometry args={[0.025, 0.03, d.neckHeight, 20]} />
-        <meshPhysicalMaterial {...MATERIALS.joint} />
+        <meshPhysicalNodeMaterial {...MATERIALS.joint} />
       </mesh>
 
       {/* Head */}
       <group position={[0, d.torsoHeight / 2 + d.neckHeight + d.headRadius, 0]}>
         <mesh castShadow>
           <sphereGeometry args={[d.headRadius, 32, 32]} />
-          <meshPhysicalMaterial {...MATERIALS.head} />
+          <meshPhysicalNodeMaterial {...MATERIALS.head} />
         </mesh>
         {/* Face plate */}
         <mesh position={[0, 0, d.headRadius * 0.7]} rotation={[0.1, 0, 0]}>
           <planeGeometry args={[d.headRadius * 1.2, d.headRadius * 0.8]} />
-          <meshPhysicalMaterial color="#f0f0f0" metalness={0.3} roughness={0.2} clearcoat={0.8} />
+          <meshPhysicalNodeMaterial color="#f0f0f0" metalness={0.3} roughness={0.2} clearcoat={0.8} />
         </mesh>
         {/* Eyes - glowing */}
         <mesh position={[0.02, 0.01, d.headRadius * 0.92]}>
           <sphereGeometry args={[0.012, 16, 16]} />
-          <meshStandardMaterial {...MATERIALS.eye} />
+          <meshStandardNodeMaterial {...MATERIALS.eye} />
         </mesh>
         <mesh position={[-0.02, 0.01, d.headRadius * 0.92]}>
           <sphereGeometry args={[0.012, 16, 16]} />
-          <meshStandardMaterial {...MATERIALS.eye} />
+          <meshStandardNodeMaterial {...MATERIALS.eye} />
         </mesh>
         {/* Visor - glossy black */}
         <mesh position={[0, 0.01, d.headRadius * 0.88]} rotation={[0, 0, 0]}>
           <boxGeometry args={[0.07, 0.02, 0.008]} />
-          <meshPhysicalMaterial {...MATERIALS.visor} />
+          <meshPhysicalNodeMaterial {...MATERIALS.visor} />
         </mesh>
         {/* Ear sensors */}
         {[-1, 1].map((side) => (
           <mesh key={side} position={[side * d.headRadius * 0.85, 0, 0]}>
             <cylinderGeometry args={[0.008, 0.01, 0.015, 12]} />
-            <meshPhysicalMaterial {...MATERIALS.joint} />
+            <meshPhysicalNodeMaterial {...MATERIALS.joint} />
           </mesh>
         ))}
       </group>
@@ -239,7 +239,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
               <group position={[d.lowerArmLength + 0.04, 0, 0]} rotation={[deg2rad(state.leftWrist), 0, 0]}>
                 <mesh castShadow>
                   <boxGeometry args={[d.handLength, 0.04, 0.025]} />
-                  <meshPhysicalMaterial {...MATERIALS.hand} />
+                  <meshPhysicalNodeMaterial {...MATERIALS.hand} />
                 </mesh>
               </group>
             </group>
@@ -271,7 +271,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
               <group position={[-(d.lowerArmLength + 0.04), 0, 0]} rotation={[deg2rad(state.rightWrist), 0, 0]}>
                 <mesh castShadow>
                   <boxGeometry args={[d.handLength, 0.04, 0.025]} />
-                  <meshPhysicalMaterial {...MATERIALS.hand} />
+                  <meshPhysicalNodeMaterial {...MATERIALS.hand} />
                 </mesh>
               </group>
             </group>
@@ -316,7 +316,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
                   {/* Foot */}
                   <mesh position={[0, -d.footHeight / 2, d.footLength * 0.2]} castShadow>
                     <boxGeometry args={[d.footWidth, d.footHeight, d.footLength]} />
-                    <meshPhysicalMaterial {...MATERIALS.foot} />
+                    <meshPhysicalNodeMaterial {...MATERIALS.foot} />
                   </mesh>
                 </group>
               </group>
@@ -356,7 +356,7 @@ export const Humanoid3D: React.FC<Humanoid3DProps> = ({ state }) => {
 
                   <mesh position={[0, -d.footHeight / 2, d.footLength * 0.2]} castShadow>
                     <boxGeometry args={[d.footWidth, d.footHeight, d.footLength]} />
-                    <meshPhysicalMaterial {...MATERIALS.foot} />
+                    <meshPhysicalNodeMaterial {...MATERIALS.foot} />
                   </mesh>
                 </group>
               </group>

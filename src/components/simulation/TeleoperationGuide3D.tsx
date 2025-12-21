@@ -11,7 +11,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import type { TaskStep, GuidanceState } from '../../lib/teleoperationGuide';
 
 interface TeleoperationGuide3DProps {
@@ -49,7 +49,7 @@ const TargetMarker: React.FC<{
       {/* Outer pulsing ring */}
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <torusGeometry args={[size * 1.5, size * 0.1, 8, 32]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color={color}
           emissive={color}
           emissiveIntensity={0.5}
@@ -61,7 +61,7 @@ const TargetMarker: React.FC<{
       {/* Inner rotating marker */}
       <mesh ref={innerRef}>
         <octahedronGeometry args={[size * 0.5]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color={color}
           emissive={color}
           emissiveIntensity={0.3}
@@ -71,7 +71,7 @@ const TargetMarker: React.FC<{
       {/* Vertical beam */}
       <mesh>
         <cylinderGeometry args={[size * 0.02, size * 0.02, 0.3, 8]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color={color}
           transparent
           opacity={0.3}
@@ -174,7 +174,7 @@ const GhostGripper: React.FC<{
       {/* Gripper body */}
       <mesh>
         <boxGeometry args={[0.03, 0.02, 0.02]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color="#8b5cf6"
           transparent
           opacity={0.4}
@@ -185,7 +185,7 @@ const GhostGripper: React.FC<{
       {/* Left finger */}
       <mesh position={[-0.015, -0.015, 0]} rotation={[0, 0, fingerAngle]}>
         <boxGeometry args={[0.005, 0.025, 0.015]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color="#8b5cf6"
           transparent
           opacity={0.4}
@@ -196,7 +196,7 @@ const GhostGripper: React.FC<{
       {/* Right finger */}
       <mesh position={[0.015, -0.015, 0]} rotation={[0, 0, -fingerAngle]}>
         <boxGeometry args={[0.005, 0.025, 0.015]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color="#8b5cf6"
           transparent
           opacity={0.4}
@@ -232,7 +232,7 @@ const HighlightRing: React.FC<{
       rotation={[-Math.PI / 2, 0, 0]}
     >
       <torusGeometry args={[radius, radius * 0.1, 8, 32]} />
-      <meshStandardMaterial
+      <meshStandardNodeMaterial
         color={color}
         emissive={color}
         emissiveIntensity={0.5}

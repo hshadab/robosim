@@ -3,16 +3,17 @@ import { Canvas, useLoader, extend } from '@react-three/fiber';
 import {
   OrbitControls,
   PerspectiveCamera,
-  Environment,
-  Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-// WebGPU with automatic WebGL fallback
 import * as THREE from 'three/webgpu';
 import { WebGPURenderer } from 'three/webgpu';
 
-// Extend THREE for R3F WebGPU compatibility
-extend(THREE as any);
+// Extend R3F with WebGPU module classes
+extend({
+  MeshStandardNodeMaterial: THREE.MeshStandardNodeMaterial,
+  MeshBasicNodeMaterial: THREE.MeshBasicNodeMaterial,
+  MeshPhysicalNodeMaterial: THREE.MeshPhysicalNodeMaterial,
+});
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
 import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
@@ -72,7 +73,7 @@ const TexturedFloor: React.FC<{ textureUrl: string }> = ({ textureUrl }) => {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
       <planeGeometry args={[2, 2]} />
-      <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
+      <meshStandardNodeMaterial map={texture} roughness={0.8} metalness={0.2} />
     </mesh>
   );
 };
@@ -87,7 +88,7 @@ const WorkspaceGrid: React.FC<{ size?: number; textureUrl?: string | null }> = (
       ) : (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
           <planeGeometry args={[2, 2]} />
-          <meshStandardMaterial color="#334155" roughness={0.8} metalness={0.2} />
+          <meshStandardNodeMaterial color="#334155" roughness={0.8} metalness={0.2} />
         </mesh>
       )}
       {/* Grid overlay - hidden when texture is applied */}
@@ -105,7 +106,7 @@ const AIBackground: React.FC<{ imageUrl: string }> = ({ imageUrl }) => {
   return (
     <mesh scale={[-1, 1, 1]}>
       <sphereGeometry args={[50, 32, 32]} />
-      <meshBasicMaterial map={texture} side={THREE.BackSide} />
+      <meshBasicNodeMaterial map={texture} side={THREE.BackSide} />
     </mesh>
   );
 };
@@ -133,7 +134,7 @@ const AIObject3D: React.FC<{ aiObject: AIGeneratedObject }> = ({ aiObject }) => 
       receiveShadow
     >
       {getGeometry()}
-      <meshStandardMaterial map={texture} roughness={0.6} metalness={0.1} />
+      <meshStandardNodeMaterial map={texture} roughness={0.6} metalness={0.1} />
     </mesh>
   );
 };
@@ -322,10 +323,10 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         key={canvasKey}
         shadows
         dpr={[1, 1.5]}
-        gl={async (props: any) => {
-          // WebGPU renderer with automatic WebGL fallback
+        gl={async (props) => {
+          // Create WebGPU renderer with automatic WebGL fallback
           const renderer = new WebGPURenderer({
-            canvas: props.canvas,
+            canvas: props.canvas as HTMLCanvasElement,
             antialias: true,
             alpha: false,
             powerPreference: 'high-performance',
@@ -333,9 +334,6 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           await renderer.init();
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
           renderer.toneMappingExposure = 1.1;
-
-          const isWebGPU = (renderer as any).backend?.isWebGPUBackend;
-          console.log(`[RobotArm3D] 🚀 Using ${isWebGPU ? 'WebGPU' : 'WebGL'} renderer`);
           return renderer;
         }}
         onCreated={handleCreated}
@@ -356,34 +354,6 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           target={getCameraTarget()}
         />
 
-        {/* Studio lighting environment for PBR reflections */}
-        <Environment resolution={256}>
-          <group rotation={[-Math.PI / 3, 0, 0]}>
-            <Lightformer
-              form="circle"
-              intensity={4}
-              rotation-x={Math.PI / 2}
-              position={[0, 5, -2]}
-              scale={3}
-            />
-            <Lightformer
-              form="circle"
-              intensity={2}
-              rotation-y={Math.PI / 2}
-              position={[-5, 1, -1]}
-              scale={2}
-            />
-            <Lightformer
-              form="ring"
-              color="#4060ff"
-              intensity={1}
-              rotation-y={Math.PI / 2}
-              position={[3, 2, 2]}
-              scale={2}
-            />
-          </group>
-        </Environment>
-
         {/* Key light */}
         <directionalLight
           position={[5, 8, 5]}
@@ -401,13 +371,13 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         {/* Rim light */}
         <directionalLight position={[0, 3, -5]} intensity={0.6} color="#ffd6a5" />
 
-        {/* Ambient for shadow fill */}
-        <ambientLight intensity={0.15} />
+        {/* Ambient light - increased to compensate for removed Environment */}
+        <ambientLight intensity={0.4} />
 
-        {/* Simple shadow - WebGPU compatible */}
+        {/* Simple shadow plane */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
           <circleGeometry args={[0.8, 32]} />
-          <meshStandardMaterial color="#000000" transparent opacity={0.3} depthWrite={false} />
+          <meshStandardNodeMaterial color="#000000" transparent opacity={0.3} depthWrite={false} />
         </mesh>
 
         <Physics gravity={[0, -9.81, 0]} timeStep={1/60}>

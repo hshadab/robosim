@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { useThree } from '@react-three/fiber';
 import { useAppStore } from '../stores/useAppStore';
 import type { LidarReading, LidarPoint, LidarConfig } from '../types';

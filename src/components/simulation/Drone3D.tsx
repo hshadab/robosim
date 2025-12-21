@@ -7,7 +7,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox, Cylinder, Sphere } from '@react-three/drei';
-import type * as THREE from 'three';
+import type * as THREE from 'three/webgpu';
 import type { DroneState, DroneConfig } from '../../types';
 import { DRONE_CONFIG } from './defaults';
 
@@ -117,15 +117,15 @@ const Propeller: React.FC<{
     <group position={position}>
       {/* Motor base - dark metallic */}
       <Cylinder args={[0.012, 0.014, 0.012, 16]} position={[0, -0.016, 0]} castShadow>
-        <meshPhysicalMaterial {...MATERIALS.motor} />
+        <meshPhysicalNodeMaterial {...MATERIALS.motor} />
       </Cylinder>
       {/* Motor bell - silver aluminum */}
       <Cylinder args={[0.011, 0.012, 0.01, 16]} position={[0, -0.005, 0]} castShadow>
-        <meshPhysicalMaterial {...MATERIALS.motorBell} />
+        <meshPhysicalNodeMaterial {...MATERIALS.motorBell} />
       </Cylinder>
       {/* Motor coil detail */}
       <Cylinder args={[0.008, 0.008, 0.004, 12]} position={[0, -0.018, 0]}>
-        <meshStandardMaterial color="#8b4513" metalness={0.7} roughness={0.4} />
+        <meshStandardNodeMaterial color="#8b4513" metalness={0.7} roughness={0.4} />
       </Cylinder>
 
       {/* Propeller */}
@@ -133,7 +133,7 @@ const Propeller: React.FC<{
         {isSpinning ? (
           // Show disc when spinning fast - motion blur effect
           <Cylinder args={[size, size, 0.002, 32]}>
-            <meshStandardMaterial
+            <meshStandardNodeMaterial
               color="#505050"
               transparent
               opacity={0.25}
@@ -148,7 +148,7 @@ const Propeller: React.FC<{
               rotation={[0, 0, 0]}
               castShadow
             >
-              <meshPhysicalMaterial {...MATERIALS.propeller} />
+              <meshPhysicalNodeMaterial {...MATERIALS.propeller} />
             </RoundedBox>
             <RoundedBox
               args={[size * 2, 0.003, 0.015]}
@@ -156,16 +156,16 @@ const Propeller: React.FC<{
               rotation={[0, Math.PI / 2, 0]}
               castShadow
             >
-              <meshPhysicalMaterial {...MATERIALS.propeller} />
+              <meshPhysicalNodeMaterial {...MATERIALS.propeller} />
             </RoundedBox>
             {/* Red tips for visibility */}
             <mesh position={[size - 0.005, 0, 0]}>
               <boxGeometry args={[0.01, 0.003, 0.015]} />
-              <meshStandardMaterial color={COLORS.propellerTip} emissive={COLORS.propellerTip} emissiveIntensity={0.3} />
+              <meshStandardNodeMaterial color={COLORS.propellerTip} emissive={COLORS.propellerTip} emissiveIntensity={0.3} />
             </mesh>
             <mesh position={[-size + 0.005, 0, 0]}>
               <boxGeometry args={[0.01, 0.003, 0.015]} />
-              <meshStandardMaterial color={COLORS.propellerTip} emissive={COLORS.propellerTip} emissiveIntensity={0.3} />
+              <meshStandardNodeMaterial color={COLORS.propellerTip} emissive={COLORS.propellerTip} emissiveIntensity={0.3} />
             </mesh>
           </>
         )}
@@ -196,12 +196,12 @@ const DroneArm: React.FC<{
           position={[length / 2, 0, 0]}
           castShadow
         >
-          <meshPhysicalMaterial {...MATERIALS.arm} />
+          <meshPhysicalNodeMaterial {...MATERIALS.arm} />
         </RoundedBox>
         {/* Arm reinforcement stripe */}
         <mesh position={[length / 2, 0.006, 0]}>
           <boxGeometry args={[length * 0.8, 0.002, 0.008]} />
-          <meshStandardMaterial color="#3a3a3a" metalness={0.4} roughness={0.5} />
+          <meshStandardNodeMaterial color="#3a3a3a" metalness={0.4} roughness={0.5} />
         </mesh>
       </group>
 
@@ -307,7 +307,7 @@ export const Drone3D: React.FC<Drone3DProps> = ({
         <group>
           {/* Central body - carbon fiber */}
           <RoundedBox args={[config.bodySize, 0.025, config.bodySize]} radius={0.008} castShadow>
-            <meshPhysicalMaterial {...MATERIALS.carbonFiber} />
+            <meshPhysicalNodeMaterial {...MATERIALS.carbonFiber} />
           </RoundedBox>
 
           {/* Top cover - accent panel */}
@@ -317,13 +317,13 @@ export const Drone3D: React.FC<Drone3DProps> = ({
             position={[0, 0.02, 0]}
             castShadow
           >
-            <meshPhysicalMaterial {...MATERIALS.bodyAccent} />
+            <meshPhysicalNodeMaterial {...MATERIALS.bodyAccent} />
           </RoundedBox>
 
           {/* Flight controller board detail */}
           <mesh position={[0, 0.028, 0]}>
             <boxGeometry args={[config.bodySize * 0.4, 0.003, config.bodySize * 0.4]} />
-            <meshStandardMaterial color="#1a472a" roughness={0.7} metalness={0.1} />
+            <meshStandardNodeMaterial color="#1a472a" roughness={0.7} metalness={0.1} />
           </mesh>
 
           {/* Battery - LiPo with PBR */}
@@ -333,18 +333,18 @@ export const Drone3D: React.FC<Drone3DProps> = ({
             position={[0, -0.018, 0]}
             castShadow
           >
-            <meshPhysicalMaterial {...MATERIALS.battery} />
+            <meshPhysicalNodeMaterial {...MATERIALS.battery} />
           </RoundedBox>
           {/* Battery warning label */}
           <mesh position={[0, -0.011, 0]}>
             <planeGeometry args={[config.bodySize * 0.3, 0.008]} />
-            <meshStandardMaterial color="#fbbf24" />
+            <meshStandardNodeMaterial color="#fbbf24" />
           </mesh>
 
           {/* Camera/gimbal at front */}
           <group position={[config.bodySize / 2 - 0.01, -0.01, 0]}>
             <Sphere args={[0.012, 16, 16]} castShadow>
-              <meshPhysicalMaterial {...MATERIALS.cameraBody} />
+              <meshPhysicalNodeMaterial {...MATERIALS.cameraBody} />
             </Sphere>
             <Cylinder
               args={[0.006, 0.008, 0.01, 16]}
@@ -352,19 +352,19 @@ export const Drone3D: React.FC<Drone3DProps> = ({
               rotation={[0, 0, Math.PI / 2]}
               castShadow
             >
-              <meshPhysicalMaterial {...MATERIALS.cameraLens} />
+              <meshPhysicalNodeMaterial {...MATERIALS.cameraLens} />
             </Cylinder>
             {/* Lens glass */}
             <mesh position={[0.014, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
               <circleGeometry args={[0.005, 16]} />
-              <meshPhysicalMaterial color="#0a0a0a" metalness={0.9} roughness={0.0} envMapIntensity={3} />
+              <meshPhysicalNodeMaterial color="#0a0a0a" metalness={0.9} roughness={0.0} envMapIntensity={3} />
             </mesh>
           </group>
 
           {/* Status LEDs */}
           <mesh position={[0, 0.03, config.bodySize / 2 - 0.01]}>
             <sphereGeometry args={[0.005, 12, 12]} />
-            <meshStandardMaterial
+            <meshStandardNodeMaterial
               color={ledColor}
               emissive={ledColor}
               emissiveIntensity={state.armed ? 1.0 : 0.4}
@@ -372,7 +372,7 @@ export const Drone3D: React.FC<Drone3DProps> = ({
           </mesh>
           <mesh position={[0, 0.03, -config.bodySize / 2 + 0.01]}>
             <sphereGeometry args={[0.005, 12, 12]} />
-            <meshStandardMaterial
+            <meshStandardNodeMaterial
               color={ledColor}
               emissive={ledColor}
               emissiveIntensity={state.armed ? 1.0 : 0.4}
@@ -401,11 +401,11 @@ export const Drone3D: React.FC<Drone3DProps> = ({
             <group key={i} position={pos as [number, number, number]}>
               {/* Carbon fiber leg */}
               <Cylinder args={[0.003, 0.003, 0.03, 8]} position={[0, -0.025, 0]} castShadow>
-                <meshPhysicalMaterial {...MATERIALS.arm} />
+                <meshPhysicalNodeMaterial {...MATERIALS.arm} />
               </Cylinder>
               {/* Rubber foot */}
               <Sphere args={[0.006, 12, 12]} position={[0, -0.04, 0]}>
-                <meshStandardMaterial {...MATERIALS.landingGear} />
+                <meshStandardNodeMaterial {...MATERIALS.landingGear} />
               </Sphere>
             </group>
           ))}
@@ -418,7 +418,7 @@ export const Drone3D: React.FC<Drone3DProps> = ({
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <circleGeometry args={[0.08, 32]} />
-          <meshBasicMaterial
+          <meshBasicNodeMaterial
             color="#000000"
             transparent
             opacity={Math.max(0.1, 0.4 - state.position.y * 0.3)}

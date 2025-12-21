@@ -5,7 +5,7 @@
  * for image-to-3D generated objects.
  */
 
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export interface GraspPoint {

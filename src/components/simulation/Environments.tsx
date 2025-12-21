@@ -1,5 +1,5 @@
 import React from 'react';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import type { EnvironmentType } from '../../types';
 
 // Wall component for maze
@@ -11,7 +11,7 @@ const Wall: React.FC<{
   return (
     <mesh position={position} rotation={rotation} castShadow receiveShadow>
       <boxGeometry args={size} />
-      <meshStandardMaterial color="#475569" metalness={0.1} roughness={0.8} />
+      <meshStandardNodeMaterial color="#475569" metalness={0.1} roughness={0.8} />
     </mesh>
   );
 };
@@ -37,19 +37,19 @@ const LineTrack: React.FC = () => {
       {/* Base surface - light color */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0005, 0]} receiveShadow>
         <planeGeometry args={[0.5, 0.4]} />
-        <meshStandardMaterial color="#E2E8F0" />
+        <meshStandardNodeMaterial color="#E2E8F0" />
       </mesh>
 
       {/* Wider track using tube for visibility (main line) */}
       <mesh>
         <tubeGeometry args={[curve, 100, 0.015, 8, false]} />
-        <meshStandardMaterial color="#1A1A1A" />
+        <meshStandardNodeMaterial color="#1A1A1A" />
       </mesh>
 
       {/* Start marker */}
       <mesh position={[0.2, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.02, 16]} />
-        <meshBasicMaterial color="#22C55E" />
+        <meshBasicNodeMaterial color="#22C55E" />
       </mesh>
 
       {/* Checkpoints */}
@@ -60,7 +60,7 @@ const LineTrack: React.FC = () => {
       ].map((pos, i) => (
         <mesh key={i} position={[pos[0], 0.002, pos[1]]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.015, 0.02, 16]} />
-          <meshBasicMaterial color="#F59E0B" />
+          <meshBasicNodeMaterial color="#F59E0B" />
         </mesh>
       ))}
     </group>
@@ -77,7 +77,7 @@ const MazeLayout: React.FC = () => {
       {/* Maze floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
         <planeGeometry args={[0.4, 0.4]} />
-        <meshStandardMaterial color="#334155" />
+        <meshStandardNodeMaterial color="#334155" />
       </mesh>
 
       {/* Outer walls */}
@@ -97,13 +97,13 @@ const MazeLayout: React.FC = () => {
       {/* Start zone */}
       <mesh position={[-0.15, 0.002, 0.15]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.06, 0.06]} />
-        <meshBasicMaterial color="#22C55E" transparent opacity={0.5} />
+        <meshBasicNodeMaterial color="#22C55E" transparent opacity={0.5} />
       </mesh>
 
       {/* End zone */}
       <mesh position={[0.15, 0.002, -0.15]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.06, 0.06]} />
-        <meshBasicMaterial color="#EF4444" transparent opacity={0.5} />
+        <meshBasicNodeMaterial color="#EF4444" transparent opacity={0.5} />
       </mesh>
     </group>
   );
@@ -116,36 +116,36 @@ const ObstacleCourse: React.FC = () => {
       {/* Course floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
         <planeGeometry args={[0.5, 0.4]} />
-        <meshStandardMaterial color="#374151" />
+        <meshStandardNodeMaterial color="#374151" />
       </mesh>
 
       {/* Static obstacles */}
       <mesh position={[0.05, 0.025, 0.08]} castShadow>
         <boxGeometry args={[0.04, 0.05, 0.04]} />
-        <meshStandardMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
+        <meshStandardNodeMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
       </mesh>
 
       <mesh position={[-0.08, 0.02, -0.05]} castShadow>
         <cylinderGeometry args={[0.025, 0.025, 0.04, 16]} />
-        <meshStandardMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
+        <meshStandardNodeMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
       </mesh>
 
       <mesh position={[0.0, 0.02, -0.1]} castShadow>
         <boxGeometry args={[0.08, 0.04, 0.03]} />
-        <meshStandardMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
+        <meshStandardNodeMaterial color="#6B7280" metalness={0.3} roughness={0.7} />
       </mesh>
 
       {/* Ramp */}
       <mesh position={[-0.12, 0.015, 0.1]} rotation={[0, 0, Math.PI / 12]} castShadow>
         <boxGeometry args={[0.08, 0.005, 0.06]} />
-        <meshStandardMaterial color="#9CA3AF" metalness={0.2} roughness={0.6} />
+        <meshStandardNodeMaterial color="#9CA3AF" metalness={0.2} roughness={0.6} />
       </mesh>
 
       {/* Guide markers */}
       {[0.15, 0.05, -0.05, -0.15].map((x, i) => (
         <mesh key={i} position={[x, 0.002, -0.18]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.01, 8]} />
-          <meshBasicMaterial color="#60A5FA" />
+          <meshBasicNodeMaterial color="#60A5FA" />
         </mesh>
       ))}
     </group>
@@ -159,20 +159,20 @@ const WarehouseLayout: React.FC = () => {
       {/* Warehouse floor with grid pattern */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
         <planeGeometry args={[0.5, 0.4]} />
-        <meshStandardMaterial color="#1F2937" />
+        <meshStandardNodeMaterial color="#1F2937" />
       </mesh>
 
       {/* Floor markings - lanes */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
         <planeGeometry args={[0.02, 0.4]} />
-        <meshBasicMaterial color="#FBBF24" transparent opacity={0.6} />
+        <meshBasicNodeMaterial color="#FBBF24" transparent opacity={0.6} />
       </mesh>
 
       {/* Pickup area indicator */}
       <group position={[0.15, 0, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
           <planeGeometry args={[0.12, 0.25]} />
-          <meshBasicMaterial color="#3B82F6" transparent opacity={0.15} />
+          <meshBasicNodeMaterial color="#3B82F6" transparent opacity={0.15} />
         </mesh>
         {/* Corner brackets */}
         {[
@@ -183,7 +183,7 @@ const WarehouseLayout: React.FC = () => {
         ].map((pos, i) => (
           <mesh key={i} position={[pos[0], 0.003, pos[1]]} rotation={[-Math.PI / 2, 0, Math.PI / 4 * (i % 2 ? 1 : -1)]}>
             <planeGeometry args={[0.02, 0.002]} />
-            <meshBasicMaterial color="#3B82F6" />
+            <meshBasicNodeMaterial color="#3B82F6" />
           </mesh>
         ))}
       </group>
@@ -192,31 +192,31 @@ const WarehouseLayout: React.FC = () => {
       <group position={[-0.15, 0, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
           <planeGeometry args={[0.12, 0.25]} />
-          <meshBasicMaterial color="#22C55E" transparent opacity={0.15} />
+          <meshBasicNodeMaterial color="#22C55E" transparent opacity={0.15} />
         </mesh>
       </group>
 
       {/* Mini shelves/racks */}
       <mesh position={[0.22, 0.02, 0.15]} castShadow>
         <boxGeometry args={[0.04, 0.04, 0.08]} />
-        <meshStandardMaterial color="#64748B" metalness={0.4} roughness={0.6} />
+        <meshStandardNodeMaterial color="#64748B" metalness={0.4} roughness={0.6} />
       </mesh>
 
       <mesh position={[0.22, 0.02, -0.15]} castShadow>
         <boxGeometry args={[0.04, 0.04, 0.08]} />
-        <meshStandardMaterial color="#64748B" metalness={0.4} roughness={0.6} />
+        <meshStandardNodeMaterial color="#64748B" metalness={0.4} roughness={0.6} />
       </mesh>
 
       {/* Conveyor representation */}
       <mesh position={[-0.22, 0.015, 0]} castShadow>
         <boxGeometry args={[0.04, 0.025, 0.35]} />
-        <meshStandardMaterial color="#374151" metalness={0.2} roughness={0.8} />
+        <meshStandardNodeMaterial color="#374151" metalness={0.2} roughness={0.8} />
       </mesh>
       {/* Conveyor rollers */}
       {[-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map((z, i) => (
         <mesh key={i} position={[-0.22, 0.028, z]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.006, 0.006, 0.045, 8]} />
-          <meshStandardMaterial color="#6B7280" metalness={0.6} roughness={0.4} />
+          <meshStandardNodeMaterial color="#6B7280" metalness={0.6} roughness={0.4} />
         </mesh>
       ))}
     </group>
@@ -230,7 +230,7 @@ const EmptyWorkspace: React.FC = () => {
       {/* Clean workspace surface */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
         <planeGeometry args={[0.5, 0.4]} />
-        <meshStandardMaterial color="#475569" metalness={0.1} roughness={0.8} />
+        <meshStandardNodeMaterial color="#475569" metalness={0.1} roughness={0.8} />
       </mesh>
 
       {/* Subtle grid markings */}
@@ -238,7 +238,7 @@ const EmptyWorkspace: React.FC = () => {
         [-0.1, 0, 0.1].map((z, j) => (
           <mesh key={`${i}-${j}`} position={[x, 0.002, z]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.008, 0.01, 16]} />
-            <meshBasicMaterial color="#64748B" transparent opacity={0.3} />
+            <meshBasicNodeMaterial color="#64748B" transparent opacity={0.3} />
           </mesh>
         ))
       )}
@@ -246,7 +246,7 @@ const EmptyWorkspace: React.FC = () => {
       {/* Center reference marker */}
       <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.015, 0.018, 32]} />
-        <meshBasicMaterial color="#60A5FA" transparent opacity={0.5} />
+        <meshBasicNodeMaterial color="#60A5FA" transparent opacity={0.5} />
       </mesh>
     </group>
   );

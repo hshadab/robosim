@@ -12,7 +12,7 @@
 
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { useAppStore } from '../../stores/useAppStore';
 
 // Gripper thresholds

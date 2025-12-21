@@ -4,7 +4,7 @@
  */
 
 import URDFLoader, { type URDFRobot, type URDFJoint, type URDFLink } from 'urdf-loader';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 export type { URDFRobot, URDFJoint, URDFLink };
 

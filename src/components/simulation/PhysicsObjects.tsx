@@ -2,7 +2,7 @@ import React, { useRef, useEffect, Suspense, useState, useMemo, useCallback } fr
 import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, BallCollider, CylinderCollider, ConvexHullCollider } from '@react-three/rapier';
 import { RoundedBox, useGLTF } from '@react-three/drei';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import type { SimObject, TargetZone } from '../../types';
 
 /** Shape classification for physics colliders */
@@ -241,7 +241,7 @@ const GLBPhysicsObject: React.FC<{
       <Suspense fallback={
         <mesh>
           <boxGeometry args={[object.scale, object.scale, object.scale]} />
-          <meshStandardMaterial
+          <meshStandardNodeMaterial
             color="#ffff00"
             emissive={emissiveColor}
             emissiveIntensity={emissiveIntensity}
@@ -328,7 +328,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
               radius={object.scale * 0.1}
               castShadow
             >
-              <meshStandardMaterial
+              <meshStandardNodeMaterial
                 color={object.color}
                 metalness={0.1}
                 roughness={0.6}
@@ -353,7 +353,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             <BallCollider args={[object.scale]} />
             <mesh castShadow>
               <sphereGeometry args={[object.scale, 24, 24]} />
-              <meshStandardMaterial
+              <meshStandardNodeMaterial
                 color={object.color}
                 metalness={0.2}
                 roughness={0.4}
@@ -383,7 +383,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             <CylinderCollider args={[cylHeight / 2, cylRadius]} />
             <mesh castShadow>
               <cylinderGeometry args={[cylRadius, cylRadius, cylHeight, 24]} />
-              <meshStandardMaterial
+              <meshStandardNodeMaterial
                 color={object.color}
                 metalness={0.15}
                 roughness={0.5}
@@ -426,7 +426,7 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
       {/* Visual indicator only - no physics */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[zone.size[0], zone.size[2]]} />
-        <meshStandardMaterial
+        <meshStandardNodeMaterial
           color={zone.color}
           transparent
           opacity={zone.isSatisfied ? 0.6 : 0.3}
@@ -443,7 +443,7 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
             32,
           ]}
         />
-        <meshBasicMaterial color={zone.color} transparent opacity={0.8} />
+        <meshBasicNodeMaterial color={zone.color} transparent opacity={0.8} />
       </mesh>
     </group>
   );

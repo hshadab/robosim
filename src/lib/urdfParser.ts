@@ -3,7 +3,7 @@
  * Parses Unified Robot Description Format (URDF) XML files
  */
 
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 // URDF Types
 export interface URDFOrigin {
