@@ -155,10 +155,9 @@ export interface JointAngles {
   wristRoll: number; // wrist_roll in degrees
 }
 
-// Jaw offset from gripper_frame (tip) - jaws are ~7.5cm behind tip toward gripper body
-// In gripper_link local coords, tip is at Z=-0.0981, jaws are at approximately Z=-0.025
-// So jaw offset from tip is about 0.0981 - 0.025 = 0.073m (7.3cm) in +Z direction (toward body)
-const JAW_OFFSET_FROM_TIP = 0.073; // meters
+// Gripper frame sits slightly behind the jaw tip and offset toward the fixed jaw.
+// Shift to the midpoint between jaw tips so grasping aligns with the visible jaws.
+const JAW_CENTER_OFFSET_FROM_FRAME: Vec3 = [0.0079, 0, -0.0068]; // meters (gripper_link frame)
 
 /**
  * Calculate gripper frame position using exact URDF transforms
@@ -223,9 +222,9 @@ export function calculateGripperPositionURDF(joints: JointAngles, useJawPosition
   // If useJawPosition, use a shorter offset to get jaw position instead of tip
   const gripperFrameXYZ = useJawPosition
     ? [
-        URDF_JOINTS.gripper_frame.xyz[0],
-        URDF_JOINTS.gripper_frame.xyz[1],
-        URDF_JOINTS.gripper_frame.xyz[2] + JAW_OFFSET_FROM_TIP, // Move toward body (less negative Z)
+        URDF_JOINTS.gripper_frame.xyz[0] + JAW_CENTER_OFFSET_FROM_FRAME[0],
+        URDF_JOINTS.gripper_frame.xyz[1] + JAW_CENTER_OFFSET_FROM_FRAME[1],
+        URDF_JOINTS.gripper_frame.xyz[2] + JAW_CENTER_OFFSET_FROM_FRAME[2],
       ] as Vec3
     : URDF_JOINTS.gripper_frame.xyz as Vec3;
 

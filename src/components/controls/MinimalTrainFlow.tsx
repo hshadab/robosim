@@ -251,9 +251,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Use larger scale for demo visibility
       const demoScale = 0.05; // 5cm cube - easier to see and grab
 
-      // Position in front of robot, easy reach
-      const x = 0.12;
-      const z = 0.15;
+      // Position in front of robot, within reachable workspace
+      // Based on FK analysis: arm reaches ~14cm in X-Z plane optimally
+      const x = 0.14;  // 14cm - slightly more to the side
+      const z = 0.12;  // 12cm - closer to robot (was 15cm which was just out of reach)
       const y = demoScale / 2; // Half height above table
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);

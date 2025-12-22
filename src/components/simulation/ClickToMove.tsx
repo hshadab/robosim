@@ -8,7 +8,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import type { JointState } from '../../types';
 import {
   calculateInverseKinematics,
@@ -45,7 +45,7 @@ const TargetMarker: React.FC<{
       {/* Outer ring */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.025, 0.003, 8, 32]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={reachable ? '#22c55e' : '#ef4444'}
           emissive={reachable ? '#22c55e' : '#ef4444'}
           emissiveIntensity={0.5}
@@ -55,7 +55,7 @@ const TargetMarker: React.FC<{
       {/* Inner cross */}
       <mesh>
         <boxGeometry args={[0.04, 0.002, 0.002]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={reachable ? '#22c55e' : '#ef4444'}
           emissive={reachable ? '#22c55e' : '#ef4444'}
           emissiveIntensity={0.3}
@@ -63,7 +63,7 @@ const TargetMarker: React.FC<{
       </mesh>
       <mesh>
         <boxGeometry args={[0.002, 0.002, 0.04]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={reachable ? '#22c55e' : '#ef4444'}
           emissive={reachable ? '#22c55e' : '#ef4444'}
           emissiveIntensity={0.3}
@@ -73,7 +73,7 @@ const TargetMarker: React.FC<{
       {/* Vertical line to ground */}
       <mesh position={[0, -position[1] / 2, 0]}>
         <boxGeometry args={[0.001, position[1], 0.001]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={reachable ? '#22c55e' : '#ef4444'}
           opacity={0.3}
           transparent
@@ -123,7 +123,7 @@ const ClickPlane: React.FC<{
       }}
     >
       <planeGeometry args={[1, 1]} />
-      <meshBasicNodeMaterial visible={false} />
+      <meshBasicMaterial visible={false} />
     </mesh>
   );
 };
@@ -139,7 +139,7 @@ const WorkspaceVisualization: React.FC<{ visible: boolean }> = ({ visible }) => 
       {/* Outer reach boundary (hemisphere) */}
       <mesh position={[0, bounds.minY + 0.14, 0]}>
         <sphereGeometry args={[bounds.maxReach, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color="#3b82f6"
           opacity={0.08}
           transparent
@@ -151,7 +151,7 @@ const WorkspaceVisualization: React.FC<{ visible: boolean }> = ({ visible }) => 
       {/* Inner unreachable zone */}
       <mesh position={[0, bounds.minY + 0.14, 0]}>
         <sphereGeometry args={[0.05, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color="#ef4444"
           opacity={0.1}
           transparent
@@ -163,7 +163,7 @@ const WorkspaceVisualization: React.FC<{ visible: boolean }> = ({ visible }) => 
       {/* Ground circle showing reach */}
       <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.05, bounds.maxReach, 64]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color="#3b82f6"
           opacity={0.15}
           transparent

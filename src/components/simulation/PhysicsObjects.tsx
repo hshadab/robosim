@@ -1,9 +1,11 @@
 import React, { useRef, useEffect, Suspense, useState, useMemo, useCallback } from 'react';
+import { useFrame } from '@react-three/fiber';
 import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, BallCollider, CylinderCollider, ConvexHullCollider } from '@react-three/rapier';
 import { RoundedBox, useGLTF } from '@react-three/drei';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
+import { useAppStore } from '../../stores/useAppStore';
 
 /** Shape classification for physics colliders */
 type ColliderShape = 'sphere' | 'box' | 'cylinder' | 'convex';
@@ -236,12 +238,13 @@ const GLBPhysicsObject: React.FC<{
       mass={mass}
       restitution={0.2}
       friction={0.7}
+      ccd={true}
     >
       {collider}
       <Suspense fallback={
         <mesh>
           <boxGeometry args={[object.scale, object.scale, object.scale]} />
-          <meshStandardNodeMaterial
+          <meshStandardMaterial
             color="#ffff00"
             emissive={emissiveColor}
             emissiveIntensity={emissiveIntensity}
@@ -289,25 +292,34 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
     }
   }, [object.isGrabbed]);
 
-  // Sync position when grabbed (object position is updated by GraspManager)
-  useEffect(() => {
+  // Use useFrame for real-time position syncing when grabbed
+  // Read directly from store to avoid React render cycle lag
+  useFrame(() => {
     if (rigidBodyRef.current && object.isGrabbed) {
-      rigidBodyRef.current.setNextKinematicTranslation({
-        x: object.position[0],
-        y: object.position[1],
-        z: object.position[2],
-      });
-      // Also set rotation
-      const euler = new THREE.Euler(object.rotation[0], object.rotation[1], object.rotation[2]);
+      // Get latest position from store (not props, to avoid 1-frame lag)
+      const storeObjects = useAppStore.getState().objects;
+      const currentObj = storeObjects.find(o => o.id === object.id);
+      if (!currentObj) return;
+
+      // Use setTranslation for immediate positioning (not setNextKinematicTranslation)
+      // This avoids the 1-frame lag where the object appears in the wrong position
+      rigidBodyRef.current.setTranslation({
+        x: currentObj.position[0],
+        y: currentObj.position[1],
+        z: currentObj.position[2],
+      }, true); // true = wake up the body
+
+      // Also set rotation immediately
+      const euler = new THREE.Euler(currentObj.rotation[0], currentObj.rotation[1], currentObj.rotation[2]);
       const quat = new THREE.Quaternion().setFromEuler(euler);
-      rigidBodyRef.current.setNextKinematicRotation({
+      rigidBodyRef.current.setRotation({
         x: quat.x,
         y: quat.y,
         z: quat.z,
         w: quat.w,
-      });
+      }, true);
     }
-  }, [object.position, object.rotation, object.isGrabbed]);
+  });
 
   const renderShape = () => {
     switch (object.type) {
@@ -321,6 +333,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             mass={0.5}
             restitution={0.1}
             friction={GRIPPABLE_FRICTION}
+            ccd={true}
           >
             <CuboidCollider args={[object.scale / 2, object.scale / 2, object.scale / 2]} />
             <RoundedBox
@@ -328,7 +341,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
               radius={object.scale * 0.1}
               castShadow
             >
-              <meshStandardNodeMaterial
+              <meshStandardMaterial
                 color={object.color}
                 metalness={0.1}
                 roughness={0.6}
@@ -349,11 +362,12 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             mass={0.3}
             restitution={0.2}
             friction={GRIPPABLE_FRICTION}
+            ccd={true}
           >
             <BallCollider args={[object.scale]} />
             <mesh castShadow>
               <sphereGeometry args={[object.scale, 24, 24]} />
-              <meshStandardNodeMaterial
+              <meshStandardMaterial
                 color={object.color}
                 metalness={0.2}
                 roughness={0.4}
@@ -383,7 +397,7 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             <CylinderCollider args={[cylHeight / 2, cylRadius]} />
             <mesh castShadow>
               <cylinderGeometry args={[cylRadius, cylRadius, cylHeight, 24]} />
-              <meshStandardNodeMaterial
+              <meshStandardMaterial
                 color={object.color}
                 metalness={0.15}
                 roughness={0.5}
@@ -426,7 +440,7 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
       {/* Visual indicator only - no physics */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[zone.size[0], zone.size[2]]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={zone.color}
           transparent
           opacity={zone.isSatisfied ? 0.6 : 0.3}
@@ -443,7 +457,7 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
             32,
           ]}
         />
-        <meshBasicNodeMaterial color={zone.color} transparent opacity={0.8} />
+        <meshBasicMaterial color={zone.color} transparent opacity={0.8} />
       </mesh>
     </group>
   );

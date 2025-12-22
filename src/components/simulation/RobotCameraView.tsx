@@ -6,7 +6,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import { useAppStore } from '../../stores/useAppStore';
 import type { JointState, RobotCameraConfig } from '../../types';
 
@@ -137,7 +137,7 @@ export const RobotCameraDisplay: React.FC<{
   return (
     <mesh position={position}>
       <planeGeometry args={size} />
-      <meshBasicNodeMaterial map={texture} />
+      <meshBasicMaterial map={texture} />
     </mesh>
   );
 };

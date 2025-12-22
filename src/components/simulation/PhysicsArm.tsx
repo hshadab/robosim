@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
 import { RoundedBox } from '@react-three/drei';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import type { JointState } from '../../types';
 
 interface PhysicsArmProps {
@@ -74,22 +74,22 @@ const Servo: React.FC<{
     <group position={position} rotation={rotation} scale={scale}>
       {/* Main servo body */}
       <RoundedBox args={[0.028, 0.04, 0.024]} radius={0.003} position={[0, 0, 0]} castShadow receiveShadow>
-        <meshPhysicalNodeMaterial {...MATERIALS.servoBlue} />
+        <meshPhysicalMaterial {...MATERIALS.servoBlue} />
       </RoundedBox>
       {/* Servo horn */}
       <mesh position={[0, 0.018, 0]} castShadow>
         <cylinderGeometry args={[0.008, 0.01, 0.004, 16]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.servoLight} />
+        <meshPhysicalMaterial {...MATERIALS.servoLight} />
       </mesh>
       {/* Center screw */}
       <mesh position={[0, 0.0205, 0]} castShadow>
         <cylinderGeometry args={[0.002, 0.002, 0.002, 8]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.chrome} />
+        <meshPhysicalMaterial {...MATERIALS.chrome} />
       </mesh>
       {/* Wire exit detail */}
       <mesh position={[0, -0.018, -0.01]} castShadow>
         <boxGeometry args={[0.008, 0.006, 0.004]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.blackPlastic} />
+        <meshPhysicalMaterial {...MATERIALS.blackPlastic} />
       </mesh>
     </group>
   );
@@ -106,16 +106,16 @@ const Bracket: React.FC<{
   return (
     <group position={position} rotation={rotation}>
       <RoundedBox args={[length, height, width]} radius={0.0015} castShadow receiveShadow>
-        <meshPhysicalNodeMaterial {...MATERIALS.aluminum} />
+        <meshPhysicalMaterial {...MATERIALS.aluminum} />
       </RoundedBox>
       {/* Mounting holes detail */}
       <mesh position={[length * 0.35, 0, 0]} castShadow>
         <cylinderGeometry args={[0.002, 0.002, height + 0.001, 8]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.bearing} />
+        <meshPhysicalMaterial {...MATERIALS.bearing} />
       </mesh>
       <mesh position={[-length * 0.35, 0, 0]} castShadow>
         <cylinderGeometry args={[0.002, 0.002, height + 0.001, 8]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.bearing} />
+        <meshPhysicalMaterial {...MATERIALS.bearing} />
       </mesh>
     </group>
   );
@@ -238,36 +238,36 @@ export const PhysicsArm: React.FC<PhysicsArmProps> = ({ joints }) => {
         <CylinderCollider args={[0.005, 0.06]} />
         <mesh castShadow receiveShadow>
           <cylinderGeometry args={[0.06, 0.068, 0.01, 48]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.blackPlastic} />
+          <meshPhysicalMaterial {...MATERIALS.blackPlastic} />
         </mesh>
         {/* Decorative ring */}
         <mesh position={[0, 0.003, 0]} castShadow>
           <torusGeometry args={[0.058, 0.002, 8, 48]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.chrome} />
+          <meshPhysicalMaterial {...MATERIALS.chrome} />
         </mesh>
       </RigidBody>
 
       {/* Bearing ring - polished steel */}
       <mesh position={[0, 0.012, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.05, 0.055, 0.008, 48]} />
-        <meshPhysicalNodeMaterial {...MATERIALS.bearing} />
+        <meshPhysicalMaterial {...MATERIALS.bearing} />
       </mesh>
 
       {/* Rotating base tower - kinematic */}
       <RigidBody ref={baseRef} type="kinematicPosition" position={[0, 0.045, 0]}>
         <CuboidCollider args={[0.025, 0.02, 0.02]} />
         <RoundedBox args={[0.05, 0.04, 0.04]} radius={0.003} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.aluminum} />
+          <meshPhysicalMaterial {...MATERIALS.aluminum} />
         </RoundedBox>
         <Servo position={[0, 0.025, 0]} scale={1.2} />
         <RoundedBox args={[0.06, 0.05, 0.045]} radius={0.004} position={[0, 0.055, 0]} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.aluminum} />
+          <meshPhysicalMaterial {...MATERIALS.aluminum} />
         </RoundedBox>
         {/* Ventilation slots detail */}
         {[-0.015, 0, 0.015].map((z, i) => (
           <mesh key={i} position={[0.031, 0.055, z]} castShadow>
             <boxGeometry args={[0.002, 0.03, 0.006]} />
-            <meshPhysicalNodeMaterial {...MATERIALS.blackPlastic} />
+            <meshPhysicalMaterial {...MATERIALS.blackPlastic} />
           </mesh>
         ))}
       </RigidBody>
@@ -299,10 +299,10 @@ export const PhysicsArm: React.FC<PhysicsArmProps> = ({ joints }) => {
         </group>
         {/* Gripper mount */}
         <RoundedBox args={[0.028, 0.015, 0.02]} radius={0.002} position={[0, wristLength, 0]} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.bearing} />
+          <meshPhysicalMaterial {...MATERIALS.bearing} />
         </RoundedBox>
         <RoundedBox args={[0.02, 0.012, 0.016]} radius={0.002} position={[0, wristLength + 0.006, 0]} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.servoBlue} />
+          <meshPhysicalMaterial {...MATERIALS.servoBlue} />
         </RoundedBox>
       </RigidBody>
 
@@ -310,17 +310,17 @@ export const PhysicsArm: React.FC<PhysicsArmProps> = ({ joints }) => {
       <RigidBody ref={leftFingerRef} type="kinematicPosition" position={[0.02, baseHeight + upperArmLength + forearmLength + wristLength, 0]}>
         <CuboidCollider args={[0.003, 0.025, 0.004]} position={[0, 0.018, 0]} />
         <RoundedBox args={[0.006, 0.036, 0.008]} radius={0.001} position={[0, 0.018, 0]} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.aluminum} />
+          <meshPhysicalMaterial {...MATERIALS.aluminum} />
         </RoundedBox>
         {/* Rubber grip pad */}
         <mesh position={[0, 0.034, 0]} castShadow>
           <sphereGeometry args={[0.007, 16, 16]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.gripperPad} />
+          <meshPhysicalMaterial {...MATERIALS.gripperPad} />
         </mesh>
         {/* Inner grip texture */}
         <mesh position={[-0.003, 0.034, 0]} castShadow>
           <boxGeometry args={[0.002, 0.01, 0.006]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.gripperPad} />
+          <meshPhysicalMaterial {...MATERIALS.gripperPad} />
         </mesh>
       </RigidBody>
 
@@ -328,17 +328,17 @@ export const PhysicsArm: React.FC<PhysicsArmProps> = ({ joints }) => {
       <RigidBody ref={rightFingerRef} type="kinematicPosition" position={[-0.02, baseHeight + upperArmLength + forearmLength + wristLength, 0]}>
         <CuboidCollider args={[0.003, 0.025, 0.004]} position={[0, 0.018, 0]} />
         <RoundedBox args={[0.006, 0.036, 0.008]} radius={0.001} position={[0, 0.018, 0]} castShadow receiveShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.aluminum} />
+          <meshPhysicalMaterial {...MATERIALS.aluminum} />
         </RoundedBox>
         {/* Rubber grip pad */}
         <mesh position={[0, 0.034, 0]} castShadow>
           <sphereGeometry args={[0.007, 16, 16]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.gripperPad} />
+          <meshPhysicalMaterial {...MATERIALS.gripperPad} />
         </mesh>
         {/* Inner grip texture */}
         <mesh position={[0.003, 0.034, 0]} castShadow>
           <boxGeometry args={[0.002, 0.01, 0.006]} />
-          <meshPhysicalNodeMaterial {...MATERIALS.gripperPad} />
+          <meshPhysicalMaterial {...MATERIALS.gripperPad} />
         </mesh>
       </RigidBody>
     </group>

@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import type { SensorReading, SensorVisualization, JointState } from '../../types';
 
 interface UltrasonicBeamProps {
@@ -54,7 +54,7 @@ const UltrasonicBeam: React.FC<UltrasonicBeamProps> = ({
       {/* Main cone beam */}
       <mesh ref={coneRef} position={[0, coneLength / 2, 0]}>
         <coneGeometry args={[coneRadius, coneLength, 16, 1, true]} />
-        <meshBasicNodeMaterial
+        <meshBasicMaterial
           color={color}
           transparent
           opacity={0.2}
@@ -66,7 +66,7 @@ const UltrasonicBeam: React.FC<UltrasonicBeamProps> = ({
       {/* Wireframe outline */}
       <mesh position={[0, coneLength / 2, 0]}>
         <coneGeometry args={[coneRadius, coneLength, 8, 1, true]} />
-        <meshBasicNodeMaterial
+        <meshBasicMaterial
           color={color}
           wireframe
           transparent
@@ -77,14 +77,14 @@ const UltrasonicBeam: React.FC<UltrasonicBeamProps> = ({
       {/* Detection point pulse */}
       <mesh ref={pulseRef} position={[0, coneLength, 0]}>
         <sphereGeometry args={[0.005, 8, 8]} />
-        <meshBasicNodeMaterial color={color} transparent opacity={0.8} />
+        <meshBasicMaterial color={color} transparent opacity={0.8} />
       </mesh>
 
       {/* Distance rings */}
       {[0.33, 0.66, 1.0].map((t, i) => (
         <mesh key={i} position={[0, coneLength * t, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[coneRadius * t * 0.9, coneRadius * t, 16]} />
-          <meshBasicNodeMaterial color={color} transparent opacity={0.15} />
+          <meshBasicMaterial color={color} transparent opacity={0.15} />
         </mesh>
       ))}
 
@@ -92,7 +92,7 @@ const UltrasonicBeam: React.FC<UltrasonicBeamProps> = ({
       {showLabel && (
         <mesh position={[0.025, coneLength / 2, 0]}>
           <sphereGeometry args={[0.008, 8, 8]} />
-          <meshBasicNodeMaterial color={color} transparent opacity={0.6} />
+          <meshBasicMaterial color={color} transparent opacity={0.6} />
         </mesh>
       )}
     </group>
@@ -120,7 +120,7 @@ const IRIndicator: React.FC<IRIndicatorProps> = ({ position, isActive }) => {
       {/* Sensor body */}
       <mesh>
         <cylinderGeometry args={[0.006, 0.008, 0.01, 12]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={isActive ? '#DC2626' : '#1F2937'}
           metalness={0.3}
           roughness={0.6}
@@ -132,7 +132,7 @@ const IRIndicator: React.FC<IRIndicatorProps> = ({ position, isActive }) => {
         <>
           <mesh ref={glowRef} position={[0, -0.008, 0]}>
             <coneGeometry args={[0.015, 0.02, 8]} />
-            <meshBasicNodeMaterial
+            <meshBasicMaterial
               color="#DC2626"
               transparent
               opacity={0.3}
@@ -141,7 +141,7 @@ const IRIndicator: React.FC<IRIndicatorProps> = ({ position, isActive }) => {
           {/* Detection beam */}
           <mesh position={[0, -0.02, 0]}>
             <cylinderGeometry args={[0.003, 0.01, 0.03, 8]} />
-            <meshBasicNodeMaterial
+            <meshBasicMaterial
               color="#DC2626"
               transparent
               opacity={0.15}
@@ -153,7 +153,7 @@ const IRIndicator: React.FC<IRIndicatorProps> = ({ position, isActive }) => {
       {/* Label indicator (small colored marker instead of text) */}
       <mesh position={[0, 0.015, 0]}>
         <boxGeometry args={[0.004, 0.002, 0.004]} />
-        <meshBasicNodeMaterial color={isActive ? '#DC2626' : '#64748B'} />
+        <meshBasicMaterial color={isActive ? '#DC2626' : '#64748B'} />
       </mesh>
     </group>
   );

@@ -28,6 +28,7 @@ import {
   CHALLENGES,
 } from '../config/environments';
 import { DEFAULT_HUMANOID_STATE } from '../components/simulation/defaults';
+import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 import { preventSelfCollision } from '../lib/selfCollision';
 import { generateSecureId } from '../lib/crypto';
 import { CONSOLE_CONFIG } from '../lib/config';
@@ -47,6 +48,8 @@ interface AppState {
   gripperWorldPosition: [number, number, number];
   // Gripper world quaternion - updated from Three.js scene each frame (for orientation-aware grab)
   gripperWorldQuaternion: [number, number, number, number]; // [x, y, z, w]
+  // Gripper minimum value - when holding an object, gripper can't close past this
+  gripperMinValue: number | null;
 
   // Simulation State
   simulation: SimulationState;
@@ -88,6 +91,7 @@ interface AppState {
   setHumanoid: (state: Partial<HumanoidState>) => void;
   setGripperWorldPosition: (position: [number, number, number]) => void;
   setGripperWorldQuaternion: (quaternion: [number, number, number, number]) => void;
+  setGripperMinValue: (value: number | null) => void;
   setIsAnimating: (isAnimating: boolean) => void;
   setSimulationStatus: (status: SimulationState['status']) => void;
   setSensors: (sensors: Partial<SensorReading>) => void;
@@ -132,6 +136,7 @@ const getDefaultState = () => {
     joints: robot.defaultPosition,
     gripperWorldPosition: [0, 0.15, 0] as [number, number, number], // Default gripper position
     gripperWorldQuaternion: [0, 0, 0, 1] as [number, number, number, number], // Identity quaternion
+    gripperMinValue: null as number | null, // Minimum gripper value when holding object
     wheeledRobot: {
       leftWheelSpeed: 0,
       rightWheelSpeed: 0,
@@ -259,10 +264,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ gripperWorldQuaternion: quaternion });
   },
 
+  setGripperMinValue: (value: number | null) => {
+    set({ gripperMinValue: value });
+  },
+
   setJoints: (joints: Partial<JointState>) => {
     const currentJoints = get().joints;
     const robot = get().selectedRobot;
     const robotId = get().selectedRobotId;
+    let gripperMinValue = get().gripperMinValue;
+    const objects = get().objects;
+    const gripperWorldPosition = get().gripperWorldPosition;
+    const gripperWorldQuaternion = get().gripperWorldQuaternion;
 
     // Apply individual joint limits
     let newJoints = { ...currentJoints };
@@ -274,6 +287,96 @@ export const useAppStore = create<AppState>((set, get) => ({
       } else {
         newJoints[jointKey] = value as number;
       }
+    }
+
+    // === FLOOR CONSTRAINT ===
+    // Temporarily disabled for debugging - the URDF-based FK might have issues
+    // TODO: Re-enable once we verify the FK matches the visual
+    /*
+    const predictedGripperPos = calculateGripperPositionURDF(newJoints);
+    const FLOOR_CLEARANCE = 0.005; // 5mm clearance above floor
+    if (predictedGripperPos[1] < FLOOR_CLEARANCE) {
+      // Gripper would go below floor - reject these joint changes
+      // Keep the old arm joints, only allow gripper changes
+      if (joints.gripper !== undefined) {
+        newJoints = { ...currentJoints, gripper: newJoints.gripper };
+      } else {
+        newJoints = { ...currentJoints };
+      }
+    }
+    */
+
+    // === PROACTIVE COLLISION DETECTION ===
+    // Check if gripper is closing and there's an object in the grasp zone
+    // This runs BEFORE the visual updates, preventing pass-through
+    const isGripperClosing = joints.gripper !== undefined && joints.gripper < currentJoints.gripper;
+    const hasGrabbedObject = objects.some(o => o.isGrabbed);
+
+    if (!hasGrabbedObject && gripperWorldPosition[0] !== 0) {
+      // Constants for collision detection - using correct sinusoidal geometry
+      const JAW_LOCAL_OFFSET = { x: -0.0079, y: 0, z: 0.0068 }; // Jaw center in gripper_frame local coords
+      const GRASP_ZONE = 0.10;   // 10cm detection zone
+      const JAW_LENGTH = 0.030;  // 3cm jaw length from pivot to tip
+      const GRIPPER_MIN_ANGLE_DEG = -10;  // Closed position
+      const GRIPPER_ANGLE_RANGE_DEG = 110; // -10° to +100°
+
+      // Calculate jaw position from gripper tip
+      const qx = gripperWorldQuaternion[0];
+      const qy = gripperWorldQuaternion[1];
+      const qz = gripperWorldQuaternion[2];
+      const qw = gripperWorldQuaternion[3];
+
+      // Rotate local jaw offset by gripper quaternion (no allocations)
+      const ox = JAW_LOCAL_OFFSET.x;
+      const oy = JAW_LOCAL_OFFSET.y;
+      const oz = JAW_LOCAL_OFFSET.z;
+      const uvx = qy * oz - qz * oy;
+      const uvy = qz * ox - qx * oz;
+      const uvz = qx * oy - qy * ox;
+      const uuvx = qy * uvz - qz * uvy;
+      const uuvy = qz * uvx - qx * uvz;
+      const uuvz = qx * uvy - qy * uvx;
+      const twoW = 2 * qw;
+      const jawOffsetX = ox + uvx * twoW + uuvx * 2;
+      const jawOffsetY = oy + uvy * twoW + uuvy * 2;
+      const jawOffsetZ = oz + uvz * twoW + uuvz * 2;
+
+      const jawX = gripperWorldPosition[0] + jawOffsetX;
+      const jawY = gripperWorldPosition[1] + jawOffsetY;
+      const jawZ = gripperWorldPosition[2] + jawOffsetZ;
+
+      // Find nearest graspable object in zone
+      for (const obj of objects) {
+        if (!obj.isGrabbable || obj.isGrabbed) continue;
+
+        const dx = obj.position[0] - jawX;
+        const dy = obj.position[1] - jawY;
+        const dz = obj.position[2] - jawZ;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (distance < GRASP_ZONE) {
+          // Object in grasp zone - calculate minimum gripper value using sinusoidal formula
+          const objectDiameter = obj.scale;
+          const targetGap = objectDiameter * 0.95;
+          const maxGap = 2 * JAW_LENGTH; // Maximum possible gap (when jaws at 90°)
+          const sinAngle = Math.min(1, targetGap / maxGap);
+          const angleRad = Math.asin(sinAngle);
+          const angleDeg = angleRad * (180 / Math.PI);
+          const minForObject = Math.max(0, Math.min(100, ((angleDeg - GRIPPER_MIN_ANGLE_DEG) / GRIPPER_ANGLE_RANGE_DEG) * 100));
+
+          // Set the more restrictive minimum
+          if (gripperMinValue === null || minForObject > gripperMinValue) {
+            gripperMinValue = minForObject;
+            set({ gripperMinValue: minForObject });
+          }
+          break; // Only need to check one object
+        }
+      }
+    }
+
+    // Apply gripper minimum when holding an object (prevents crushing)
+    if (gripperMinValue !== null && newJoints.gripper < gripperMinValue) {
+      newJoints.gripper = gripperMinValue;
     }
 
     // Apply self-collision prevention for articulated arms
@@ -565,5 +668,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Expose store to window for testing
 if (typeof window !== 'undefined') {
-  (window as unknown as { __ZUSTAND_STORE__: typeof useAppStore }).__ZUSTAND_STORE__ = useAppStore;
+  (window as unknown as { __ZUSTAND_STORE__: typeof useAppStore; __APP_STORE__: typeof useAppStore }).__ZUSTAND_STORE__ = useAppStore;
+  (window as unknown as { __APP_STORE__: typeof useAppStore }).__APP_STORE__ = useAppStore;
 }

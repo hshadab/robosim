@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import { useLidarSimulation, DEFAULT_LIDAR_CONFIG } from '../../hooks/useLidarSimulation';
 import type { LidarReading, LidarConfig, LidarPoint } from '../../types';
@@ -87,14 +87,14 @@ export const LidarVisualization3D: React.FC<LidarVisualization3DProps> = ({
       {hitPoints.map((point, i) => (
         <mesh key={i} position={point.position}>
           <sphereGeometry args={[pointSize, 8, 8]} />
-          <meshBasicNodeMaterial color={hitColor} />
+          <meshBasicMaterial color={hitColor} />
         </mesh>
       ))}
 
       {/* Lidar origin indicator */}
       <mesh position={[0, fullConfig.mountHeight, 0]}>
         <ringGeometry args={[0.01, 0.015, 32]} />
-        <meshBasicNodeMaterial color="#00ff00" side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#00ff00" side={THREE.DoubleSide} />
       </mesh>
     </group>
   );

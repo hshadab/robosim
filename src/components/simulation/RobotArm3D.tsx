@@ -1,19 +1,14 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Canvas, useLoader, extend } from '@react-three/fiber';
+import { Canvas, useLoader } from '@react-three/fiber';
 import {
   OrbitControls,
   PerspectiveCamera,
+  Environment,
+  ContactShadows,
+  Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
-import * as THREE from 'three/webgpu';
-import { WebGPURenderer } from 'three/webgpu';
-
-// Extend R3F with WebGPU module classes
-extend({
-  MeshStandardNodeMaterial: THREE.MeshStandardNodeMaterial,
-  MeshBasicNodeMaterial: THREE.MeshBasicNodeMaterial,
-  MeshPhysicalNodeMaterial: THREE.MeshPhysicalNodeMaterial,
-});
+import * as THREE from 'three';
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
 import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
@@ -26,6 +21,59 @@ import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
 import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
 import type { AIGeneratedObject } from '../../lib/aiImageGeneration';
+import { useAppStore } from '../../stores/useAppStore';
+
+// Debug panel for gripper physics debugging
+const GripperDebugPanel: React.FC = () => {
+  const gripperWorldPosition = useAppStore((state) => state.gripperWorldPosition);
+  const gripperWorldQuaternion = useAppStore((state) => state.gripperWorldQuaternion);
+  const joints = useAppStore((state) => state.joints);
+  const [visible, setVisible] = useState(true);
+
+  if (!visible) {
+    return (
+      <button
+        onClick={() => setVisible(true)}
+        className="absolute top-3 right-3 bg-yellow-600 text-white text-xs px-2 py-1 rounded"
+      >
+        Show Debug
+      </button>
+    );
+  }
+
+  const [x, y, z] = gripperWorldPosition;
+  const [qx, qy, qz, qw] = gripperWorldQuaternion;
+
+  return (
+    <div className="absolute top-3 right-3 bg-yellow-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-yellow-600 text-xs font-mono max-w-xs">
+      <div className="flex justify-between items-center mb-2">
+        <span className="font-bold text-yellow-400">🔧 GRIPPER DEBUG</span>
+        <button onClick={() => setVisible(false)} className="text-yellow-400 hover:text-white">✕</button>
+      </div>
+
+      <div className="text-yellow-200 mb-1">Store Position (cm):</div>
+      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2">
+        X: {(x * 100).toFixed(1)} | Y: {(y * 100).toFixed(1)} | Z: {(z * 100).toFixed(1)}
+      </div>
+
+      <div className="text-yellow-200 mb-1">Store Quaternion:</div>
+      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2 text-[10px]">
+        [{qx.toFixed(3)}, {qy.toFixed(3)}, {qz.toFixed(3)}, {qw.toFixed(3)}]
+      </div>
+
+      <div className="text-yellow-200 mb-1">Joints:</div>
+      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2">
+        B:{joints.base.toFixed(0)}° S:{joints.shoulder.toFixed(0)}° E:{joints.elbow.toFixed(0)}° W:{joints.wrist.toFixed(0)}°
+      </div>
+
+      <div className="text-yellow-200 mb-1">Gripper: <span className="text-white">{joints.gripper.toFixed(0)}%</span></div>
+
+      <div className="text-yellow-400 text-[10px] mt-2 border-t border-yellow-700 pt-2">
+        Green/Blue boxes should be at gripper jaws
+      </div>
+    </div>
+  );
+};
 
 interface RobotArm3DProps {
   joints: JointState;
@@ -73,7 +121,7 @@ const TexturedFloor: React.FC<{ textureUrl: string }> = ({ textureUrl }) => {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
       <planeGeometry args={[2, 2]} />
-      <meshStandardNodeMaterial map={texture} roughness={0.8} metalness={0.2} />
+      <meshStandardMaterial map={texture} roughness={0.8} metalness={0.2} />
     </mesh>
   );
 };
@@ -88,7 +136,7 @@ const WorkspaceGrid: React.FC<{ size?: number; textureUrl?: string | null }> = (
       ) : (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]} receiveShadow>
           <planeGeometry args={[2, 2]} />
-          <meshStandardNodeMaterial color="#334155" roughness={0.8} metalness={0.2} />
+          <meshStandardMaterial color="#334155" roughness={0.8} metalness={0.2} />
         </mesh>
       )}
       {/* Grid overlay - hidden when texture is applied */}
@@ -106,7 +154,7 @@ const AIBackground: React.FC<{ imageUrl: string }> = ({ imageUrl }) => {
   return (
     <mesh scale={[-1, 1, 1]}>
       <sphereGeometry args={[50, 32, 32]} />
-      <meshBasicNodeMaterial map={texture} side={THREE.BackSide} />
+      <meshBasicMaterial map={texture} side={THREE.BackSide} />
     </mesh>
   );
 };
@@ -134,7 +182,7 @@ const AIObject3D: React.FC<{ aiObject: AIGeneratedObject }> = ({ aiObject }) => 
       receiveShadow
     >
       {getGeometry()}
-      <meshStandardNodeMaterial map={texture} roughness={0.6} metalness={0.1} />
+      <meshStandardMaterial map={texture} roughness={0.6} metalness={0.1} />
     </mesh>
   );
 };
@@ -196,7 +244,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const [contextLost, setContextLost] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<WebGPURenderer | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
   // AI-generated content state
   const [aiBackgroundUrl, setAiBackgroundUrl] = useState<string | null>(null);
@@ -238,56 +286,25 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
 
   const gripperPosition = calculateGripperPosition(joints);
 
-  // Store event listener refs for cleanup
-  const contextLostHandlerRef = useRef<((event: Event) => void) | null>(null);
-  const contextRestoredHandlerRef = useRef<(() => void) | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCreated = useCallback((state: any) => {
-    const gl = state.gl as WebGPURenderer;
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
     rendererRef.current = gl;
     const canvas = gl.domElement;
-    canvasRef.current = canvas;
 
-    // Reduce GPU pressure
+    // Reduce GPU pressure to prevent context loss
     gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+    gl.shadowMap.type = THREE.BasicShadowMap;
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
 
-    // Shadow settings - use type assertion for WebGPU/WebGL compatibility
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const shadowMap = gl.shadowMap as any;
-    if (shadowMap) {
-      shadowMap.type = THREE.BasicShadowMap;
-      shadowMap.autoUpdate = false;
-      shadowMap.needsUpdate = true;
-    }
-
-    // Create handlers with refs for cleanup
-    contextLostHandlerRef.current = (event: Event) => {
+    canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
+      console.warn('WebGL context lost, will attempt recovery...');
       setContextLost(true);
-    };
-    contextRestoredHandlerRef.current = () => {
+    });
+
+    canvas.addEventListener('webglcontextrestored', () => {
       setContextLost(false);
-    };
-
-    canvas.addEventListener('webglcontextlost', contextLostHandlerRef.current);
-    canvas.addEventListener('webglcontextrestored', contextRestoredHandlerRef.current);
-  }, []);
-
-  // Cleanup event listeners on unmount
-  useEffect(() => {
-    return () => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        if (contextLostHandlerRef.current) {
-          canvas.removeEventListener('webglcontextlost', contextLostHandlerRef.current);
-        }
-        if (contextRestoredHandlerRef.current) {
-          canvas.removeEventListener('webglcontextrestored', contextRestoredHandlerRef.current);
-        }
-      }
-    };
+    });
   }, []);
 
   const [canvasKey, setCanvasKey] = useState(0);
@@ -317,7 +334,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   const getCameraPosition = (): [number, number, number] => {
     switch (activeRobotType) {
       case 'arm':
-        return [0.3, 0.25, 0.3];
+        return [0.5, 0.4, 0.5];  // Zoomed out to see full arm and objects
       case 'wheeled':
         return [0.4, 0.3, 0.4];
       case 'drone':
@@ -325,7 +342,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
       case 'humanoid':
         return [0.8, 0.6, 0.8];
       default:
-        return [0.3, 0.25, 0.3];
+        return [0.5, 0.4, 0.5];
     }
   };
 
@@ -350,18 +367,14 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         key={canvasKey}
         shadows
         dpr={[1, 1.5]}
-        gl={async (props) => {
-          // Create WebGPU renderer with automatic WebGL fallback
-          const renderer = new WebGPURenderer({
-            canvas: props.canvas as HTMLCanvasElement,
-            antialias: true,
-            alpha: false,
-            powerPreference: 'high-performance',
-          });
-          await renderer.init();
-          renderer.toneMapping = THREE.ACESFilmicToneMapping;
-          renderer.toneMappingExposure = 1.1;
-          return renderer;
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: 'default',
+          failIfMajorPerformanceCaveat: false,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.1,
+          preserveDrawingBuffer: true,
         }}
         onCreated={handleCreated}
       >
@@ -377,9 +390,37 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           enableZoom={true}
           enableRotate={true}
           minDistance={0.15}
-          maxDistance={2}
+          maxDistance={3}
           target={getCameraTarget()}
         />
+
+        {/* Studio lighting environment for PBR reflections */}
+        <Environment resolution={256}>
+          <group rotation={[-Math.PI / 3, 0, 0]}>
+            <Lightformer
+              form="circle"
+              intensity={4}
+              rotation-x={Math.PI / 2}
+              position={[0, 5, -2]}
+              scale={3}
+            />
+            <Lightformer
+              form="circle"
+              intensity={2}
+              rotation-y={Math.PI / 2}
+              position={[-5, 1, -1]}
+              scale={2}
+            />
+            <Lightformer
+              form="ring"
+              color="#4060ff"
+              intensity={1}
+              rotation-y={Math.PI / 2}
+              position={[3, 2, 2]}
+              scale={2}
+            />
+          </group>
+        </Environment>
 
         {/* Key light */}
         <directionalLight
@@ -398,14 +439,25 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
         {/* Rim light */}
         <directionalLight position={[0, 3, -5]} intensity={0.6} color="#ffd6a5" />
 
-        {/* Ambient light - increased to compensate for removed Environment */}
-        <ambientLight intensity={0.4} />
+        {/* Ambient for shadow fill */}
+        <ambientLight intensity={0.15} />
 
-        {/* Simple shadow plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
-          <circleGeometry args={[0.8, 32]} />
-          <meshStandardNodeMaterial color="#000000" transparent opacity={0.3} depthWrite={false} />
-        </mesh>
+        {/* Contact shadows for grounding - all robot types */}
+        <ContactShadows
+          position={[
+            activeRobotType === 'wheeled' ? wheeledRobot.position.x :
+            activeRobotType === 'drone' ? drone.position.x : 0,
+            0,
+            activeRobotType === 'wheeled' ? wheeledRobot.position.z :
+            activeRobotType === 'drone' ? drone.position.z : 0
+          ]}
+          opacity={activeRobotType === 'drone' && drone.position.y > 0.1 ? 0.3 : 0.5}
+          scale={activeRobotType === 'humanoid' ? 1.5 : 1}
+          blur={2}
+          far={activeRobotType === 'humanoid' ? 1 : 0.5}
+          resolution={256}
+          color="#000000"
+        />
 
         <Physics gravity={[0, -9.81, 0]} timeStep={1/60}>
           <FloorCollider />
@@ -519,6 +571,9 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
             <div className="text-xs text-slate-400">Gripper</div>
             <div className="text-lg font-bold text-orange-500">{joints.gripper.toFixed(0)}%</div>
           </div>
+
+          {/* Debug panel for gripper physics */}
+          <GripperDebugPanel />
         </>
       )}
 

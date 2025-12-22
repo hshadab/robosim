@@ -1,7 +1,7 @@
 import React, { useRef, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox, useGLTF } from '@react-three/drei';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
 
 // GLB Model component - hooks must be called unconditionally
@@ -68,7 +68,7 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
             rotation={object.rotation}
             castShadow
           >
-            <meshStandardNodeMaterial
+            <meshStandardMaterial
               color={object.color}
               metalness={0.1}
               roughness={0.6}
@@ -87,7 +87,7 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
             castShadow
           >
             <sphereGeometry args={[object.scale, 24, 24]} />
-            <meshStandardNodeMaterial
+            <meshStandardMaterial
               color={object.color}
               metalness={0.2}
               roughness={0.4}
@@ -106,7 +106,7 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
             castShadow
           >
             <cylinderGeometry args={[object.scale, object.scale, object.scale * 2, 24]} />
-            <meshStandardNodeMaterial
+            <meshStandardMaterial
               color={object.color}
               metalness={0.15}
               roughness={0.5}
@@ -124,7 +124,7 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
           <Suspense fallback={
             <mesh position={object.position}>
               <boxGeometry args={[0.1, 0.1, 0.1]} />
-              <meshStandardNodeMaterial color="#ffff00" />
+              <meshStandardMaterial color="#ffff00" />
             </mesh>
           }>
             <GLBModel
@@ -170,7 +170,7 @@ export const TargetZoneMesh: React.FC<TargetZoneMeshProps> = ({ zone }) => {
       {/* Zone base */}
       <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[zone.size[0], zone.size[2]]} />
-        <meshStandardNodeMaterial
+        <meshStandardMaterial
           color={zone.color}
           transparent
           opacity={0.4}
@@ -187,7 +187,7 @@ export const TargetZoneMesh: React.FC<TargetZoneMeshProps> = ({ zone }) => {
             32,
           ]}
         />
-        <meshBasicNodeMaterial color={zone.color} transparent opacity={0.8} />
+        <meshBasicMaterial color={zone.color} transparent opacity={0.8} />
       </mesh>
 
       {/* Corner markers */}
@@ -199,7 +199,7 @@ export const TargetZoneMesh: React.FC<TargetZoneMeshProps> = ({ zone }) => {
       ].map((corner, i) => (
         <mesh key={i} position={[corner[0] * 0.9, 0.002, corner[1] * 0.9]}>
           <boxGeometry args={[0.01, 0.002, 0.01]} />
-          <meshBasicNodeMaterial color={zone.color} />
+          <meshBasicMaterial color={zone.color} />
         </mesh>
       ))}
 
@@ -207,7 +207,7 @@ export const TargetZoneMesh: React.FC<TargetZoneMeshProps> = ({ zone }) => {
       {zone.isSatisfied && (
         <mesh position={[0, 0.02, 0]}>
           <torusGeometry args={[0.02, 0.005, 8, 24]} />
-          <meshStandardNodeMaterial color="#22C55E" emissive="#22C55E" emissiveIntensity={0.5} />
+          <meshStandardMaterial color="#22C55E" emissive="#22C55E" emissiveIntensity={0.5} />
         </mesh>
       )}
     </group>

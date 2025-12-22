@@ -7,7 +7,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox, Cylinder } from '@react-three/drei';
-import type * as THREE from 'three/webgpu';
+import type * as THREE from 'three';
 import type { WheeledRobotState, WheeledRobotConfig } from '../../types';
 import { WHEELED_ROBOT_CONFIG } from './defaults';
 
@@ -97,15 +97,15 @@ const Wheel: React.FC<{
       <group ref={wheelRef}>
         {/* Tire - rubber material */}
         <Cylinder args={[radius, radius, 0.015, 24]} castShadow>
-          <meshStandardNodeMaterial {...MATERIALS.tire} />
+          <meshStandardMaterial {...MATERIALS.tire} />
         </Cylinder>
         {/* Hub - polished metal */}
         <Cylinder args={[radius * 0.4, radius * 0.4, 0.016, 16]} position={[0, 0.001, 0]} castShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.wheelHub} />
+          <meshPhysicalMaterial {...MATERIALS.wheelHub} />
         </Cylinder>
         {/* Center cap - chrome */}
         <Cylinder args={[radius * 0.15, radius * 0.15, 0.017, 12]} position={[0, 0.002, 0]}>
-          <meshPhysicalNodeMaterial {...MATERIALS.chrome} />
+          <meshPhysicalMaterial {...MATERIALS.chrome} />
         </Cylinder>
         {/* Tread pattern */}
         {Array.from({ length: 12 }).map((_, i) => (
@@ -119,7 +119,7 @@ const Wheel: React.FC<{
             rotation={[Math.PI / 2, 0, (i / 12) * Math.PI * 2]}
           >
             <boxGeometry args={[0.003, 0.016, 0.006]} />
-            <meshStandardNodeMaterial {...MATERIALS.tire} />
+            <meshStandardMaterial {...MATERIALS.tire} />
           </mesh>
         ))}
       </group>
@@ -138,14 +138,14 @@ const UltrasonicSensor: React.FC<{
     <group position={position}>
       {/* Servo mount */}
       <RoundedBox args={[0.02, 0.015, 0.015]} radius={0.002} castShadow>
-        <meshPhysicalNodeMaterial {...MATERIALS.bodyAccent} />
+        <meshPhysicalMaterial {...MATERIALS.bodyAccent} />
       </RoundedBox>
 
       {/* Rotating sensor head */}
       <group rotation={[0, servoRad, 0]} position={[0, 0.012, 0]}>
         {/* Sensor bracket */}
         <RoundedBox args={[0.025, 0.008, 0.02]} radius={0.001} castShadow>
-          <meshPhysicalNodeMaterial {...MATERIALS.body} />
+          <meshPhysicalMaterial {...MATERIALS.body} />
         </RoundedBox>
 
         {/* Ultrasonic "eyes" - metallic sensor transducers */}
@@ -155,7 +155,7 @@ const UltrasonicSensor: React.FC<{
           rotation={[Math.PI / 2, 0, 0]}
           castShadow
         >
-          <meshPhysicalNodeMaterial {...MATERIALS.sensor} />
+          <meshPhysicalMaterial {...MATERIALS.sensor} />
         </Cylinder>
         <Cylinder
           args={[0.006, 0.006, 0.01, 16]}
@@ -163,16 +163,16 @@ const UltrasonicSensor: React.FC<{
           rotation={[Math.PI / 2, 0, 0]}
           castShadow
         >
-          <meshPhysicalNodeMaterial {...MATERIALS.sensor} />
+          <meshPhysicalMaterial {...MATERIALS.sensor} />
         </Cylinder>
         {/* Sensor mesh grilles */}
         <mesh position={[-0.008, 0.004, 0.016]} rotation={[Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.005, 16]} />
-          <meshStandardNodeMaterial color="#0d9488" metalness={0.8} roughness={0.3} />
+          <meshStandardMaterial color="#0d9488" metalness={0.8} roughness={0.3} />
         </mesh>
         <mesh position={[0.008, 0.004, 0.016]} rotation={[Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.005, 16]} />
-          <meshStandardNodeMaterial color="#0d9488" metalness={0.8} roughness={0.3} />
+          <meshStandardMaterial color="#0d9488" metalness={0.8} roughness={0.3} />
         </mesh>
       </group>
     </group>
@@ -208,7 +208,7 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
             radius={0.008}
             castShadow
           >
-            <meshPhysicalNodeMaterial {...MATERIALS.body} />
+            <meshPhysicalMaterial {...MATERIALS.body} />
           </RoundedBox>
 
           {/* Top cover - accent color */}
@@ -218,20 +218,20 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
             position={[0, config.bodyHeight / 2 + 0.005, 0]}
             castShadow
           >
-            <meshPhysicalNodeMaterial {...MATERIALS.bodyAccent} />
+            <meshPhysicalMaterial {...MATERIALS.bodyAccent} />
           </RoundedBox>
 
           {/* PCB visible through slots */}
           <mesh position={[0, config.bodyHeight / 2 - 0.01, 0]} castShadow>
             <boxGeometry args={[config.bodyLength * 0.6, 0.002, config.bodyWidth * 0.6]} />
-            <meshStandardNodeMaterial {...MATERIALS.pcb} />
+            <meshStandardMaterial {...MATERIALS.pcb} />
           </mesh>
 
           {/* Component traces on PCB */}
           {Array.from({ length: 5 }).map((_, i) => (
             <mesh key={i} position={[(i - 2) * 0.015, config.bodyHeight / 2 - 0.009, 0]}>
               <boxGeometry args={[0.002, 0.001, config.bodyWidth * 0.4]} />
-              <meshStandardNodeMaterial color="#b8860b" metalness={0.9} roughness={0.2} />
+              <meshStandardMaterial color="#b8860b" metalness={0.9} roughness={0.2} />
             </mesh>
           ))}
 
@@ -242,19 +242,19 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
             position={[config.bodyLength / 2 - 0.01, 0, 0]}
             castShadow
           >
-            <meshPhysicalNodeMaterial {...MATERIALS.bodyAccent} />
+            <meshPhysicalMaterial {...MATERIALS.bodyAccent} />
           </RoundedBox>
 
           {/* Chrome trim line */}
           <mesh position={[0, config.bodyHeight / 2 + 0.011, 0]}>
             <boxGeometry args={[config.bodyLength * 0.7, 0.002, 0.003]} />
-            <meshPhysicalNodeMaterial {...MATERIALS.chrome} />
+            <meshPhysicalMaterial {...MATERIALS.chrome} />
           </mesh>
 
           {/* Status LEDs */}
           <mesh position={[config.bodyLength / 2 - 0.02, config.bodyHeight / 2, 0.02]}>
             <sphereGeometry args={[0.004, 12, 12]} />
-            <meshStandardNodeMaterial
+            <meshStandardMaterial
               color={state.leftWheelSpeed !== 0 || state.rightWheelSpeed !== 0 ? '#22c55e' : '#4b5563'}
               emissive={state.leftWheelSpeed !== 0 || state.rightWheelSpeed !== 0 ? '#22c55e' : '#000'}
               emissiveIntensity={0.8}
@@ -262,7 +262,7 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
           </mesh>
           <mesh position={[config.bodyLength / 2 - 0.02, config.bodyHeight / 2, -0.02]}>
             <sphereGeometry args={[0.004, 12, 12]} />
-            <meshStandardNodeMaterial color={COLORS.led} emissive={COLORS.led} emissiveIntensity={0.5} />
+            <meshStandardMaterial color={COLORS.led} emissive={COLORS.led} emissiveIntensity={0.5} />
           </mesh>
 
           {/* Ultrasonic sensor on top */}
@@ -275,30 +275,30 @@ export const WheeledRobot3D: React.FC<WheeledRobot3DProps> = ({
           <group position={[-config.bodyLength / 2 + 0.02, -config.bodyHeight / 2 - 0.005, 0]}>
             <mesh castShadow>
               <sphereGeometry args={[0.01, 16, 16]} />
-              <meshPhysicalNodeMaterial {...MATERIALS.caster} />
+              <meshPhysicalMaterial {...MATERIALS.caster} />
             </mesh>
             {/* Caster housing */}
             <mesh position={[0, 0.008, 0]}>
               <cylinderGeometry args={[0.012, 0.015, 0.008, 16]} />
-              <meshPhysicalNodeMaterial {...MATERIALS.wheelHub} />
+              <meshPhysicalMaterial {...MATERIALS.wheelHub} />
             </mesh>
           </group>
 
           {/* Battery indicator on side */}
           <mesh position={[0, 0, config.bodyWidth / 2 + 0.001]} rotation={[0, 0, 0]}>
             <planeGeometry args={[0.04, 0.015]} />
-            <meshStandardNodeMaterial color="#1f2937" roughness={0.7} />
+            <meshStandardMaterial color="#1f2937" roughness={0.7} />
           </mesh>
           <mesh position={[0, 0, config.bodyWidth / 2 + 0.002]} rotation={[0, 0, 0]}>
             <planeGeometry args={[0.035, 0.01]} />
-            <meshStandardNodeMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.2} />
+            <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.2} />
           </mesh>
 
           {/* Ventilation slots on sides */}
           {Array.from({ length: 4 }).map((_, i) => (
             <mesh key={i} position={[-0.02 + i * 0.015, 0, config.bodyWidth / 2 - 0.005]}>
               <boxGeometry args={[0.008, config.bodyHeight * 0.4, 0.002]} />
-              <meshStandardNodeMaterial color="#0f172a" />
+              <meshStandardMaterial color="#0f172a" />
             </mesh>
           ))}
         </group>
