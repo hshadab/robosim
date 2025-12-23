@@ -81,18 +81,15 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     const shapeVel = { x: deltaX, y: deltaY, z: deltaZ };
 
     try {
+      const queryFilter = excludeRigidBody ? { excludeRigidBody: excludeRigidBody.handle } : undefined;
       const hit = world.castShape(
         shapePos,
         shapeRot,
         shapeVel,
         jawShape,
-        0.0,
         1.0,
         true,
-        undefined,
-        undefined,
-        excludeRigidBody ? excludeRigidBody.handle : undefined,
-        undefined
+        queryFilter
       );
 
       if (hit && hit.time_of_impact < 1.0) {
@@ -102,10 +99,11 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
           y: currentPos.y + deltaY * safeToi,
           z: currentPos.z + deltaZ * safeToi,
         };
+        console.log(`[CollisionGuard] Collision detected at toi=${hit.time_of_impact.toFixed(3)}, clamping movement`);
         return applyFloorClamp(clampedPos);
       }
-    } catch {
-      // Fallback to floor clamping only on error
+    } catch (e) {
+      console.warn('[CollisionGuard] castShape failed:', e);
     }
 
     return applyFloorClamp(targetPos);
