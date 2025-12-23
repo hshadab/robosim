@@ -45,6 +45,7 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
+import { calculateGripperPositionURDF } from '../simulation/SO101KinematicsURDF';
 
 const log = createLogger('TrainFlow');
 
@@ -325,7 +326,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // This should place gripper at 27.8cm reach, 2.5cm height - right at the cube
       await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
+      
+      // DIAGNOSTIC: Compare FK prediction vs actual URDF position
+      const graspJoints = { base: 0, shoulder: 19, elbow: 75, wrist: -77, wristRoll: 0 };
+      const fkPredicted = calculateGripperPositionURDF(graspJoints);
+      console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
+      console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
+      console.log(`[DemoPick] CUBE TARGET:  [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
 
       // Step 3e: Close gripper to grab cube
       await smoothMove({ gripper: 0 }, 500);
