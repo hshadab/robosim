@@ -316,16 +316,19 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Move to pre-grasp position (lower, extending toward cube)
-      // Using variant-1: shoulder=20, elbow=73, wrist=-75 → [28.1, 2.1, 0]cm - close to optimal-low
-      await smoothMove({ base: 0, shoulder: 10, elbow: 70, wrist: -70, gripper: 100 }, 500);
+      // Step 3c: Move to pre-grasp position DIRECTLY ABOVE the cube
+      // CRITICAL: Pre-grasp must have SAME X as grasp, only higher Y
+      // This ensures purely VERTICAL descent - no horizontal sweep through cube
+      // Target: ~[28, 5.5, 0]cm - same X as grasp (27.8cm), higher Y (5.5cm vs 2.5cm)
+      // Using shoulder=5 gives slightly more extension at same height as shoulder=10 w/ different elbow
+      await smoothMove({ base: 0, shoulder: 5, elbow: 50, wrist: -40, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position using optimal-low config
+      // Step 3d: Move to grasp position - VERTICAL descent only
       // optimal-low: shoulder=19, elbow=75, wrist=-77 → [27.8, 2.5, 0]cm
-      // Cube near edge is at 27.8cm, so gripper arrives at cube surface
-      await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 500);
+      // The gripper should descend straight down from pre-grasp
+      await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
