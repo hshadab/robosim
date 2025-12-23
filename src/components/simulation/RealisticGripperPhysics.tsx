@@ -9,11 +9,11 @@
  * 5. Collision detection prevents penetration of floor/objects
  */
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RapierRigidBody } from '@react-three/rapier';
-import { RigidBody, CuboidCollider, useRapier } from '@react-three/rapier';
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { useAppStore } from '../../stores/useAppStore';
 import type { JointState } from '../../types';
 
@@ -47,74 +47,36 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
   const gripperQuat = useRef(new THREE.Quaternion());
   const jawOffset = useRef(new THREE.Vector3());
 
-  const { world, rapier } = useRapier();
-
-  const jawShape = useMemo(() => {
-    if (!rapier) return null;
-    return new rapier.Cuboid(JAW_THICKNESS / 2, JAW_LENGTH / 2, JAW_DEPTH / 2);
-  }, [rapier]);
-
   const prevFixedPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0.2, z: 0 });
   const prevMovingPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0.2, z: 0 });
 
-  const castShapeForCollision = (
-    currentPos: { x: number; y: number; z: number },
-    targetPos: { x: number; y: number; z: number },
-    rotation: THREE.Quaternion,
-    excludeRigidBody: RapierRigidBody | null
+  const clampToSafePosition = (
+    targetPos: { x: number; y: number; z: number }
   ): { x: number; y: number; z: number } => {
-    if (!world || !rapier || !jawShape) {
-      return applyFloorClamp(targetPos);
-    }
-
-    const deltaX = targetPos.x - currentPos.x;
-    const deltaY = targetPos.y - currentPos.y;
-    const deltaZ = targetPos.z - currentPos.z;
-
-    const deltaMag = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
-    if (deltaMag < 0.0001) {
-      return applyFloorClamp(targetPos);
-    }
-
-    const shapePos = { x: currentPos.x, y: currentPos.y, z: currentPos.z };
-    const shapeRot = { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w };
-    const shapeVel = { x: deltaX, y: deltaY, z: deltaZ };
-
-    try {
-      const queryFilter = excludeRigidBody ? { excludeRigidBody: excludeRigidBody.handle } : undefined;
-      const hit = world.castShape(
-        shapePos,
-        shapeRot,
-        shapeVel,
-        jawShape,
-        1.0,
-        true,
-        queryFilter
-      );
-
-      if (hit && hit.time_of_impact < 1.0) {
-        const safeToi = Math.max(0, hit.time_of_impact - COLLISION_EPSILON / deltaMag);
-        const clampedPos = {
-          x: currentPos.x + deltaX * safeToi,
-          y: currentPos.y + deltaY * safeToi,
-          z: currentPos.z + deltaZ * safeToi,
-        };
-        console.log(`[CollisionGuard] Collision detected at toi=${hit.time_of_impact.toFixed(3)}, clamping movement`);
-        return applyFloorClamp(clampedPos);
+    // Simple collision avoidance: clamp to floor and check against objects
+    let clampedY = Math.max(targetPos.y, FLOOR_Y);
+    
+    // Check collision with scene objects using simple sphere collision
+    const objects = useAppStore.getState().objects;
+    for (const obj of objects) {
+      const [ox, oy, oz] = obj.position;
+      const objRadius = obj.scale * 0.5; // Half the object size
+      
+      const dx = targetPos.x - ox;
+      const dy = clampedY - oy;
+      const dz = targetPos.z - oz;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      
+      // If we're too close to the object, stay at current position
+      if (distance < objRadius + JAW_LENGTH * 0.5) {
+        // Push gripper up if colliding from above, or stop if from side
+        if (clampedY < oy + objRadius) {
+          clampedY = Math.max(clampedY, oy + objRadius + COLLISION_EPSILON);
+        }
       }
-    } catch (e) {
-      console.warn('[CollisionGuard] castShape failed:', e);
     }
-
-    return applyFloorClamp(targetPos);
-  };
-
-  const applyFloorClamp = (pos: { x: number; y: number; z: number }): { x: number; y: number; z: number } => {
-    return {
-      x: pos.x,
-      y: Math.max(pos.y, FLOOR_Y),
-      z: pos.z,
-    };
+    
+    return { x: targetPos.x, y: clampedY, z: targetPos.z };
   };
 
   useFrame(() => {
@@ -152,18 +114,12 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     const targetMovingY = currentGripperPos[1] + jawOffset.current.y;
     const targetMovingZ = currentGripperPos[2] + jawOffset.current.z;
 
-    const clampedFixed = castShapeForCollision(
-      prevFixedPos.current,
-      { x: targetFixedX, y: targetFixedY, z: targetFixedZ },
-      gripperQuat.current,
-      fixedJawRef.current
+    const clampedFixed = clampToSafePosition(
+      { x: targetFixedX, y: targetFixedY, z: targetFixedZ }
     );
 
-    const clampedMoving = castShapeForCollision(
-      prevMovingPos.current,
-      { x: targetMovingX, y: targetMovingY, z: targetMovingZ },
-      gripperQuat.current,
-      movingJawRef.current
+    const clampedMoving = clampToSafePosition(
+      { x: targetMovingX, y: targetMovingY, z: targetMovingZ }
     );
 
     if (fixedJawRef.current) {
