@@ -306,25 +306,27 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // - GRASP:      shoulder=10, elbow=96, wrist=-85 → [23.0, 2.7, 0]cm
       // Cube is at [23, 1.5, 0]cm - gripper descends vertically from 5.2cm to 2.7cm
 
-      // Step 3a: Open gripper, base stays at 0 (cube is directly in front)
-      await smoothMove({ gripper: 100, base: 0, wristRoll: 0 }, 500);
+      // Step 3a: Open gripper and rotate wristRoll=90 for TOP-DOWN grasp
+      // wristRoll=90 rotates the jaws to point DOWN instead of sideways
+      await smoothMove({ gripper: 100, base: 0, wristRoll: 90 }, 500);
 
       // Step 3b: Move to approach position (high above cube ~10cm)
-      await smoothMove({ base: 0, shoulder: -55, elbow: 50, wrist: 50, gripper: 100 }, 600);
+      // Keep wristRoll=90 for vertical jaw orientation
+      await smoothMove({ base: 0, shoulder: -55, elbow: 50, wrist: 50, wristRoll: 90, gripper: 100 }, 600);
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       // Step 3c: Move to pre-grasp position (above cube ~5cm, same X as grasp)
-      await smoothMove({ base: 0, shoulder: 0, elbow: 100, wrist: -87, gripper: 100 }, 500);
+      await smoothMove({ base: 0, shoulder: 0, elbow: 100, wrist: -87, wristRoll: 90, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       // Step 3d: Move to grasp position - descend to cube height (~2.7cm)
-      await smoothMove({ base: 0, shoulder: 10, elbow: 96, wrist: -85, gripper: 100 }, 600);
+      await smoothMove({ base: 0, shoulder: 10, elbow: 96, wrist: -85, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 10, elbow: 96, wrist: -85, wristRoll: 0 };
+      const graspJoints = { base: 0, shoulder: 10, elbow: 96, wrist: -85, wristRoll: 90 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
@@ -334,8 +336,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       await smoothMove({ gripper: 0 }, 500);
       await delay(300); // Pause to ensure grip
 
-      // Step 3f: Lift the cube - return to approach position
-      await smoothMove({ base: 0, shoulder: -55, elbow: 50, wrist: 50, gripper: 0 }, 700);
+      // Step 3f: Lift the cube - return to approach position (keep wristRoll=90)
+      await smoothMove({ base: 0, shoulder: -55, elbow: 50, wrist: 50, wristRoll: 90, gripper: 0 }, 700);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
