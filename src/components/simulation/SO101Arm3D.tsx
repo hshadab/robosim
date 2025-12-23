@@ -205,10 +205,9 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     if (robotInstance.joints[JOINT_MAP.gripper]) {
       // Gripper: 0 = closed, 100 = open
       // URDF joint limits: lower=-0.174533 (-10°), upper=1.74533 (+100°)
-      // When closed (gripper=0), jaw should be at minimum angle (most closed)
-      // When open (gripper=100), jaw should be at maximum angle (most open)
-      // Map: 0 -> -0.174533 (closed), 100 -> 1.74533 (open)
-      const minRad = -0.174533; // Closed position
+      // Extended closed position (-0.35 rad = -20°) for tighter visual closure
+      // The joint will clamp if needed, but visually shows fully closed jaws
+      const minRad = -0.35; // Extended closed position for tighter visual
       const maxRad = 1.74533;   // Open position
       const gripperRad = minRad + (currentJoints.gripper / 100) * (maxRad - minRad);
       robotInstance.joints[JOINT_MAP.gripper].setJointValue(gripperRad);
