@@ -40,8 +40,9 @@ const GRIPPER_ANGLE_RANGE_DEG = GRIPPER_MAX_ANGLE_DEG - GRIPPER_MIN_ANGLE_DEG; /
  *   gripper% = (angle - minAngle) / angleRange × 100
  */
 const calculateGripperMinForObject = (objectDiameter: number): number => {
-  // Add a small margin so jaws grip the object, not just touch it
-  const targetGap = objectDiameter * 0.95; // 95% of diameter = slight compression
+  // Target gap slightly smaller than object for a firm grip
+  // Using 80% allows visible jaw contact with object
+  const targetGap = objectDiameter * 0.80; // 80% of diameter = visible grip
 
   // Calculate required angle using inverse sin
   const maxGap = 2 * JAW_LENGTH; // Maximum possible gap (when jaws at 90°)
