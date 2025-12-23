@@ -220,9 +220,10 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     }
 
     // Read actual gripper world position from URDF model
-    // Use moving_jaw link which is the actual jaw, or fall back to gripper_link
+    // Use gripper_frame_link to match FK calculation, fall back to gripper_link
+    // NOTE: moving_jaw_so101_v1_link is ~7.5cm closer to base than gripper_frame
     const links = robotInstance.links as Record<string, THREE.Object3D> | undefined;
-    const gripperLink = links?.['moving_jaw_so101_v1_link'] || links?.['gripper_link'];
+    const gripperLink = links?.['gripper_frame_link'] || links?.['gripper_link'];
 
     // Debug: log link finding once
     if (!linkDebugLoggedRef.current) {
