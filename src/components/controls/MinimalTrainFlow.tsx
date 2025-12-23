@@ -45,6 +45,7 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
+import { solveIK, type IKTarget } from '../../lib/numericalIK';
 
 const log = createLogger('TrainFlow');
 
@@ -264,11 +265,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Wait for physics to settle - longer wait ensures object is stable
       await new Promise(r => setTimeout(r, 1500));
 
-      // Step 3: Execute direct pick sequence
+      // Step 3: Execute direct pick sequence using IK
       setDemoStatus('Picking up cube...');
 
-      const { gripperWorldPosition } = useAppStore.getState();
       const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+      const currentJoints = useAppStore.getState().joints;
 
       // Calculate base angle to face the cube: atan2(z, x) in degrees
       const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
@@ -278,35 +279,55 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setJoints({ gripper: 100, base: baseAngle, wristRoll: 0 });
       await delay(600);
 
-      // Step 3b: Move to approach position (above cube, gripper pointing down)
-      // Wrist ~90° makes gripper point downward
-      setJoints({ shoulder: 0, elbow: 45, wrist: 60 });
+      // Step 3b: Move to approach position (above cube)
+      const approachHeight = y + 0.08; // 8cm above cube
+      const approachTarget: IKTarget = { position: { x, y: approachHeight, z } };
+      const approachResult = solveIK(approachTarget, { ...currentJoints, base: baseAngle, gripper: 100 });
+      if (approachResult.success) {
+        setJoints({ ...approachResult.joints, gripper: 100 });
+      } else {
+        setJoints({ shoulder: 0, elbow: 45, wrist: 60 });
+      }
       await delay(600);
-      console.log(`[DemoPick] Approach - gripper at: [${(gripperWorldPosition[0]*100).toFixed(1)}, ${(gripperWorldPosition[1]*100).toFixed(1)}, ${(gripperWorldPosition[2]*100).toFixed(1)}]cm`);
+      let pos = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Lower toward cube - need gripper Y near cube Y (2cm)
-      // More negative shoulder = arm leans forward more
-      // More positive elbow = arm bends more
-      setJoints({ shoulder: -30, elbow: 75, wrist: 75 });
+      // Step 3c: Move to pre-grasp position (closer to cube)
+      const preGraspHeight = y + 0.03; // 3cm above cube
+      const preGraspTarget: IKTarget = { position: { x, y: preGraspHeight, z } };
+      const preGraspResult = solveIK(preGraspTarget, useAppStore.getState().joints);
+      if (preGraspResult.success) {
+        setJoints({ ...preGraspResult.joints, gripper: 100 });
+      }
       await delay(600);
-      const pos1 = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos1[0]*100).toFixed(1)}, ${(pos1[1]*100).toFixed(1)}, ${(pos1[2]*100).toFixed(1)}]cm`);
+      pos = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Final grasp position - adjust based on where we are
-      setJoints({ shoulder: -50, elbow: 100, wrist: 85 });
+      // Step 3d: Move to grasp position (at cube height)
+      const graspTarget: IKTarget = { position: { x, y: y + 0.01, z } };
+      const graspResult = solveIK(graspTarget, useAppStore.getState().joints);
+      if (graspResult.success) {
+        setJoints({ ...graspResult.joints, gripper: 100 });
+      }
       await delay(600);
-      const pos2 = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Grasp - gripper at: [${(pos2[0]*100).toFixed(1)}, ${(pos2[1]*100).toFixed(1)}, ${(pos2[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
+      pos = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
 
       // Step 3e: Close gripper to grab cube
       setJoints({ gripper: 0 });
       await delay(800);
 
-      // Step 3f: Lift the cube
-      setJoints({ shoulder: -20, elbow: 60, wrist: 50 });
+      // Step 3f: Lift the cube using IK
+      const liftTarget: IKTarget = { position: { x, y: y + 0.10, z } };
+      const liftResult = solveIK(liftTarget, useAppStore.getState().joints);
+      if (liftResult.success) {
+        setJoints({ ...liftResult.joints, gripper: 0 });
+      } else {
+        setJoints({ shoulder: -20, elbow: 60, wrist: 50, gripper: 0 });
+      }
       await delay(1000);
-      const pos3 = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Lift - gripper at: [${(pos3[0]*100).toFixed(1)}, ${(pos3[1]*100).toFixed(1)}, ${(pos3[2]*100).toFixed(1)}]cm`);
+      pos = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
