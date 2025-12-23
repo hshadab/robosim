@@ -301,31 +301,31 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
 
       // Cube is at [18, 1.5, 0]cm - closer to arm for vertical top-down approach
-      // Trajectory designed for clear vertical descent with wristRoll=90 (jaws down)
+      // TOP-DOWN GRASP: Use NEGATIVE elbow angles to bend arm DOWN (not inward like scorpion)
+      // Reference: LeRobot SO-101 kinematics - elbow_flex=-90° for downward bend
 
-      // Step 3a: Open gripper and rotate wristRoll=90 for TOP-DOWN grasp
-      // wristRoll=90 rotates the jaws to point DOWN instead of sideways
-      await smoothMove({ gripper: 100, base: 0, wristRoll: 90 }, 500);
+      // Step 3a: Open gripper (wristRoll=0 for natural orientation)
+      await smoothMove({ gripper: 100, base: 0, wristRoll: 0 }, 500);
 
-      // Step 3b: Move to approach position (high above cube)
-      // More folded arm to reach closer X position
-      await smoothMove({ base: 0, shoulder: -30, elbow: 90, wrist: -20, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3b: Move to approach position (arm raised, high above cube)
+      // shoulder=-45° (arm up), elbow=-45° (bent outward/down), wrist=-45°
+      await smoothMove({ base: 0, shoulder: -45, elbow: -45, wrist: -45, wristRoll: 0, gripper: 100 }, 600);
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Move to pre-grasp position (above cube ~6cm)
-      // Tighter elbow fold to reach X=18cm
-      await smoothMove({ base: 0, shoulder: -10, elbow: 110, wrist: -60, wristRoll: 90, gripper: 100 }, 500);
+      // Step 3c: Move to pre-grasp position (directly above cube)
+      // shoulder=-45° (raised), elbow=-90° (bent down), wrist=-45°
+      await smoothMove({ base: 0, shoulder: -45, elbow: -90, wrist: -45, wristRoll: 0, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position - descend to grab cube at X=18cm
-      // High elbow fold to position gripper at X≈18cm, Y≈3cm
-      await smoothMove({ base: 0, shoulder: 5, elbow: 115, wrist: -80, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3d: Move to grasp position - descend to cube level
+      // Adjust shoulder to lower gripper while keeping elbow bent down
+      await smoothMove({ base: 0, shoulder: -30, elbow: -90, wrist: -60, wristRoll: 0, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 5, elbow: 115, wrist: -80, wristRoll: 90 };
+      const graspJoints = { base: 0, shoulder: -30, elbow: -90, wrist: -60, wristRoll: 0 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
@@ -335,8 +335,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       await smoothMove({ gripper: 0 }, 500);
       await delay(300); // Pause to ensure grip
 
-      // Step 3f: Lift the cube - return to approach position (keep wristRoll=90)
-      await smoothMove({ base: 0, shoulder: -30, elbow: 90, wrist: -20, wristRoll: 90, gripper: 0 }, 700);
+      // Step 3f: Lift the cube - return to approach position
+      await smoothMove({ base: 0, shoulder: -45, elbow: -45, wrist: -45, wristRoll: 0, gripper: 0 }, 700);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
