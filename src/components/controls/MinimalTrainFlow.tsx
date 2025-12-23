@@ -312,19 +312,19 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Pre-grasp - position above cube
-      // Tighter fold: increase elbow to 115, shoulder to 0
-      await smoothMove({ base: 0, shoulder: 0, elbow: 115, wrist: -80, wristRoll: 90, gripper: 100 }, 500);
+      // Step 3c: Pre-grasp - position above cube at X=24cm
+      // Less fold to extend arm further toward cube
+      await smoothMove({ base: 0, shoulder: 5, elbow: 100, wrist: -85, wristRoll: 90, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Grasp - descend to cube, max elbow fold
-      // shoulder=25 to lower arm, elbow=120 for tighter fold
-      await smoothMove({ base: 0, shoulder: 25, elbow: 120, wrist: -95, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3d: Grasp - descend to cube at [24, 1.5, 0]cm
+      // Reduce elbow fold (~108°) and drop shoulder (~17°) to reach X=24cm
+      await smoothMove({ base: 0, shoulder: 17, elbow: 108, wrist: -92, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 25, elbow: 120, wrist: -95, wristRoll: 90 };
+      const graspJoints = { base: 0, shoulder: 17, elbow: 108, wrist: -92, wristRoll: 90 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
