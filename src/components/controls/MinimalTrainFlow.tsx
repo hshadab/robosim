@@ -248,11 +248,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 4cm gives good margin
       const demoScale = 0.04; // 4cm cube
 
-      // Position cube so gripper approaches its NEAR edge (not through it)
-      // At base=0, optimal-low reaches [27.8, 2.5, 0]cm per FK tests
-      // For 4cm cube: center at 29.8cm means near edge at 27.8cm (where gripper tip lands)
-      // This keeps gripper body BEHIND the cube, preventing penetration
-      const x = 0.298;  // 29.8cm - near edge at 27.8cm matches gripper reach
+      // Position cube so gripper JAWS approach its NEAR edge (not through it)
+      // Gripper tip (gripper_frame_link) reaches [27.8, 2.5, 0]cm
+      // But JAW CENTER is ~0.9cm further forward at [28.7, 3.0, 0]cm
+      // For 4cm cube: center at 30.7cm means near edge at 28.7cm (where jaws land)
+      const x = 0.307;  // 30.7cm - near edge at 28.7cm matches JAW position
       const z = 0.0;    // Directly in front (no base rotation needed)
       const y = demoScale / 2; // Half height above table (2cm for 4cm cube)
 
