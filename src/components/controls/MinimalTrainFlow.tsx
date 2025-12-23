@@ -248,13 +248,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 3cm gives plenty of margin
       const demoScale = 0.03; // 3cm cube
 
-      // Position cube EXACTLY where gripper lands for perfect vertical descent
-      // From FK: grasp joints (shoulder=19, elbow=75, wrist=-77) reach [27.8, 2.5, 0]cm
-      // Pre-grasp (shoulder=7, elbow=80, wrist=-77) is at [27.8, 5.5, 0]cm (same X!)
-      // So gripper descends straight down - place cube at this X position
-      const x = 0.278;  // 27.8cm - exactly where gripper frame lands
+      // Position cube for TRUE TOP-DOWN grasp with jaws pointing straight down
+      // New arm pose: shoulder=-42, elbow=115, wrist=-137 gives vertical jaws
+      // This reaches ~23cm from base with jaws pointing down (minimal X/Z offset)
+      const x = 0.232;  // 23.2cm - where jaws land with vertical orientation
       const z = 0.0;    // Directly in front (no base rotation needed)
-      const y = 0.015;  // 1.5cm - half of 3cm cube, so bottom sits on ground
+      const y = 0.015;  // 1.5cm - half of 3cm cube, sitting on ground
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
@@ -316,23 +315,22 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Move to pre-grasp position DIRECTLY ABOVE the cube
-      // CRITICAL: Pre-grasp must have SAME X as grasp, only higher Y
-      // This ensures purely VERTICAL descent - no horizontal sweep through cube
-      // FK test result: shoulder=7, elbow=80, wrist=-77 → [27.8, 5.5, 0]cm
-      // This is exactly same X as grasp (27.8cm), 3cm higher Y (5.5cm vs 2.5cm)
-      await smoothMove({ base: 0, shoulder: 7, elbow: 80, wrist: -77, gripper: 100 }, 500);
+      // Step 3c: Move to pre-grasp position with JAWS POINTING DOWN
+      // New vertical-jaws pose: folded arm with deep wrist flex
+      // This makes jaws point straight down for true top-down approach
+      // Pre-grasp is higher above the cube (~7cm height)
+      await smoothMove({ base: 0, shoulder: -35, elbow: 100, wrist: -120, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position - VERTICAL descent only
-      // optimal-low: shoulder=19, elbow=75, wrist=-77 → [27.8, 2.5, 0]cm
-      // The gripper should descend straight down from pre-grasp
-      await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 600);
+      // Step 3d: Move to grasp position - descend with jaws pointing down
+      // Deeper fold: shoulder=-42, elbow=115, wrist=-137 brings jaws to ~3cm height
+      // Jaws point straight down - true top-down grasp
+      await smoothMove({ base: 0, shoulder: -42, elbow: 115, wrist: -137, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 19, elbow: 75, wrist: -77, wristRoll: 0 };
+      const graspJoints = { base: 0, shoulder: -42, elbow: 115, wrist: -137, wristRoll: 0 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
