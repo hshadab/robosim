@@ -45,7 +45,7 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
-import { solveIK, type IKTarget } from '../../lib/numericalIK';
+import { calculateInverseKinematics } from '../simulation/SO101Kinematics';
 
 const log = createLogger('TrainFlow');
 
@@ -295,8 +295,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         }
       };
 
-      // Calculate base angle to face the cube: atan2(z, x) in degrees
-      const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
+      // Calculate base angle to face the cube: atan2(x, z) matches FK convention
+      const baseAngle = Math.atan2(x, z) * (180 / Math.PI);
       console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
 
       // Step 3a: Open gripper and rotate to face cube
@@ -304,31 +304,34 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
       // Step 3b: Move to approach position (above cube)
       const approachHeight = y + 0.08; // 8cm above cube
-      const approachTarget: IKTarget = { position: { x, y: approachHeight, z } };
-      const approachResult = solveIK(approachTarget, { ...currentJoints, base: baseAngle, gripper: 100 });
-      if (approachResult.success) {
-        await smoothMove({ ...approachResult.joints, gripper: 100 }, 600);
+      const approachResult = calculateInverseKinematics(x, approachHeight, z, { ...currentJoints, base: baseAngle, gripper: 100 });
+      if (approachResult) {
+        await smoothMove({ ...approachResult, gripper: 100 }, 600);
       } else {
-        await smoothMove({ shoulder: 0, elbow: 45, wrist: 60 }, 600);
+        console.log('[DemoPick] Approach IK failed, using fallback');
+        await smoothMove({ base: baseAngle, shoulder: 30, elbow: 60, wrist: 30 }, 600);
       }
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       // Step 3c: Move to pre-grasp position (closer to cube)
       const preGraspHeight = y + 0.03; // 3cm above cube
-      const preGraspTarget: IKTarget = { position: { x, y: preGraspHeight, z } };
-      const preGraspResult = solveIK(preGraspTarget, useAppStore.getState().joints);
-      if (preGraspResult.success) {
-        await smoothMove({ ...preGraspResult.joints, gripper: 100 }, 500);
+      const preGraspResult = calculateInverseKinematics(x, preGraspHeight, z, useAppStore.getState().joints);
+      if (preGraspResult) {
+        await smoothMove({ ...preGraspResult, gripper: 100 }, 500);
+      } else {
+        console.log('[DemoPick] Pre-grasp IK failed');
       }
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position (at cube height)
-      const graspTarget: IKTarget = { position: { x, y: y + 0.01, z } };
-      const graspResult = solveIK(graspTarget, useAppStore.getState().joints);
-      if (graspResult.success) {
-        await smoothMove({ ...graspResult.joints, gripper: 100 }, 400);
+      // Step 3d: Move to grasp position (at cube height + small offset for gripper)
+      const graspHeight = y + 0.02; // Slightly above cube center
+      const graspResult = calculateInverseKinematics(x, graspHeight, z, useAppStore.getState().joints);
+      if (graspResult) {
+        await smoothMove({ ...graspResult, gripper: 100 }, 400);
+      } else {
+        console.log('[DemoPick] Grasp IK failed');
       }
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
@@ -338,12 +341,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       await delay(200); // Brief pause to ensure grip
 
       // Step 3f: Lift the cube using IK
-      const liftTarget: IKTarget = { position: { x, y: y + 0.10, z } };
-      const liftResult = solveIK(liftTarget, useAppStore.getState().joints);
-      if (liftResult.success) {
-        await smoothMove({ ...liftResult.joints, gripper: 0 }, 700);
+      const liftHeight = y + 0.12; // 12cm above original cube position
+      const liftResult = calculateInverseKinematics(x, liftHeight, z, useAppStore.getState().joints);
+      if (liftResult) {
+        await smoothMove({ ...liftResult, gripper: 0 }, 700);
       } else {
-        await smoothMove({ shoulder: -20, elbow: 60, wrist: 50, gripper: 0 }, 700);
+        console.log('[DemoPick] Lift IK failed, using fallback');
+        await smoothMove({ shoulder: 0, elbow: 30, wrist: 0, gripper: 0 }, 700);
       }
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
