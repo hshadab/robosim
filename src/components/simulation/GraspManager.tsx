@@ -24,10 +24,11 @@ const GRASP_DISTANCE = 0.045;         // 4.5cm - max distance from jaw center to
 const JAW_LOCAL_OFFSET: [number, number, number] = [-0.0079, 0, 0.0068]; // Jaw center in gripper_frame local coords
 
 // Gripper geometry for calculating minimum grip value
-// Based on URDF: jaw ~3cm from pivot, rotating -10° to +100°
+// Based on URDF: jaw ~4cm from pivot, rotating -10° to +100°
 // Gap relationship: gap = 2 × jawLength × sin(angle)
 // This is SINUSOIDAL, not linear!
-const JAW_LENGTH = 0.030;  // 3cm jaw length from pivot to tip
+// NOTE: Must match RealisticGripperPhysics.tsx JAW_LENGTH for visual consistency
+const JAW_LENGTH = 0.040;  // 4cm jaw length from pivot to tip (matches physics)
 const GRIPPER_MIN_ANGLE_DEG = -10;  // Closed position
 const GRIPPER_MAX_ANGLE_DEG = 100;  // Open position
 const GRIPPER_ANGLE_RANGE_DEG = GRIPPER_MAX_ANGLE_DEG - GRIPPER_MIN_ANGLE_DEG; // 110°
@@ -40,9 +41,9 @@ const GRIPPER_ANGLE_RANGE_DEG = GRIPPER_MAX_ANGLE_DEG - GRIPPER_MIN_ANGLE_DEG; /
  *   gripper% = (angle - minAngle) / angleRange × 100
  */
 const calculateGripperMinForObject = (objectDiameter: number): number => {
-  // Target gap slightly smaller than object for a firm grip
-  // Using 80% allows visible jaw contact with object
-  const targetGap = objectDiameter * 0.80; // 80% of diameter = visible grip
+  // Target gap smaller than object for a firm visible grip
+  // Using 70% ensures jaws visually contact the object
+  const targetGap = objectDiameter * 0.70; // 70% of diameter = firm visible grip
 
   // Calculate required angle using inverse sin
   const maxGap = 2 * JAW_LENGTH; // Maximum possible gap (when jaws at 90°)
