@@ -254,7 +254,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // For 4cm cube: center at 30.7cm means near edge at 28.7cm (where jaws land)
       const x = 0.307;  // 30.7cm - near edge at 28.7cm matches JAW position
       const z = 0.0;    // Directly in front (no base rotation needed)
-      const y = demoScale / 2; // Half height above table (2cm for 4cm cube)
+      // Jaw Y is at 3.0cm, so cube center should be at 3.0cm to align
+      const y = 0.03;   // 3cm height to match jaw Y position
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
