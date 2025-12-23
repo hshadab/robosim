@@ -108,7 +108,10 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
       currentGripperQuat[3]
     );
 
-    const jawBaseOffset = new THREE.Vector3(0, 0.045, 0);
+    // Jaw offset from gripper_frame_link in local coordinates
+    // Must match GraspManager's JAW_LOCAL_OFFSET for consistency
+    // URDF-derived: [-0.0079, 0, 0.0068] in gripper_frame local coords
+    const jawBaseOffset = new THREE.Vector3(-0.0079, 0, 0.0068);
 
     const jawGap = 0.005 + (currentJoints.gripper / 100) * 0.055;
     const halfGap = jawGap / 2;
