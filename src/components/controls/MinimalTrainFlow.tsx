@@ -244,18 +244,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
       if (!cubeTemplate) throw new Error('Cube template not found');
 
-      // Use 4cm cube - good balance of visibility and grippability
-      // Gripper max opening is ~6cm, so 4cm gives good margin
-      const demoScale = 0.04; // 4cm cube
+      // Use 3cm cube - smaller for more realistic grip
+      // Gripper max opening is ~6cm, so 3cm gives plenty of margin
+      const demoScale = 0.03; // 3cm cube
 
-      // Position cube so gripper JAWS approach its NEAR edge (not through it)
+      // Position cube so gripper JAWS close around it properly
       // Gripper tip (gripper_frame_link) reaches [27.8, 2.5, 0]cm
-      // But JAW CENTER is ~0.9cm further forward at [28.7, 3.0, 0]cm
-      // For 4cm cube: center at 30.7cm means near edge at 28.7cm (where jaws land)
-      const x = 0.307;  // 30.7cm - near edge at 28.7cm matches JAW position
+      // Jaw center is slightly forward at ~[28, 2.5, 0]cm
+      // For 3cm cube: center at 29.5cm means edges at 28-31cm
+      const x = 0.295;  // 29.5cm - jaws can close around sides
       const z = 0.0;    // Directly in front (no base rotation needed)
-      // Jaw Y is at 3.0cm, so cube center should be at 3.0cm to align
-      const y = 0.03;   // 3cm height to match jaw Y position
+      // Match gripper height - gripper is at Y=2.5cm
+      const y = 0.025;  // 2.5cm height to match gripper Y position
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
