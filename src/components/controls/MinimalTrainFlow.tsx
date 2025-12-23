@@ -304,22 +304,23 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Based on testing: shoulder=10, elbow=96, wrist=-85 gives [23, 2.7]
       // Need to adjust to reach X=20cm - try higher elbow for more fold
 
-      // Step 3a: Open gripper, rotate for top-down
+      // Step 3a: Open gripper, rotate for top-down orientation
       await smoothMove({ gripper: 100, base: 0, wristRoll: 90 }, 500);
 
-      // Step 3b: Approach - start high above workspace
-      await smoothMove({ base: 0, shoulder: -40, elbow: 70, wrist: 0, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3b: Approach - start high, retracted position
+      await smoothMove({ base: 0, shoulder: -30, elbow: 60, wrist: 0, wristRoll: 90, gripper: 100 }, 500);
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Pre-grasp - position above cube at X=22cm
-      await smoothMove({ base: 0, shoulder: 10, elbow: 100, wrist: -85, wristRoll: 90, gripper: 100 }, 500);
+      // Step 3c: Position DIRECTLY ABOVE cube - same X, higher Y
+      // This is the key waypoint for vertical descent
+      await smoothMove({ base: 0, shoulder: 18, elbow: 108, wrist: -90, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
+      console.log(`[DemoPick] Above cube - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Grasp - descend to cube at [22, 1.5, 0]cm
-      // Balanced: shoulder=22° for descent, elbow=110° for reach
-      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3d: Vertical descent - lower gripper while maintaining X position
+      // Small increase in shoulder and elbow lowers Y while keeping X similar
+      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
