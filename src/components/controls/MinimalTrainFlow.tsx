@@ -319,9 +319,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Step 3c: Move to pre-grasp position DIRECTLY ABOVE the cube
       // CRITICAL: Pre-grasp must have SAME X as grasp, only higher Y
       // This ensures purely VERTICAL descent - no horizontal sweep through cube
-      // Target: ~[28, 5.5, 0]cm - same X as grasp (27.8cm), higher Y (5.5cm vs 2.5cm)
-      // Using shoulder=5 gives slightly more extension at same height as shoulder=10 w/ different elbow
-      await smoothMove({ base: 0, shoulder: 5, elbow: 50, wrist: -40, gripper: 100 }, 500);
+      // FK test result: shoulder=7, elbow=80, wrist=-77 → [27.8, 5.5, 0]cm
+      // This is exactly same X as grasp (27.8cm), 3cm higher Y (5.5cm vs 2.5cm)
+      await smoothMove({ base: 0, shoulder: 7, elbow: 80, wrist: -77, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
