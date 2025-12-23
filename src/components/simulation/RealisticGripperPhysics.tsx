@@ -6,23 +6,25 @@
  * 2. Moving jaw rotates with gripper joint value
  * 3. Uses high friction for physics-based object gripping
  * 4. Objects are held by friction forces, not "teleport attach"
+ * 5. Collision detection prevents penetration of floor/objects
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RapierRigidBody } from '@react-three/rapier';
-import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import { RigidBody, CuboidCollider, useRapier } from '@react-three/rapier';
 import { useAppStore } from '../../stores/useAppStore';
 import type { JointState } from '../../types';
 
-// Jaw dimensions for colliders - sized to match actual gripper jaws
-const JAW_LENGTH = 0.040; // 4cm length (along jaw) - slightly longer for better contact
-const JAW_THICKNESS = 0.010; // 1cm thick - wider for better physics detection
-const JAW_DEPTH = 0.018; // 1.8cm depth
+const JAW_LENGTH = 0.040;
+const JAW_THICKNESS = 0.010;
+const JAW_DEPTH = 0.018;
 
-// High friction for gripping
-const JAW_FRICTION = 2.5; // Increased for better grip
+const JAW_FRICTION = 2.5;
+
+const FLOOR_Y = 0.02;
+const COLLISION_EPSILON = 0.001;
 
 interface RealisticGripperPhysicsProps {
   joints: JointState;
@@ -33,27 +35,95 @@ interface RealisticGripperPhysicsProps {
  * - Track actual gripper position/orientation from URDF
  * - Moving jaw rotates based on gripper joint value
  * - Use high friction for realistic object gripping
+ * - Collision detection prevents penetration
  */
 export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = () => {
-  // Refs for the jaw rigid bodies
   const fixedJawRef = useRef<RapierRigidBody>(null);
   const movingJawRef = useRef<RapierRigidBody>(null);
 
-  // State for jaw positions - triggers re-render to move visual meshes
   const [fixedJawPos, setFixedJawPos] = useState<[number, number, number]>([0, 0.2, 0]);
   const [movingJawPos, setMovingJawPos] = useState<[number, number, number]>([0, 0.2, 0]);
 
-  // Reusable objects to avoid allocations
   const gripperQuat = useRef(new THREE.Quaternion());
   const jawOffset = useRef(new THREE.Vector3());
 
+  const { world, rapier } = useRapier();
+
+  const jawShape = useMemo(() => {
+    if (!rapier) return null;
+    return new rapier.Cuboid(JAW_THICKNESS / 2, JAW_LENGTH / 2, JAW_DEPTH / 2);
+  }, [rapier]);
+
+  const prevFixedPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0.2, z: 0 });
+  const prevMovingPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0.2, z: 0 });
+
+  const castShapeForCollision = (
+    currentPos: { x: number; y: number; z: number },
+    targetPos: { x: number; y: number; z: number },
+    rotation: THREE.Quaternion,
+    excludeRigidBody: RapierRigidBody | null
+  ): { x: number; y: number; z: number } => {
+    if (!world || !rapier || !jawShape) {
+      return applyFloorClamp(targetPos);
+    }
+
+    const deltaX = targetPos.x - currentPos.x;
+    const deltaY = targetPos.y - currentPos.y;
+    const deltaZ = targetPos.z - currentPos.z;
+
+    const deltaMag = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+    if (deltaMag < 0.0001) {
+      return applyFloorClamp(targetPos);
+    }
+
+    const shapePos = { x: currentPos.x, y: currentPos.y, z: currentPos.z };
+    const shapeRot = { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w };
+    const shapeVel = { x: deltaX, y: deltaY, z: deltaZ };
+
+    try {
+      const hit = world.castShape(
+        shapePos,
+        shapeRot,
+        shapeVel,
+        jawShape,
+        0.0,
+        1.0,
+        true,
+        undefined,
+        undefined,
+        excludeRigidBody ? excludeRigidBody.handle : undefined,
+        undefined
+      );
+
+      if (hit && hit.time_of_impact < 1.0) {
+        const safeToi = Math.max(0, hit.time_of_impact - COLLISION_EPSILON / deltaMag);
+        const clampedPos = {
+          x: currentPos.x + deltaX * safeToi,
+          y: currentPos.y + deltaY * safeToi,
+          z: currentPos.z + deltaZ * safeToi,
+        };
+        return applyFloorClamp(clampedPos);
+      }
+    } catch {
+      // Fallback to floor clamping only on error
+    }
+
+    return applyFloorClamp(targetPos);
+  };
+
+  const applyFloorClamp = (pos: { x: number; y: number; z: number }): { x: number; y: number; z: number } => {
+    return {
+      x: pos.x,
+      y: Math.max(pos.y, FLOOR_Y),
+      z: pos.z,
+    };
+  };
+
   useFrame(() => {
-    // CRITICAL: Read directly from store to avoid React prop timing issues
     const currentJoints = useAppStore.getState().joints;
     const currentGripperPos = useAppStore.getState().gripperWorldPosition;
     const currentGripperQuat = useAppStore.getState().gripperWorldQuaternion;
 
-    // Get gripper orientation as quaternion
     gripperQuat.current.set(
       currentGripperQuat[0],
       currentGripperQuat[1],
@@ -61,40 +131,45 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
       currentGripperQuat[3]
     );
 
-    // ===== JAW POSITIONING =====
-    // moving_jaw_link is at the jaw PIVOT point (base), not the tip
-    // We need to offset forward along the jaw to reach the TIPS where objects are gripped
-    // The jaws are about 4-5cm long from pivot to tip
-    const jawBaseOffset = new THREE.Vector3(0, 0.045, 0); // 4.5cm along jaw towards tips (local +Y)
+    const jawBaseOffset = new THREE.Vector3(0, 0.045, 0);
 
-    // Gap between jaws depends on gripper opening
     const jawGap = 0.005 + (currentJoints.gripper / 100) * 0.055;
     const halfGap = jawGap / 2;
 
-    // Calculate fixed jaw position
-    // Jaws separate along local X axis (perpendicular to gripper forward direction)
     const fixedJawLocalOffset = jawBaseOffset.clone();
     fixedJawLocalOffset.x += halfGap;
     jawOffset.current.copy(fixedJawLocalOffset);
     jawOffset.current.applyQuaternion(gripperQuat.current);
 
-    const fixedX = currentGripperPos[0] + jawOffset.current.x;
-    const fixedY = currentGripperPos[1] + jawOffset.current.y;
-    const fixedZ = currentGripperPos[2] + jawOffset.current.z;
+    const targetFixedX = currentGripperPos[0] + jawOffset.current.x;
+    const targetFixedY = currentGripperPos[1] + jawOffset.current.y;
+    const targetFixedZ = currentGripperPos[2] + jawOffset.current.z;
 
-    // Calculate moving jaw position
     const movingJawLocalOffset = jawBaseOffset.clone();
     movingJawLocalOffset.x -= halfGap;
     jawOffset.current.copy(movingJawLocalOffset);
     jawOffset.current.applyQuaternion(gripperQuat.current);
 
-    const movingX = currentGripperPos[0] + jawOffset.current.x;
-    const movingY = currentGripperPos[1] + jawOffset.current.y;
-    const movingZ = currentGripperPos[2] + jawOffset.current.z;
+    const targetMovingX = currentGripperPos[0] + jawOffset.current.x;
+    const targetMovingY = currentGripperPos[1] + jawOffset.current.y;
+    const targetMovingZ = currentGripperPos[2] + jawOffset.current.z;
 
-    // Update physics bodies
+    const clampedFixed = castShapeForCollision(
+      prevFixedPos.current,
+      { x: targetFixedX, y: targetFixedY, z: targetFixedZ },
+      gripperQuat.current,
+      fixedJawRef.current
+    );
+
+    const clampedMoving = castShapeForCollision(
+      prevMovingPos.current,
+      { x: targetMovingX, y: targetMovingY, z: targetMovingZ },
+      gripperQuat.current,
+      movingJawRef.current
+    );
+
     if (fixedJawRef.current) {
-      fixedJawRef.current.setNextKinematicTranslation({ x: fixedX, y: fixedY, z: fixedZ });
+      fixedJawRef.current.setNextKinematicTranslation(clampedFixed);
       fixedJawRef.current.setNextKinematicRotation({
         x: gripperQuat.current.x,
         y: gripperQuat.current.y,
@@ -104,7 +179,7 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     }
 
     if (movingJawRef.current) {
-      movingJawRef.current.setNextKinematicTranslation({ x: movingX, y: movingY, z: movingZ });
+      movingJawRef.current.setNextKinematicTranslation(clampedMoving);
       movingJawRef.current.setNextKinematicRotation({
         x: gripperQuat.current.x,
         y: gripperQuat.current.y,
@@ -113,14 +188,15 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
       });
     }
 
-    // Update state for visual meshes (every frame for smooth tracking)
-    setFixedJawPos([fixedX, fixedY, fixedZ]);
-    setMovingJawPos([movingX, movingY, movingZ]);
+    prevFixedPos.current = clampedFixed;
+    prevMovingPos.current = clampedMoving;
+
+    setFixedJawPos([clampedFixed.x, clampedFixed.y, clampedFixed.z]);
+    setMovingJawPos([clampedMoving.x, clampedMoving.y, clampedMoving.z]);
   });
 
   return (
     <>
-      {/* Fixed Jaw Physics Body */}
       <RigidBody
         ref={fixedJawRef}
         type="kinematicPosition"
@@ -137,7 +213,6 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
         />
       </RigidBody>
 
-      {/* Moving Jaw Physics Body */}
       <RigidBody
         ref={movingJawRef}
         type="kinematicPosition"
