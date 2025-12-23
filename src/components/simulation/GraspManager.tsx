@@ -19,8 +19,8 @@ import { useAppStore } from '../../stores/useAppStore';
 // Note: These are fallbacks - contact grasp uses object-specific minimum values
 const GRIPPER_CLOSED_THRESHOLD = 60; // Gripper value below this = closed enough for fallback grasp
 const GRIPPER_OPEN_THRESHOLD = 70;   // Gripper value above this = open enough to release
-const GRASP_DISTANCE = 0.045;         // 4.5cm - max distance from jaw center to object center for grasp
-                                      // Increased from 2.5cm to give more tolerance for IK positioning errors
+const GRASP_DISTANCE = 0.020;         // 2.0cm - max distance from jaw center to object center for grasp
+                                      // Tight tolerance ensures visual alignment before grasp
 const JAW_LOCAL_OFFSET: [number, number, number] = [-0.0079, 0, 0.0068]; // Jaw center in gripper_frame local coords
 
 // Gripper geometry for calculating minimum grip value

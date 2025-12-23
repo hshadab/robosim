@@ -248,11 +248,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 3cm gives plenty of margin
       const demoScale = 0.03; // 3cm cube
 
-      // Position cube where arm naturally reaches based on FK testing
-      // From logs: grasp reaches [23.7, 4.7]cm, so place cube at X=24cm
-      const x = 0.24;   // 24cm - where gripper naturally reaches
+      // Position cube where arm naturally reaches based on actual URDF testing
+      // Cube must be on ground (Y = half height = 1.5cm for 3cm cube)
+      const x = 0.23;   // 23cm - where gripper jaw actually reaches in X
       const z = 0.0;    // Directly in front (no base rotation needed)
-      const y = 0.015;  // 1.5cm - half of 3cm cube, sitting on ground
+      const y = 0.015;  // 1.5cm - cube center on ground (half of 3cm height)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
@@ -312,19 +312,19 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Pre-grasp - position above cube at X=24cm
-      // Less fold to extend arm further toward cube
-      await smoothMove({ base: 0, shoulder: 5, elbow: 100, wrist: -85, wristRoll: 90, gripper: 100 }, 500);
+      // Step 3c: Pre-grasp - position above cube at X=23cm
+      // Higher shoulder to start descent, moderate elbow
+      await smoothMove({ base: 0, shoulder: 15, elbow: 105, wrist: -90, wristRoll: 90, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Grasp - descend to cube at [24, 1.5, 0]cm
-      // Reduce elbow fold (~108°) and drop shoulder (~17°) to reach X=24cm
-      await smoothMove({ base: 0, shoulder: 17, elbow: 108, wrist: -92, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3d: Grasp - descend to cube at [23, 1.5, 0]cm
+      // Higher shoulder (35°) and more elbow (115°) to reach lower Y position
+      await smoothMove({ base: 0, shoulder: 35, elbow: 115, wrist: -100, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 17, elbow: 108, wrist: -92, wristRoll: 90 };
+      const graspJoints = { base: 0, shoulder: 35, elbow: 115, wrist: -100, wristRoll: 90 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
