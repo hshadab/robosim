@@ -271,24 +271,46 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
       const currentJoints = useAppStore.getState().joints;
 
+      // Smooth interpolation helper - animates joints over duration
+      const smoothMove = async (targetJoints: Partial<typeof currentJoints>, durationMs: number) => {
+        const startJoints = { ...useAppStore.getState().joints };
+        const steps = Math.max(10, Math.floor(durationMs / 16)); // ~60fps
+        const stepDelay = durationMs / steps;
+        
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          // Ease-in-out cubic for natural motion
+          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          
+          const interpolated: Partial<typeof currentJoints> = {};
+          for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
+            const start = startJoints[key];
+            const end = targetJoints[key];
+            if (typeof start === 'number' && typeof end === 'number') {
+              interpolated[key] = start + (end - start) * ease;
+            }
+          }
+          setJoints(interpolated);
+          await delay(stepDelay);
+        }
+      };
+
       // Calculate base angle to face the cube: atan2(z, x) in degrees
       const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
       console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
 
       // Step 3a: Open gripper and rotate to face cube
-      setJoints({ gripper: 100, base: baseAngle, wristRoll: 0 });
-      await delay(600);
+      await smoothMove({ gripper: 100, base: baseAngle, wristRoll: 0 }, 500);
 
       // Step 3b: Move to approach position (above cube)
       const approachHeight = y + 0.08; // 8cm above cube
       const approachTarget: IKTarget = { position: { x, y: approachHeight, z } };
       const approachResult = solveIK(approachTarget, { ...currentJoints, base: baseAngle, gripper: 100 });
       if (approachResult.success) {
-        setJoints({ ...approachResult.joints, gripper: 100 });
+        await smoothMove({ ...approachResult.joints, gripper: 100 }, 600);
       } else {
-        setJoints({ shoulder: 0, elbow: 45, wrist: 60 });
+        await smoothMove({ shoulder: 0, elbow: 45, wrist: 60 }, 600);
       }
-      await delay(600);
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
@@ -297,9 +319,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const preGraspTarget: IKTarget = { position: { x, y: preGraspHeight, z } };
       const preGraspResult = solveIK(preGraspTarget, useAppStore.getState().joints);
       if (preGraspResult.success) {
-        setJoints({ ...preGraspResult.joints, gripper: 100 });
+        await smoothMove({ ...preGraspResult.joints, gripper: 100 }, 500);
       }
-      await delay(600);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
@@ -307,25 +328,23 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const graspTarget: IKTarget = { position: { x, y: y + 0.01, z } };
       const graspResult = solveIK(graspTarget, useAppStore.getState().joints);
       if (graspResult.success) {
-        setJoints({ ...graspResult.joints, gripper: 100 });
+        await smoothMove({ ...graspResult.joints, gripper: 100 }, 400);
       }
-      await delay(600);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
 
       // Step 3e: Close gripper to grab cube
-      setJoints({ gripper: 0 });
-      await delay(800);
+      await smoothMove({ gripper: 0 }, 400);
+      await delay(200); // Brief pause to ensure grip
 
       // Step 3f: Lift the cube using IK
       const liftTarget: IKTarget = { position: { x, y: y + 0.10, z } };
       const liftResult = solveIK(liftTarget, useAppStore.getState().joints);
       if (liftResult.success) {
-        setJoints({ ...liftResult.joints, gripper: 0 });
+        await smoothMove({ ...liftResult.joints, gripper: 0 }, 700);
       } else {
-        setJoints({ shoulder: -20, elbow: 60, wrist: 50, gripper: 0 });
+        await smoothMove({ shoulder: -20, elbow: 60, wrist: 50, gripper: 0 }, 700);
       }
-      await delay(1000);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
