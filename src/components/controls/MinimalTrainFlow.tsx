@@ -248,14 +248,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 3cm gives plenty of margin
       const demoScale = 0.03; // 3cm cube
 
-      // Position cube so gripper JAWS close around it properly
-      // Gripper tip (gripper_frame_link) reaches [27.8, 2.5, 0]cm
-      // Jaw center is slightly forward at ~[28, 2.5, 0]cm
-      // For 3cm cube: center at 29.5cm means edges at 28-31cm
-      const x = 0.295;  // 29.5cm - jaws can close around sides
+      // Position cube EXACTLY at jaw center for realistic grasp
+      // From logs: gripper_frame at [27.8, 2.5, 0]cm
+      // But JAW CENTER (after rotation) is at [28.7, 3.0, 0]cm
+      // Place cube center at jaw center for jaws to close around it
+      const x = 0.287;  // 28.7cm - exactly where jaw center lands
       const z = 0.0;    // Directly in front (no base rotation needed)
-      // Match gripper height - gripper is at Y=2.5cm
-      const y = 0.025;  // 2.5cm height to match gripper Y position
+      const y = 0.030;  // 3.0cm - matches jaw Y position (not gripper Y!)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
