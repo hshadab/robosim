@@ -318,9 +318,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position (at cube level)
-      // Based on optimal-low style: positive shoulder, high elbow, negative wrist
-      await smoothMove({ base: baseAngle, shoulder: 25, elbow: 80, wrist: -75, gripper: 100 }, 500);
+      // Step 3d: Move to grasp position (at cube level, ~4cm above floor)
+      // Using tested config that reaches Y≈4-5cm to avoid floor collision
+      // optimal-low gives Y≈2.5cm at base=0 which is too low, use less elbow for higher Y
+      await smoothMove({ base: baseAngle, shoulder: 15, elbow: 65, wrist: -60, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
 
