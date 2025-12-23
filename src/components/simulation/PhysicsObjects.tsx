@@ -330,10 +330,12 @@ export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
             position={object.position}
             rotation={object.rotation}
             colliders={false}
-            mass={0.5}
-            restitution={0.1}
+            mass={0.3}  // Lighter mass for easier manipulation
+            restitution={0.05}  // Minimal bounce
             friction={GRIPPABLE_FRICTION}
             ccd={true}
+            linearDamping={0.5}  // Reduce sliding
+            angularDamping={0.5}  // Reduce spinning
           >
             <CuboidCollider args={[object.scale / 2, object.scale / 2, object.scale / 2]} />
             <RoundedBox
@@ -463,11 +465,18 @@ export const TargetZonePhysics: React.FC<TargetZonePhysicsProps> = ({ zone }) =>
   );
 };
 
-// Floor collider - thin collider at Y=0 so objects rest on the visual floor
+// Floor collider - thicker collider to prevent any tunneling through the floor
+// Objects rest on the top surface at Y=0
 export const FloorCollider: React.FC = () => {
   return (
-    <RigidBody type="fixed" position={[0, -0.005, 0]} friction={0.8} restitution={0.1}>
-      <CuboidCollider args={[2, 0.005, 2]} />
+    <RigidBody
+      type="fixed"
+      position={[0, -0.025, 0]}
+      friction={1.0}
+      restitution={0.05}
+      ccd={true}  // Enable CCD on floor to prevent fast objects from passing through
+    >
+      <CuboidCollider args={[2, 0.025, 2]} />
     </RigidBody>
   );
 };

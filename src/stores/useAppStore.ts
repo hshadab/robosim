@@ -28,7 +28,8 @@ import {
   CHALLENGES,
 } from '../config/environments';
 import { DEFAULT_HUMANOID_STATE } from '../components/simulation/defaults';
-import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+// Temporarily commented - disabled for debugging
+// import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 import { preventSelfCollision } from '../lib/selfCollision';
 import { generateSecureId } from '../lib/crypto';
 import { CONSOLE_CONFIG } from '../lib/config';
@@ -307,9 +308,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     */
 
     // === PROACTIVE COLLISION DETECTION ===
-    // Check if gripper is closing and there's an object in the grasp zone
+    // Check if there's an object in the grasp zone
     // This runs BEFORE the visual updates, preventing pass-through
-    const isGripperClosing = joints.gripper !== undefined && joints.gripper < currentJoints.gripper;
     const hasGrabbedObject = objects.some(o => o.isGrabbed);
 
     if (!hasGrabbedObject && gripperWorldPosition[0] !== 0) {

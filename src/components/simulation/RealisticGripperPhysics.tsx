@@ -8,7 +8,7 @@
  * 4. Objects are held by friction forces, not "teleport attach"
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RapierRigidBody } from '@react-three/rapier';
@@ -17,12 +17,12 @@ import { useAppStore } from '../../stores/useAppStore';
 import type { JointState } from '../../types';
 
 // Jaw dimensions for colliders - sized to match actual gripper jaws
-const JAW_LENGTH = 0.035; // 3.5cm length (along jaw)
-const JAW_THICKNESS = 0.008; // 0.8cm thick
-const JAW_DEPTH = 0.015; // 1.5cm depth
+const JAW_LENGTH = 0.040; // 4cm length (along jaw) - slightly longer for better contact
+const JAW_THICKNESS = 0.010; // 1cm thick - wider for better physics detection
+const JAW_DEPTH = 0.018; // 1.8cm depth
 
 // High friction for gripping
-const JAW_FRICTION = 2.0;
+const JAW_FRICTION = 2.5; // Increased for better grip
 
 interface RealisticGripperPhysicsProps {
   joints: JointState;
@@ -34,7 +34,7 @@ interface RealisticGripperPhysicsProps {
  * - Moving jaw rotates based on gripper joint value
  * - Use high friction for realistic object gripping
  */
-export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = ({ joints }) => {
+export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = () => {
   // Refs for the jaw rigid bodies
   const fixedJawRef = useRef<RapierRigidBody>(null);
   const movingJawRef = useRef<RapierRigidBody>(null);
@@ -42,7 +42,6 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
   // State for jaw positions - triggers re-render to move visual meshes
   const [fixedJawPos, setFixedJawPos] = useState<[number, number, number]>([0, 0.2, 0]);
   const [movingJawPos, setMovingJawPos] = useState<[number, number, number]>([0, 0.2, 0]);
-  const [jawRotation, setJawRotation] = useState<[number, number, number, number]>([0, 0, 0, 1]);
 
   // Reusable objects to avoid allocations
   const gripperQuat = useRef(new THREE.Quaternion());
@@ -117,12 +116,6 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     // Update state for visual meshes (every frame for smooth tracking)
     setFixedJawPos([fixedX, fixedY, fixedZ]);
     setMovingJawPos([movingX, movingY, movingZ]);
-    setJawRotation([
-      gripperQuat.current.x,
-      gripperQuat.current.y,
-      gripperQuat.current.z,
-      gripperQuat.current.w,
-    ]);
   });
 
   return (
@@ -135,16 +128,13 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
         friction={JAW_FRICTION}
         ccd={true}
         position={fixedJawPos}
+        restitution={0.0}
       >
         <CuboidCollider
           args={[JAW_THICKNESS / 2, JAW_LENGTH / 2, JAW_DEPTH / 2]}
           friction={JAW_FRICTION}
+          restitution={0.0}
         />
-        {/* Debug mesh inside RigidBody - moves with physics body */}
-        <mesh>
-          <boxGeometry args={[JAW_THICKNESS, JAW_LENGTH, JAW_DEPTH]} />
-          <meshStandardMaterial color="#00ff00" transparent opacity={0.7} />
-        </mesh>
       </RigidBody>
 
       {/* Moving Jaw Physics Body */}
@@ -155,16 +145,13 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
         friction={JAW_FRICTION}
         ccd={true}
         position={movingJawPos}
+        restitution={0.0}
       >
         <CuboidCollider
           args={[JAW_THICKNESS / 2, JAW_LENGTH / 2, JAW_DEPTH / 2]}
           friction={JAW_FRICTION}
+          restitution={0.0}
         />
-        {/* Debug mesh inside RigidBody - moves with physics body */}
-        <mesh>
-          <boxGeometry args={[JAW_THICKNESS, JAW_LENGTH, JAW_DEPTH]} />
-          <meshStandardMaterial color="#0088ff" transparent opacity={0.7} />
-        </mesh>
       </RigidBody>
     </>
   );

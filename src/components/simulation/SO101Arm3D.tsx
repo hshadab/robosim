@@ -8,10 +8,9 @@ import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
-import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
 import type { JointState } from '../../types';
-import { SO101_DIMS, calculateJointPositions } from './SO101Kinematics';
+import { SO101_DIMS } from './SO101Kinematics';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
 import { GraspManager } from './GraspManager';
 import { useAppStore } from '../../stores/useAppStore';
@@ -104,14 +103,11 @@ const SERVO_MATERIAL = new THREE.MeshStandardMaterial({
  * For now, we only use gripper jaw colliders (in RealisticGripperPhysics) which read
  * positions directly from the URDF robot's world transform.
  */
-const ArmPhysicsColliders: React.FC<{ joints: JointState }> = ({ _joints }) => {
+const ArmPhysicsColliders: React.FC<{ joints: JointState }> = () => {
   // ARM COLLIDERS DISABLED - they used simplified FK that didn't match URDF
   // Only gripper jaw colliders are used (from RealisticGripperPhysics)
   return null;
 };
-
-// Keep the interface for backward compatibility
-void ArmPhysicsColliders;
 
 const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -258,8 +254,8 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     }
   });
 
-  // Get debug visualization state from store (default: enabled for debugging)
-  const showGripperDebug = useAppStore((state) => state.showGripperDebug ?? true);
+  // Get debug visualization state from store (default: disabled for clean UI)
+  const showGripperDebug = useAppStore((state) => state.showGripperDebug ?? false);
 
   return (
     <group ref={groupRef}>

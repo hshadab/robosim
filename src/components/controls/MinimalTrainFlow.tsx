@@ -213,14 +213,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   }, [claudeKeyInput]);
 
   // Demo pick up - one-click test
+  // Note: Works without API key using built-in simulation mode
   const handleDemoPickUp = useCallback(async () => {
     if (isDemoRunning || isAnimating || isLLMLoading) return;
-
-    // Check for API key first
-    if (!hasClaudeKey) {
-      setError('Please enter your Claude API key first');
-      return;
-    }
 
     setIsDemoRunning(true);
     setError(null);
@@ -243,19 +238,20 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
       await new Promise(r => setTimeout(r, 500));
 
-      // Step 2: Spawn a LARGER cube for demo visibility (5cm instead of 2.5cm)
+      // Step 2: Spawn a cube for demo - sized for reliable gripper pickup
       setDemoStatus('Adding cube...');
       const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
       if (!cubeTemplate) throw new Error('Cube template not found');
 
-      // Use larger scale for demo visibility
-      const demoScale = 0.05; // 5cm cube - easier to see and grab
+      // Use 4cm cube - good balance of visibility and grippability
+      // Gripper max opening is ~6cm, so 4cm gives good margin
+      const demoScale = 0.04; // 4cm cube
 
       // Position in front of robot, within reachable workspace
       // Based on FK analysis: arm reaches ~14cm in X-Z plane optimally
-      const x = 0.14;  // 14cm - slightly more to the side
-      const z = 0.12;  // 12cm - closer to robot (was 15cm which was just out of reach)
-      const y = demoScale / 2; // Half height above table
+      const x = 0.15;  // 15cm forward
+      const z = 0.10;  // 10cm to the side - well within reach
+      const y = demoScale / 2; // Half height above table (2cm for 4cm cube)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
@@ -265,14 +261,52 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setState(s => ({ ...s, objectName: 'Demo Cube (Red)', objectPlaced: true }));
       setStep('record-demo');
 
+      // Wait for physics to settle - longer wait ensures object is stable
       await new Promise(r => setTimeout(r, 1500));
 
-      // Step 3: Send pickup command
+      // Step 3: Execute direct pick sequence
       setDemoStatus('Picking up cube...');
-      sendMessage('Pick up the demo cube');
 
-      // Wait for animation to complete
-      await new Promise(r => setTimeout(r, 8000));
+      const { gripperWorldPosition } = useAppStore.getState();
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+      // Calculate base angle to face the cube: atan2(z, x) in degrees
+      const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
+      console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
+
+      // Step 3a: Open gripper and rotate to face cube
+      setJoints({ gripper: 100, base: baseAngle, wristRoll: 0 });
+      await delay(600);
+
+      // Step 3b: Move to approach position (above cube, gripper pointing down)
+      // Wrist ~90° makes gripper point downward
+      setJoints({ shoulder: 0, elbow: 45, wrist: 60 });
+      await delay(600);
+      console.log(`[DemoPick] Approach - gripper at: [${(gripperWorldPosition[0]*100).toFixed(1)}, ${(gripperWorldPosition[1]*100).toFixed(1)}, ${(gripperWorldPosition[2]*100).toFixed(1)}]cm`);
+
+      // Step 3c: Lower toward cube - need gripper Y near cube Y (2cm)
+      // More negative shoulder = arm leans forward more
+      // More positive elbow = arm bends more
+      setJoints({ shoulder: -30, elbow: 75, wrist: 75 });
+      await delay(600);
+      const pos1 = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos1[0]*100).toFixed(1)}, ${(pos1[1]*100).toFixed(1)}, ${(pos1[2]*100).toFixed(1)}]cm`);
+
+      // Step 3d: Final grasp position - adjust based on where we are
+      setJoints({ shoulder: -50, elbow: 100, wrist: 85 });
+      await delay(600);
+      const pos2 = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Grasp - gripper at: [${(pos2[0]*100).toFixed(1)}, ${(pos2[1]*100).toFixed(1)}, ${(pos2[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
+
+      // Step 3e: Close gripper to grab cube
+      setJoints({ gripper: 0 });
+      await delay(800);
+
+      // Step 3f: Lift the cube
+      setJoints({ shoulder: -20, elbow: 60, wrist: 50 });
+      await delay(1000);
+      const pos3 = useAppStore.getState().gripperWorldPosition;
+      console.log(`[DemoPick] Lift - gripper at: [${(pos3[0]*100).toFixed(1)}, ${(pos3[1]*100).toFixed(1)}, ${(pos3[2]*100).toFixed(1)}]cm`);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
@@ -283,7 +317,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setIsDemoRunning(false);
       setDemoStatus(null);
     }
-  }, [isDemoRunning, isAnimating, isLLMLoading, hasClaudeKey, spawnObject, sendMessage]);
+  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, sendMessage]);
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {

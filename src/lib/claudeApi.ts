@@ -745,7 +745,7 @@ const IK_ERROR_THRESHOLD = 0.03; // 3cm - positions with larger errors may not b
 // When gripper is pointing down (wrist ~90°), the Z offset becomes a Y offset in world space
 // When gripper is horizontal (wrist ~0°), the Z offset becomes a horizontal offset
 const JAW_LOCAL_Z_OFFSET = 0.0068; // 6.8mm forward toward jaw tips in local gripper Z
-const JAW_LOCAL_X_OFFSET = -0.0079; // 7.9mm to the side
+// X offset kept for reference: -0.0079 (7.9mm to the side)
 
 /**
  * Calculate where the TIP needs to be so that JAWS are at target position

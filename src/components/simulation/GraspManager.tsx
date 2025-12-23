@@ -19,7 +19,8 @@ import { useAppStore } from '../../stores/useAppStore';
 // Note: These are fallbacks - contact grasp uses object-specific minimum values
 const GRIPPER_CLOSED_THRESHOLD = 60; // Gripper value below this = closed enough for fallback grasp
 const GRIPPER_OPEN_THRESHOLD = 70;   // Gripper value above this = open enough to release
-const GRASP_DISTANCE = 0.025;         // 2.5cm - max distance from jaw center to object center for grasp (reduced from 4cm for realistic contact)
+const GRASP_DISTANCE = 0.045;         // 4.5cm - max distance from jaw center to object center for grasp
+                                      // Increased from 2.5cm to give more tolerance for IK positioning errors
 const JAW_LOCAL_OFFSET: [number, number, number] = [-0.0079, 0, 0.0068]; // Jaw center in gripper_frame local coords
 
 // Gripper geometry for calculating minimum grip value
@@ -116,7 +117,7 @@ export const GraspManager: React.FC = () => {
     // Check if there's an object in the grasp zone and set gripper minimum BEFORE it closes through
     if (!graspState.current.graspedObjectId) {
       let nearestObjectInZone: typeof objects[0] | null = null;
-      let nearestDistance = 0.10; // 10cm detection zone
+      let nearestDistance = 0.12; // 12cm detection zone - larger zone for early detection
 
       for (const obj of objects) {
         if (!obj.isGrabbable) continue;

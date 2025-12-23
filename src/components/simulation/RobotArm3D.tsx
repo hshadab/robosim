@@ -572,8 +572,8 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
             <div className="text-lg font-bold text-orange-500">{joints.gripper.toFixed(0)}%</div>
           </div>
 
-          {/* Debug panel for gripper physics */}
-          <GripperDebugPanel />
+          {/* Debug panel for gripper physics - disabled for clean UI */}
+          {/* <GripperDebugPanel /> */}
         </>
       )}
 
