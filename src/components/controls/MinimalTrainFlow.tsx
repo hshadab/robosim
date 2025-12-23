@@ -247,10 +247,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 4cm gives good margin
       const demoScale = 0.04; // 4cm cube
 
-      // Position in front of robot, within reachable workspace
-      // Based on FK analysis: arm reaches ~14cm in X-Z plane optimally
-      const x = 0.15;  // 15cm forward
-      const z = 0.10;  // 10cm to the side - well within reach
+      // Position cube DIRECTLY in front of robot (along +X axis) for simplest demo
+      // This avoids base rotation complications - arm extends straight forward
+      // At base=0, optimal-low reaches [27.8, 2.5, 0]cm per FK tests
+      const x = 0.26;  // 26cm forward - within optimal-low reach at 27.8cm
+      const z = 0.0;   // Directly in front (no base rotation needed)
       const y = demoScale / 2; // Half height above table (2cm for 4cm cube)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
@@ -299,29 +300,30 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
       console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
 
-      // Use pre-computed waypoints based on known working configurations from ikDebug tests
-      // optimal-low (shoulder=19, elbow=75, wrist=-77) reaches [27.8, 2.5, 0]cm at 27.8cm reach
-      // We need ~18cm reach (sqrt(15² + 10²)) at Y ≈ 4cm, so use tighter configuration
+      // Using KNOWN WORKING configurations from IK tests at base=0:
+      // - optimal-low: shoulder=19, elbow=75, wrist=-77 → [27.8, 2.5, 0]cm
+      // - extended: shoulder=-60, elbow=60, wrist=50 → [21.7, 7.5, 0]cm
+      // Cube is at [26, 2, 0]cm, so optimal-low (27.8cm reach) should work
 
-      // Step 3a: Open gripper and rotate base to face cube
-      await smoothMove({ gripper: 100, base: baseAngle, wristRoll: 0 }, 500);
+      // Step 3a: Open gripper, base stays at 0 (cube is directly in front)
+      await smoothMove({ gripper: 100, base: 0, wristRoll: 0 }, 500);
 
-      // Step 3b: Move to approach position (above cube) - arm extended but high
-      // Using configuration similar to 'extended' which gives [21.7, 7.5, 0] at 21.7cm reach
-      await smoothMove({ base: baseAngle, shoulder: -50, elbow: 55, wrist: 45, gripper: 100 }, 600);
+      // Step 3b: Move to approach position (high above cube)
+      // Using 'extended' config: reaches [21.7, 7.5, 0]cm at base=0
+      await smoothMove({ base: 0, shoulder: -60, elbow: 60, wrist: 50, gripper: 100 }, 600);
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Move to pre-grasp position (lower, closer to cube)
-      // Increase shoulder tilt to lower Y, tighten elbow for less reach
-      await smoothMove({ base: baseAngle, shoulder: -30, elbow: 70, wrist: 35, gripper: 100 }, 500);
+      // Step 3c: Move to pre-grasp position (lower, extending toward cube)
+      // Using variant-1: shoulder=20, elbow=73, wrist=-75 → [28.1, 2.1, 0]cm - close to optimal-low
+      await smoothMove({ base: 0, shoulder: 10, elbow: 70, wrist: -70, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position (at cube level, ~4cm above floor)
-      // Using tested config that reaches Y≈4-5cm to avoid floor collision
-      // optimal-low gives Y≈2.5cm at base=0 which is too low, use less elbow for higher Y
-      await smoothMove({ base: baseAngle, shoulder: 15, elbow: 65, wrist: -60, gripper: 100 }, 500);
+      // Step 3d: Move to grasp position using EXACT optimal-low config
+      // optimal-low: shoulder=19, elbow=75, wrist=-77 → [27.8, 2.5, 0]cm
+      // This should place gripper at 27.8cm reach, 2.5cm height - right at the cube
+      await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm, target: [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
 
@@ -329,8 +331,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       await smoothMove({ gripper: 0 }, 500);
       await delay(300); // Pause to ensure grip
 
-      // Step 3f: Lift the cube (reduce elbow, lower shoulder tilt)
-      await smoothMove({ base: baseAngle, shoulder: 0, elbow: 50, wrist: -30, gripper: 0 }, 700);
+      // Step 3f: Lift the cube - use 'extended' again to raise arm
+      await smoothMove({ base: 0, shoulder: -60, elbow: 60, wrist: 50, gripper: 0 }, 700);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
