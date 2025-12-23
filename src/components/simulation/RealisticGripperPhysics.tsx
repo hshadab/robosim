@@ -51,32 +51,49 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
   const prevMovingPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0.2, z: 0 });
 
   const clampToSafePosition = (
-    targetPos: { x: number; y: number; z: number }
+    targetPos: { x: number; y: number; z: number },
+    prevPos: { x: number; y: number; z: number }
   ): { x: number; y: number; z: number } => {
-    // Simple collision avoidance: clamp to floor and check against objects
+    // Simple collision avoidance: clamp to floor and push away from objects
+    let clampedX = targetPos.x;
     let clampedY = Math.max(targetPos.y, FLOOR_Y);
+    let clampedZ = targetPos.z;
     
-    // Check collision with scene objects using simple sphere collision
+    // Check collision with scene objects using sphere collision
     const objects = useAppStore.getState().objects;
+    const jawRadius = JAW_LENGTH * 0.4; // Effective collision radius of jaw
+    
     for (const obj of objects) {
       const [ox, oy, oz] = obj.position;
-      const objRadius = obj.scale * 0.5; // Half the object size
+      const objRadius = obj.scale * 0.5; // Half the object size (for cubes)
+      const minDist = objRadius + jawRadius; // Minimum allowed distance
       
-      const dx = targetPos.x - ox;
+      const dx = clampedX - ox;
       const dy = clampedY - oy;
-      const dz = targetPos.z - oz;
+      const dz = clampedZ - oz;
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
       
-      // If we're too close to the object, stay at current position
-      if (distance < objRadius + JAW_LENGTH * 0.5) {
-        // Push gripper up if colliding from above, or stop if from side
-        if (clampedY < oy + objRadius) {
-          clampedY = Math.max(clampedY, oy + objRadius + COLLISION_EPSILON);
-        }
+      // If we're penetrating the object, push the jaw out
+      if (distance < minDist && distance > 0.001) {
+        // Normalize the direction and push out to safe distance
+        const pushDist = minDist - distance + COLLISION_EPSILON;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const nz = dz / distance;
+        
+        clampedX += nx * pushDist;
+        clampedY += ny * pushDist;
+        clampedZ += nz * pushDist;
+        
+        // Keep above floor
+        clampedY = Math.max(clampedY, FLOOR_Y);
+      } else if (distance <= 0.001) {
+        // Edge case: exactly at object center, use previous position
+        return prevPos;
       }
     }
     
-    return { x: targetPos.x, y: clampedY, z: targetPos.z };
+    return { x: clampedX, y: clampedY, z: clampedZ };
   };
 
   useFrame(() => {
@@ -115,11 +132,13 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
     const targetMovingZ = currentGripperPos[2] + jawOffset.current.z;
 
     const clampedFixed = clampToSafePosition(
-      { x: targetFixedX, y: targetFixedY, z: targetFixedZ }
+      { x: targetFixedX, y: targetFixedY, z: targetFixedZ },
+      prevFixedPos.current
     );
 
     const clampedMoving = clampToSafePosition(
-      { x: targetMovingX, y: targetMovingY, z: targetMovingZ }
+      { x: targetMovingX, y: targetMovingY, z: targetMovingZ },
+      prevMovingPos.current
     );
 
     if (fixedJawRef.current) {
