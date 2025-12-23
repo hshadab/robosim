@@ -248,12 +248,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 4cm gives good margin
       const demoScale = 0.04; // 4cm cube
 
-      // Position cube DIRECTLY in front of robot (along +X axis) for simplest demo
-      // This avoids base rotation complications - arm extends straight forward
+      // Position cube so gripper approaches its NEAR edge (not through it)
       // At base=0, optimal-low reaches [27.8, 2.5, 0]cm per FK tests
-      // Cube at 24cm allows gripper body to stay behind cube (not penetrate)
-      const x = 0.24;  // 24cm forward - gripper at 27.8cm gives 3.8cm clearance
-      const z = 0.0;   // Directly in front (no base rotation needed)
+      // For 4cm cube: center at 29.8cm means near edge at 27.8cm (where gripper tip lands)
+      // This keeps gripper body BEHIND the cube, preventing penetration
+      const x = 0.298;  // 29.8cm - near edge at 27.8cm matches gripper reach
+      const z = 0.0;    // Directly in front (no base rotation needed)
       const y = demoScale / 2; // Half height above table (2cm for 4cm cube)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
@@ -322,14 +322,14 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Pre-grasp - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Move to grasp position - adjusted for cube at 24cm
-      // Need gripper tip at ~26cm (far edge of 4cm cube centered at 24cm)
-      // Using slightly less extended position: shoulder=15, elbow=72, wrist=-73
-      await smoothMove({ base: 0, shoulder: 15, elbow: 72, wrist: -73, gripper: 100 }, 500);
+      // Step 3d: Move to grasp position using optimal-low config
+      // optimal-low: shoulder=19, elbow=75, wrist=-77 → [27.8, 2.5, 0]cm
+      // Cube near edge is at 27.8cm, so gripper arrives at cube surface
+      await smoothMove({ base: 0, shoulder: 19, elbow: 75, wrist: -77, gripper: 100 }, 500);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 15, elbow: 72, wrist: -73, wristRoll: 0 };
+      const graspJoints = { base: 0, shoulder: 19, elbow: 75, wrist: -77, wristRoll: 0 };
       const fkPredicted = calculateGripperPositionURDF(graspJoints);
       console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
       console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
