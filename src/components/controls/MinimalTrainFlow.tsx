@@ -304,43 +304,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Based on testing: shoulder=10, elbow=96, wrist=-85 gives [23, 2.7]
       // Need to adjust to reach X=20cm - try higher elbow for more fold
 
-      // Step 3a: Open gripper, rotate for top-down orientation
-      await smoothMove({ gripper: 100, base: 0, wristRoll: 90 }, 500);
-
-      // WATERFALL APPROACH based on user's manual configuration:
-      // Negative shoulder + positive wrist = arm arches OVER the cube
+      // SIMPLE 4-MOVE WATERFALL SEQUENCE:
+      // Move 1: Open gripper + arch over cube
+      await smoothMove({ base: 0, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 100 }, 700);
       
-      // Step 3b: Arch over cube - high position with gripper pointing down
-      // User's config: shoulder=-22, elbow=51, wrist=63 creates the overhead arch
-      await smoothMove({ base: 0, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 100 }, 600);
-      let pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Arched over - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
-
-      // Step 3c: Descend - unfold arm to lower gripper onto cube
-      // Increase shoulder and elbow to extend down, adjust wrist to keep gripper vertical
-      await smoothMove({ base: 0, shoulder: 0, elbow: 80, wrist: 10, wristRoll: 90, gripper: 100 }, 500);
-      pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Descending - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
-
-      // Step 3d: Final grasp position - at cube level
-      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 600);
-      pos = useAppStore.getState().gripperWorldPosition;
+      // Move 2: Descend to cube
+      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 800);
       
-      // DIAGNOSTIC: Compare FK prediction vs actual URDF position
-      const graspJoints = { base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90 };
-      const fkPredicted = calculateGripperPositionURDF(graspJoints);
-      console.log(`[DemoPick] FK PREDICTED: [${(fkPredicted[0]*100).toFixed(1)}, ${(fkPredicted[1]*100).toFixed(1)}, ${(fkPredicted[2]*100).toFixed(1)}]cm`);
-      console.log(`[DemoPick] URDF ACTUAL:  [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
-      console.log(`[DemoPick] CUBE TARGET:  [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm`);
-
-      // Step 3e: Close gripper to grab cube
-      await smoothMove({ gripper: 0 }, 500);
-      await delay(300); // Pause to ensure grip
-
-      // Step 3f: Lift the cube - reverse back to arched position
+      // Move 3: Close gripper
+      await smoothMove({ gripper: 0 }, 400);
+      
+      // Move 4: Lift with cube
       await smoothMove({ base: 0, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 0 }, 700);
-      pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
