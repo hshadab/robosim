@@ -52,9 +52,9 @@ export const SimObjectMesh: React.FC<SimObjectProps> = ({ object, isNearGripper 
     }
   });
 
-  // Only glow when near gripper (not when grabbed - keep original color)
-  const emissiveColor = isNearGripper && !object.isGrabbed ? '#FFFFFF' : '#000000';
-  const emissiveIntensity = isNearGripper && !object.isGrabbed ? 0.15 : 0;
+  // No emissive glow - keep objects their natural color
+  const emissiveColor = '#000000';
+  const emissiveIntensity = 0;
 
   const renderShape = () => {
     switch (object.type) {
