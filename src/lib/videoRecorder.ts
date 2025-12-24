@@ -3,7 +3,19 @@
  *
  * Captures the Three.js canvas as MP4 video during robot demonstrations.
  * Used for LeRobot dataset export with visual observations.
+ *
+ * PERFORMANCE NOTES:
+ * - Use captureFrameNonBlocking() instead of captureFrame() to avoid UI freezes
+ * - Image capture is offloaded to a Web Worker when available
+ * - Video recording uses MediaRecorder which is already non-blocking
  */
+
+import {
+  getImageEncoder,
+  captureCanvasAsImageBitmap,
+  blobToBase64,
+  type ImageEncoderWorker,
+} from './imageEncoderWorker';
 
 export interface VideoRecorderOptions {
   fps?: number;
@@ -28,9 +40,27 @@ export class CanvasVideoRecorder {
   private options: VideoRecorderOptions;
   private isRecording = false;
   private frameCount = 0;
+  private imageEncoder: ImageEncoderWorker | null = null;
+  private encoderInitialized = false;
 
   constructor(options: VideoRecorderOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+  }
+
+  /**
+   * Initialize the image encoder worker for non-blocking capture
+   */
+  async initializeEncoder(): Promise<boolean> {
+    if (this.encoderInitialized) return this.imageEncoder?.available ?? false;
+
+    try {
+      this.imageEncoder = await getImageEncoder();
+      this.encoderInitialized = true;
+      return this.imageEncoder.available;
+    } catch (error) {
+      console.warn('Failed to initialize image encoder:', error);
+      return false;
+    }
   }
 
   /**
@@ -229,6 +259,117 @@ export class CanvasVideoRecorder {
         0.8
       );
     });
+  }
+
+  /**
+   * NON-BLOCKING frame capture using Web Worker
+   *
+   * This is the recommended method for recording - it doesn't freeze the UI.
+   * Uses createImageBitmap (fast) + Web Worker encoding (off main thread).
+   *
+   * @returns Promise<string | null> - base64 data URL or null on error
+   */
+  async captureFrameNonBlocking(): Promise<string | null> {
+    if (!this.canvas) {
+      this.findThreeCanvas();
+    }
+
+    if (!this.canvas) {
+      return null;
+    }
+
+    try {
+      // Step 1: Create ImageBitmap (fast, ~1-2ms)
+      const imageBitmap = await captureCanvasAsImageBitmap(this.canvas);
+
+      // Step 2: Encode in worker (non-blocking)
+      if (this.imageEncoder?.available) {
+        const blob = await this.imageEncoder.encode(imageBitmap, 0.8, 'jpeg');
+        this.frameCount++;
+        // Convert to base64 for storage (could also store blobs directly)
+        return blobToBase64(blob);
+      } else {
+        // Fallback: use async toBlob on main thread
+        const canvas = document.createElement('canvas');
+        canvas.width = imageBitmap.width;
+        canvas.height = imageBitmap.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(imageBitmap, 0, 0);
+        imageBitmap.close();
+
+        return new Promise((resolve) => {
+          canvas.toBlob(
+            async (blob) => {
+              if (blob) {
+                this.frameCount++;
+                resolve(await blobToBase64(blob));
+              } else {
+                resolve(null);
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        });
+      }
+    } catch (error) {
+      console.error('Failed to capture frame (non-blocking):', error);
+      return null;
+    }
+  }
+
+  /**
+   * NON-BLOCKING frame capture returning Blob (no base64 conversion)
+   *
+   * Even more efficient when you don't need base64.
+   */
+  async captureFrameBlobNonBlocking(): Promise<Blob | null> {
+    if (!this.canvas) {
+      this.findThreeCanvas();
+    }
+
+    if (!this.canvas) {
+      return null;
+    }
+
+    try {
+      const imageBitmap = await captureCanvasAsImageBitmap(this.canvas);
+
+      if (this.imageEncoder?.available) {
+        const blob = await this.imageEncoder.encode(imageBitmap, 0.8, 'jpeg');
+        this.frameCount++;
+        return blob;
+      } else {
+        // Fallback
+        const canvas = document.createElement('canvas');
+        canvas.width = imageBitmap.width;
+        canvas.height = imageBitmap.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(imageBitmap, 0, 0);
+        imageBitmap.close();
+
+        return new Promise((resolve) => {
+          canvas.toBlob(
+            (blob) => {
+              this.frameCount++;
+              resolve(blob);
+            },
+            'image/jpeg',
+            0.8
+          );
+        });
+      }
+    } catch (error) {
+      console.error('Failed to capture frame blob (non-blocking):', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if non-blocking capture is available
+   */
+  get nonBlockingAvailable(): boolean {
+    return this.imageEncoder?.available ?? false;
   }
 }
 

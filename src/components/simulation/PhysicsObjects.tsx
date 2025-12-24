@@ -6,6 +6,7 @@ import { RoundedBox, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
 import { useAppStore } from '../../stores/useAppStore';
+import { OBJECT_PHYSICS, FLOOR_PHYSICS } from '../../config/physics';
 
 /** Shape classification for physics colliders */
 type ColliderShape = 'sphere' | 'box' | 'cylinder' | 'convex';
@@ -225,8 +226,8 @@ const GLBPhysicsObject: React.FC<{
     if (!analysis) return 0.5;
     const { size } = analysis.bounds;
     const volume = size.x * size.y * size.z * Math.pow(object.scale, 3);
-    // Assume density ~800 kg/m³ (wood-like), clamp to reasonable range
-    return Math.max(0.05, Math.min(5, volume * 800));
+    const { density, massClamp } = OBJECT_PHYSICS.defaults.glb;
+    return Math.max(massClamp.min, Math.min(massClamp.max, volume * density));
   }, [analysis, object.scale]);
 
   return (
@@ -236,8 +237,8 @@ const GLBPhysicsObject: React.FC<{
       rotation={object.rotation}
       colliders={false}
       mass={mass}
-      restitution={0.2}
-      friction={0.7}
+      restitution={OBJECT_PHYSICS.defaults.glb.restitution}
+      friction={OBJECT_PHYSICS.defaults.glb.friction}
       ccd={true}
     >
       {collider}
@@ -268,7 +269,7 @@ interface PhysicsObjectProps {
 
 // Physics friction coefficient for grippable objects
 // Higher friction makes objects easier to grip and hold
-const GRIPPABLE_FRICTION = 1.5;
+const GRIPPABLE_FRICTION = OBJECT_PHYSICS.grippableFriction;
 
 export const PhysicsObject: React.FC<PhysicsObjectProps> = ({
   object,
@@ -471,12 +472,12 @@ export const FloorCollider: React.FC = () => {
   return (
     <RigidBody
       type="fixed"
-      position={[0, -0.025, 0]}
-      friction={1.0}
-      restitution={0.05}
+      position={[0, FLOOR_PHYSICS.colliderY, 0]}
+      friction={FLOOR_PHYSICS.friction}
+      restitution={FLOOR_PHYSICS.restitution}
       ccd={true}  // Enable CCD on floor to prevent fast objects from passing through
     >
-      <CuboidCollider args={[2, 0.025, 2]} />
+      <CuboidCollider args={[FLOOR_PHYSICS.halfExtent, FLOOR_PHYSICS.halfThickness, FLOOR_PHYSICS.halfExtent]} />
     </RigidBody>
   );
 };

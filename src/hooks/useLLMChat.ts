@@ -179,14 +179,23 @@ export const useLLMChat = () => {
   );
 
   const executeArmSequence = useCallback(
-    async (sequence: Record<string, number | string>[]) => {
+    async (sequence: Record<string, number | string | boolean>[]) => {
       setIsAnimating(true);
       let currentJoints = { ...jointsRef.current };
 
       for (const step of sequence) {
         const targetJoints: Partial<JointState> = {};
 
+        // Check for gripper-only flag (needs extra time for physics)
+        const isGripperOnly = step._gripperOnly === true;
+        // Check if this step only changes gripper (no other joints)
+        const gripperOnlyStep = Object.keys(step).filter(k => k !== '_gripperOnly').length === 1
+          && step.gripper !== undefined;
+
         for (const [joint, value] of Object.entries(step)) {
+          // Skip internal flags
+          if (joint.startsWith('_')) continue;
+
           const jointKey = joint as keyof JointState;
           if (typeof value === 'string') {
             if (value.startsWith('+') || value.startsWith('-')) {
@@ -197,9 +206,17 @@ export const useLLMChat = () => {
           }
         }
 
-        await animateToJoints(targetJoints, 500);
+        // Use longer duration for gripper-only moves (physics needs time to detect contact)
+        // Demo uses 800ms for gripper close - this is critical for reliable grasping
+        const duration = (isGripperOnly || gripperOnlyStep) ? 800 : 700;
+
+        await animateToJoints(targetJoints, duration);
         currentJoints = { ...currentJoints, ...targetJoints };
-        await new Promise((r) => setTimeout(r, 100));
+
+        // Longer delay between steps for physics to settle
+        // Demo waits ~500ms after gripper close before lifting
+        const delayAfter = (isGripperOnly || gripperOnlyStep) ? 400 : 150;
+        await new Promise((r) => setTimeout(r, delayAfter));
       }
 
       setIsAnimating(false);

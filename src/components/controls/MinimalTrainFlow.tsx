@@ -45,7 +45,6 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
-import { calculateGripperPositionURDF } from '../simulation/SO101KinematicsURDF';
 
 const log = createLogger('TrainFlow');
 
@@ -298,7 +297,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Calculate base angle to point arm toward cube: atan2(z, x) for URDF convention
       // Based on testing: at base=0 arm extends along +X, base rotates toward +Z
       const baseAngle = Math.atan2(z, x) * (180 / Math.PI);
-      console.log(`[DemoPick] Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
+      log.debug(`Cube at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm, base angle: ${baseAngle.toFixed(1)}°`);
 
       // Cube is at [20, 1.5, 0]cm - positioned for vertical top-down approach
       // Based on testing: shoulder=10, elbow=96, wrist=-85 gives [23, 2.7]

@@ -60,6 +60,9 @@ export const DatasetRecorderPanel: React.FC = () => {
   const videoRecorderRef = useRef<CanvasVideoRecorder | null>(null);
   const intervalRef = useRef<number | null>(null);
   const batchTimerRef = useRef<number | null>(null);
+  const frameCountRef = useRef(0); // Avoid re-renders on every frame
+  const lastUiUpdateRef = useRef(0); // Throttle UI updates
+  const imageIntervalRef = useRef<number | null>(null); // Separate interval for images
 
   // Get current state based on robot type
   const getCurrentState = () => {
@@ -75,14 +78,22 @@ export const DatasetRecorderPanel: React.FC = () => {
     }
   };
 
-  const startRecording = () => {
+  const startRecording = async () => {
     // Initialize data recorder
     recorderRef.current = new Recorder(activeRobotType, selectedRobotId);
     recorderRef.current.startEpisode();
 
+    // Reset frame tracking
+    frameCountRef.current = 0;
+    lastUiUpdateRef.current = Date.now();
+
     // Initialize video recorder if enabled
     if (recordVideo) {
       videoRecorderRef.current = new CanvasVideoRecorder({ fps: 30 });
+
+      // Initialize the Web Worker for non-blocking encoding
+      await videoRecorderRef.current.initializeEncoder();
+
       const canvas = videoRecorderRef.current.findThreeCanvas();
       if (canvas) {
         videoRecorderRef.current.start();
@@ -94,15 +105,41 @@ export const DatasetRecorderPanel: React.FC = () => {
     setIsRecording(true);
     setFrameCount(0);
 
-    // Record frames at 30 FPS
+    // OPTIMIZATION 1: Record joint data at 30 FPS (fast, no encoding)
     intervalRef.current = window.setInterval(() => {
       if (recorderRef.current?.recording) {
-        // Capture frame with optional image
-        const imageDataUrl = recordVideo ? videoRecorderRef.current?.captureFrame() : undefined;
-        recorderRef.current.recordFrame(getCurrentState(), {}, imageDataUrl || undefined);
-        setFrameCount(recorderRef.current.frameCount);
+        // Record frame WITHOUT image (images captured separately at lower rate)
+        recorderRef.current.recordFrame(getCurrentState(), {}, undefined);
+        frameCountRef.current = recorderRef.current.frameCount;
+
+        // OPTIMIZATION 4: Throttle UI updates to every 500ms
+        const now = Date.now();
+        if (now - lastUiUpdateRef.current > 500) {
+          setFrameCount(frameCountRef.current);
+          lastUiUpdateRef.current = now;
+        }
       }
-    }, 33);
+    }, 33); // 30 FPS for joint data
+
+    // OPTIMIZATION 2: Capture images at 10 FPS (non-blocking)
+    if (recordVideo) {
+      imageIntervalRef.current = window.setInterval(async () => {
+        if (recorderRef.current?.recording && videoRecorderRef.current) {
+          // OPTIMIZATION 3: Use Web Worker for encoding (non-blocking)
+          const imageDataUrl = await videoRecorderRef.current.captureFrameNonBlocking();
+          if (imageDataUrl && recorderRef.current.recording) {
+            // Attach image to the most recent frame
+            const frames = recorderRef.current.getCurrentFrames?.();
+            if (frames && frames.length > 0) {
+              const lastFrame = frames[frames.length - 1];
+              if (lastFrame && !lastFrame.observation.image) {
+                lastFrame.observation.image = imageDataUrl;
+              }
+            }
+          }
+        }
+      }, 100); // 10 FPS for images (3x less encoding work)
+    }
   };
 
   const stopRecording = async (success = true) => {
@@ -110,6 +147,15 @@ export const DatasetRecorderPanel: React.FC = () => {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+
+    // Stop image capture interval
+    if (imageIntervalRef.current) {
+      clearInterval(imageIntervalRef.current);
+      imageIntervalRef.current = null;
+    }
+
+    // Final UI update with accurate frame count
+    setFrameCount(frameCountRef.current);
 
     // Stop video recording and get blob
     let videoBlob: Blob | null = null;
@@ -245,6 +291,9 @@ export const DatasetRecorderPanel: React.FC = () => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (imageIntervalRef.current) {
+        clearInterval(imageIntervalRef.current);
       }
       if (batchTimerRef.current) {
         clearTimeout(batchTimerRef.current);

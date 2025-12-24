@@ -12,6 +12,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
+import { loggers } from '../lib/logger';
+
+const log = loggers.gripper;
 
 // Distance threshold for detecting object in target zone
 const ZONE_CHECK_INTERVAL = 500; // Check every 500ms to reduce overhead
@@ -68,7 +71,7 @@ export const useGripperInteraction = () => {
                     objective.target?.zoneId === zone.id
                   ) {
                     completeObjective(objective.id);
-                    console.log(`[GripperInteraction] ✓ Objective completed: ${objective.description}`);
+                    log.info(`Objective completed: ${objective.description}`);
                   }
                 }
               }

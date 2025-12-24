@@ -115,10 +115,25 @@ IK Error:            0.09cm (sub-millimeter!)
 
 ## How Grasping Works Now
 
+### Simplified 4-Step Pickup Sequence (December 2024)
+
+The chat-based pickup was simplified to match the reliable Demo Pick Up:
+
+| Step | Action | Duration | Purpose |
+|------|--------|----------|---------|
+| 1 | Move to grasp position (gripper open) | 700ms | Position jaws around object |
+| 2 | Close gripper | **800ms** | Physics needs time to detect contact |
+| 3 | Hold position | 700ms + 400ms delay | Let physics register the grab |
+| 4 | Lift | 700ms | Raise object |
+
+**Key insight**: The gripper close step needs 800ms minimum for reliable physics detection. The previous 11-step sequence with 500ms steps was too fast.
+
+### Execution Flow
+
 1. **IK Planning**: `calculateGraspJoints()` finds joint angles to place **JAWS** at object center
-2. **Approach**: Arm moves above object with gripper open
-3. **Descent**: Arm lowers, jaws positioned around object
-4. **Close**: Gripper closes → GraspManager detects object → attaches kinematically
+2. **Position**: Arm moves directly to grasp position with gripper open (no intermediate waypoints)
+3. **Close**: Gripper closes slowly (800ms) → GraspManager detects object → attaches kinematically
+4. **Hold**: Brief pause (400ms) for physics stability
 5. **Lift**: Object follows gripper as arm rises
 6. **Release**: Gripper opens → GraspManager releases → object returns to dynamic physics
 
@@ -138,5 +153,5 @@ Expected output:
 
 ---
 
-*Last updated: 2024-12-21*
-*Status: All issues resolved*
+*Last updated: 2024-12-23*
+*Status: All issues resolved - Chat pickup now matches Demo reliability*

@@ -1122,14 +1122,14 @@ function handlePickUpCommand(
 
   // Find an object to pick up
   if (grabbableObjects.length === 0) {
-    console.log('[handlePickUpCommand] No grabbable objects found');
+    log.debug('No grabbable objects found');
     return {
       action: 'explain',
       description: "I don't see any objects to pick up. Try adding an object using the Object Library first.",
     };
   }
 
-  console.log('[handlePickUpCommand] Grabbable objects:', grabbableObjects.map(o => ({
+  log.debug('Grabbable objects:', grabbableObjects.map(o => ({
     name: o.name,
     type: o.type,
     id: o.id,
@@ -1168,16 +1168,16 @@ function handlePickUpCommand(
         (messageColor && (name.includes(messageColor) || color.includes(messageColor)))) {
       targetObject = obj;
       matchFound = true;
-      console.log('[handlePickUpCommand] Matched object:', targetObject.name, 'via',
+      log.debug(`Matched object: ${targetObject.name} via ${
         message.includes(name) ? 'full name' :
         words.some(word => word.length > 2 && message.includes(word)) ? 'word match' :
-        typeMatches ? 'type match' : 'color match');
+        typeMatches ? 'type match' : 'color match'}`);
       break;
     }
   }
 
   if (!matchFound) {
-    console.log('[handlePickUpCommand] No specific match found, using first object:', targetObject.name);
+    log.debug('No specific match found, using first object:', targetObject.name);
   }
 
   const [objX, objY, objZ] = targetObject.position;
@@ -1332,53 +1332,50 @@ function handlePickUpCommand(
   log.debug(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
   log.debug(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
 
-  // Build sequence: approach -> intermediate steps -> grasp -> hold -> close -> hold -> lift
-  // For cylinders: SIDE approach with horizontal movement (prevents arm passing through object)
-  // For other objects: VERTICAL approach with descent from above
-  // Extra hold steps give physics time to register contact and the visual time to settle
-
-  // Create intermediate waypoints between approach and grasp for smooth motion
-  // Interpolate joint angles: 33%, 66% between approach and grasp
-  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-  const preGrasp1 = {
-    base: lerp(approachJoints.base, graspJoints.base, 0.33),
-    shoulder: lerp(approachJoints.shoulder, graspJoints.shoulder, 0.33),
-    elbow: lerp(approachJoints.elbow, graspJoints.elbow, 0.33),
-    wrist: lerp(approachJoints.wrist, graspJoints.wrist, 0.33),
-  };
-  const preGrasp2 = {
-    base: lerp(approachJoints.base, graspJoints.base, 0.66),
-    shoulder: lerp(approachJoints.shoulder, graspJoints.shoulder, 0.66),
-    elbow: lerp(approachJoints.elbow, graspJoints.elbow, 0.66),
-    wrist: lerp(approachJoints.wrist, graspJoints.wrist, 0.66),
-  };
+  // Build SIMPLE 4-step sequence (matches working Demo Pick Up):
+  // 1. Position at grasp with gripper open
+  // 2. Close gripper (SLOW - physics needs time to detect contact)
+  // 3. Hold briefly for physics to register grab
+  // 4. Lift
+  //
+  // Key insight: Demo uses 800ms for gripper close - that's what makes it work!
+  // The old 11-step sequence with 500ms steps was too fast for physics.
 
   const sequence: Partial<JointState>[] = [
-    // Step 1: Open gripper wide and set wrist roll for cylinder if needed
-    { gripper: 100, wristRoll: cylinderWristRoll },
-    // Step 2: Move to approach position (side for cylinders, above for others)
-    { base: approachJoints.base, shoulder: approachJoints.shoulder, elbow: approachJoints.elbow, wrist: approachJoints.wrist, wristRoll: cylinderWristRoll },
-    // Step 3a: Move 1/3 toward grasp (horizontal for cylinders, vertical for others)
-    { base: preGrasp1.base, shoulder: preGrasp1.shoulder, elbow: preGrasp1.elbow, wrist: preGrasp1.wrist, wristRoll: cylinderWristRoll },
-    // Step 3b: Move 2/3 toward grasp
-    { base: preGrasp2.base, shoulder: preGrasp2.shoulder, elbow: preGrasp2.elbow, wrist: preGrasp2.wrist, wristRoll: cylinderWristRoll },
-    // Step 3c: Final grasp position
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll },
-    // Step 4: HOLD at grasp position (let physics settle, visual confirmation)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 100 },
-    // Step 5: Begin closing gripper (partial close)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 30 },
-    // Step 6: Fully close gripper
-    { gripper: 0, wristRoll: cylinderWristRoll },
-    // Step 7: HOLD with gripper closed (ensure physics grab registers)
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
-    // Step 8: Hold again for physics stability
-    { base: graspJoints.base, shoulder: graspJoints.shoulder, elbow: graspJoints.elbow, wrist: graspJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
-    // Step 9: Lift
-    { base: liftJoints.base, shoulder: liftJoints.shoulder, elbow: liftJoints.elbow, wrist: liftJoints.wrist, wristRoll: cylinderWristRoll, gripper: 0 },
+    // Step 1: Move to grasp position with gripper open
+    // Combines approach + grasp into single smooth motion
+    {
+      base: graspJoints.base,
+      shoulder: graspJoints.shoulder,
+      elbow: graspJoints.elbow,
+      wrist: graspJoints.wrist,
+      wristRoll: cylinderWristRoll,
+      gripper: 100
+    },
+    // Step 2: Close gripper ONLY (no arm movement)
+    // This step gets extra time via _gripperOnly flag for physics detection
+    { gripper: 0, _gripperOnly: true } as Partial<JointState> & { _gripperOnly?: boolean },
+    // Step 3: Hold position with gripper closed (physics settle time)
+    {
+      base: graspJoints.base,
+      shoulder: graspJoints.shoulder,
+      elbow: graspJoints.elbow,
+      wrist: graspJoints.wrist,
+      wristRoll: cylinderWristRoll,
+      gripper: 0
+    },
+    // Step 4: Lift
+    {
+      base: liftJoints.base,
+      shoulder: liftJoints.shoulder,
+      elbow: liftJoints.elbow,
+      wrist: liftJoints.wrist,
+      wristRoll: cylinderWristRoll,
+      gripper: 0
+    },
   ];
 
-  console.log('[handlePickUpCommand] FULL SEQUENCE:', JSON.stringify(sequence, null, 2));
+  log.debug('Pick up sequence:', sequence);
 
   return {
     action: 'sequence',
@@ -1494,7 +1491,7 @@ await moveJoints({ base: ${retreatIK.base.toFixed(1)}, shoulder: ${retreatIK.sho
   }
 
   // Fallback to heuristic
-  console.log('[handleStackCommand] IK failed, using heuristic fallback');
+  log.debug('Stack command IK failed, using heuristic fallback');
   const baseAngle = calculateBaseAngleForPosition(targetX, targetZ);
   return {
     action: 'sequence',
@@ -1562,7 +1559,7 @@ function handleMoveToCommand(
 }
 
 function simulateArmResponse(message: string, state: JointState, objects?: SimObject[]): ClaudeResponse {
-  console.log('[simulateArmResponse] Processing message:', message);
+  log.debug('Processing message:', message);
   const amount = parseAmount(message);
 
   // Find grabbable objects
@@ -1573,7 +1570,7 @@ function simulateArmResponse(message: string, state: JointState, objects?: SimOb
 
   // Pick up / grab objects - check BEFORE checking "up"
   if (message.includes('pick') || message.includes('grab')) {
-    console.log('[simulateArmResponse] Detected pick/grab command');
+    log.debug('Detected pick/grab command');
     return handlePickUpCommand(message, grabbableObjects, heldObject);
   }
 
@@ -1771,7 +1768,7 @@ await moveJoints({ base: ${liftIK.base.toFixed(1)}, shoulder: ${liftIK.shoulder.
     }
 
     // Fallback to heuristic if IK fails
-    console.log('[place] IK failed, using heuristic fallback');
+    log.debug('Place command IK failed, using heuristic fallback');
     return {
       action: 'sequence',
       joints: [

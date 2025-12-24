@@ -14,6 +14,9 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore } from '../../stores/useAppStore';
+import { loggers } from '../../lib/logger';
+
+const log = loggers.grasp;
 
 // Gripper thresholds
 // Note: These are fallbacks - contact grasp uses object-specific minimum values
@@ -187,10 +190,12 @@ export const GraspManager: React.FC = () => {
           // Mark object as grabbed
           updateObject(nearestObjectInZone.id, { isGrabbed: true });
 
-          console.log(`[GraspManager] CONTACT GRASP: ${nearestObjectInZone.name || nearestObjectInZone.id}`);
-          console.log(`[GraspManager]   Gripper at ${currentGripper.toFixed(1)}% (min=${minGripperForObject.toFixed(1)}%)`);
-          console.log(`[GraspManager]   Object pos: [${nearestObjectInZone.position.map(v => (v*100).toFixed(1)).join(', ')}] cm`);
-          console.log(`[GraspManager]   Jaw pos: [${(jawPosition.current.x*100).toFixed(1)}, ${(jawPosition.current.y*100).toFixed(1)}, ${(jawPosition.current.z*100).toFixed(1)}] cm`);
+          log.debug(`Contact grasp: ${nearestObjectInZone.name || nearestObjectInZone.id}`, {
+            gripper: currentGripper.toFixed(1),
+            min: minGripperForObject.toFixed(1),
+            objectPos: nearestObjectInZone.position.map(v => (v*100).toFixed(1)),
+            jawPos: [jawPosition.current.x, jawPosition.current.y, jawPosition.current.z].map(v => (v*100).toFixed(1)),
+          });
         }
       } else {
         // No object in zone - clear the minimum (unless we're grasping)
@@ -259,11 +264,12 @@ export const GraspManager: React.FC = () => {
         // This ensures the visual gripper stops at the object surface
         setJoints({ gripper: minGripperValue });
 
-        console.log(`[GraspManager] Grasped object: ${closestObject.name || closestObject.id}`);
-        console.log(`[GraspManager]   Object pos: [${closestObject.position.map(v => (v*100).toFixed(1)).join(', ')}] cm`);
-        console.log(`[GraspManager]   Jaw pos: [${(jawPosition.current.x*100).toFixed(1)}, ${(jawPosition.current.y*100).toFixed(1)}, ${(jawPosition.current.z*100).toFixed(1)}] cm`);
-        console.log(`[GraspManager]   Grasp offset (local): [${(graspState.current.graspOffset.x*100).toFixed(1)}, ${(graspState.current.graspOffset.y*100).toFixed(1)}, ${(graspState.current.graspOffset.z*100).toFixed(1)}] cm`);
-        console.log(`[GraspManager]   minGripper=${minGripperValue.toFixed(1)}`);
+        log.debug(`Grasped object: ${closestObject.name || closestObject.id}`, {
+          objectPos: closestObject.position.map(v => (v*100).toFixed(1)),
+          jawPos: [jawPosition.current.x, jawPosition.current.y, jawPosition.current.z].map(v => (v*100).toFixed(1)),
+          graspOffset: [graspState.current.graspOffset.x, graspState.current.graspOffset.y, graspState.current.graspOffset.z].map(v => (v*100).toFixed(1)),
+          minGripper: minGripperValue.toFixed(1),
+        });
       }
     }
 
@@ -278,7 +284,7 @@ export const GraspManager: React.FC = () => {
       // Clear gripper minimum constraint
       setGripperMinValue(null);
 
-      console.log(`[GraspManager] Released object: ${releasedId}`);
+      log.debug(`Released object: ${releasedId}`);
 
       // Clear grasp state
       graspState.current.graspedObjectId = null;
@@ -321,7 +327,7 @@ export const GraspManager: React.FC = () => {
 
         // Debug logging only when clamped (floor constraint active)
         if (needsClamp && Math.random() < 0.1) {
-          console.log(`[GraspManager] Floor clamp active: Y=${(newPosition.current.y*100).toFixed(1)}cm`);
+          log.debug(`Floor clamp active: Y=${(newPosition.current.y*100).toFixed(1)}cm`);
         }
 
         // Calculate new rotation

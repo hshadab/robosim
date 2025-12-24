@@ -2,7 +2,7 @@ import React, { useState, Suspense } from 'react';
 import { RotateCcw, Camera, Maximize2, Radio } from 'lucide-react';
 import { RobotArm3D } from './RobotArm3D';
 import { RobotCameraOverlay } from './RobotCameraView';
-import { Button } from '../common';
+import { Button, ErrorBoundary, Canvas3DErrorFallback } from '../common';
 import { useAppStore } from '../../stores/useAppStore';
 import { useGripperInteraction } from '../../hooks/useGripperInteraction';
 
@@ -85,30 +85,35 @@ export const SimulationViewport: React.FC = () => {
 
       {/* Viewport */}
       <div className="flex-1 relative">
-        <Suspense
-          fallback={
-            <div className="w-full h-full flex items-center justify-center bg-slate-900">
-              <div className="text-slate-400">Loading 3D view...</div>
-            </div>
-          }
+        <ErrorBoundary
+          name="3D Simulation"
+          fallback={<Canvas3DErrorFallback />}
         >
-          <RobotArm3D
-            joints={joints}
-            environment={currentEnvironment}
-            objects={objects}
-            targetZones={targetZones}
-            sensors={sensors}
-            sensorVisualization={sensorVisualization}
-            activeRobotType={activeRobotType}
-            wheeledRobot={wheeledRobot}
-            drone={drone}
-            humanoid={humanoid}
-            onDroneStateChange={setDrone}
-            clickToMoveEnabled={controlMode === 'click-to-move'}
-            showWorkspace={showWorkspace}
-            onJointsChange={setJoints}
-          />
-        </Suspense>
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                <div className="text-slate-400">Loading 3D view...</div>
+              </div>
+            }
+          >
+            <RobotArm3D
+              joints={joints}
+              environment={currentEnvironment}
+              objects={objects}
+              targetZones={targetZones}
+              sensors={sensors}
+              sensorVisualization={sensorVisualization}
+              activeRobotType={activeRobotType}
+              wheeledRobot={wheeledRobot}
+              drone={drone}
+              humanoid={humanoid}
+              onDroneStateChange={setDrone}
+              clickToMoveEnabled={controlMode === 'click-to-move'}
+              showWorkspace={showWorkspace}
+              onJointsChange={setJoints}
+            />
+          </Suspense>
+        </ErrorBoundary>
 
         {/* Robot Camera Overlay */}
         {showCamera && (

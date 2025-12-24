@@ -38,6 +38,26 @@ export interface Vector3D {
   z: number;
 }
 
+/** Tuple representation of a 3D vector [x, y, z] */
+export type Vector3Tuple = [number, number, number];
+
+/** Tuple representation of a quaternion [x, y, z, w] */
+export type QuaternionTuple = [number, number, number, number];
+
+/** Euler angles in radians or degrees */
+export interface EulerAngles {
+  x: number;
+  y: number;
+  z: number;
+  order?: 'XYZ' | 'YXZ' | 'ZXY' | 'ZYX' | 'YZX' | 'XZY';
+}
+
+/** Transform combining position and rotation */
+export interface Transform {
+  position: Vector3Tuple;
+  rotation: Vector3Tuple | QuaternionTuple;
+}
+
 // Wheeled Robot Types
 export interface WheeledRobotState {
   leftWheelSpeed: number;     // -255 to 255 (PWM)

@@ -16,6 +16,9 @@ import {
 } from '../../lib/objectLibrary';
 import { useAppStore } from '../../stores/useAppStore';
 import type { SimObject } from '../../types';
+import { loggers } from '../../lib/logger';
+
+const log = loggers.objects;
 
 export const ObjectLibraryPanel: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('lerobot');
@@ -44,7 +47,7 @@ export const ObjectLibraryPanel: React.FC = () => {
     const newObject = createSimObjectFromTemplate(template, [x, y, z]);
     // Remove the 'id' since spawnObject will generate one
     const { id, ...objWithoutId } = newObject;
-    console.log('[ObjectLibraryPanel] Spawning object:', { name: template.name, scale, position: [x, y, z] });
+    log.debug('Spawning object:', { name: template.name, scale, position: [x, y, z] });
     spawnObject({ ...objWithoutId, scale });
   };
 

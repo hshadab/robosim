@@ -16,15 +16,15 @@ import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import { useAppStore } from '../../stores/useAppStore';
 import type { JointState } from '../../types';
+import { GRIPPER_PHYSICS, COLLISION_PHYSICS } from '../../config/physics';
 
-const JAW_LENGTH = 0.040;
-const JAW_THICKNESS = 0.010;
-const JAW_DEPTH = 0.018;
+const JAW_LENGTH = GRIPPER_PHYSICS.jaw.length;
+const JAW_THICKNESS = GRIPPER_PHYSICS.jaw.thickness;
+const JAW_DEPTH = GRIPPER_PHYSICS.jaw.depth;
+const JAW_FRICTION = GRIPPER_PHYSICS.friction;
 
-const JAW_FRICTION = 2.5;
-
-const FLOOR_Y = 0.02;
-const COLLISION_EPSILON = 0.001;
+const FLOOR_Y = COLLISION_PHYSICS.minFloorY;
+const COLLISION_EPSILON = COLLISION_PHYSICS.epsilon;
 
 interface RealisticGripperPhysicsProps {
   joints: JointState;

@@ -21,59 +21,6 @@ import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
 import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
 import type { AIGeneratedObject } from '../../lib/aiImageGeneration';
-import { useAppStore } from '../../stores/useAppStore';
-
-// Debug panel for gripper physics debugging
-const GripperDebugPanel: React.FC = () => {
-  const gripperWorldPosition = useAppStore((state) => state.gripperWorldPosition);
-  const gripperWorldQuaternion = useAppStore((state) => state.gripperWorldQuaternion);
-  const joints = useAppStore((state) => state.joints);
-  const [visible, setVisible] = useState(true);
-
-  if (!visible) {
-    return (
-      <button
-        onClick={() => setVisible(true)}
-        className="absolute top-3 right-3 bg-yellow-600 text-white text-xs px-2 py-1 rounded"
-      >
-        Show Debug
-      </button>
-    );
-  }
-
-  const [x, y, z] = gripperWorldPosition;
-  const [qx, qy, qz, qw] = gripperWorldQuaternion;
-
-  return (
-    <div className="absolute top-3 right-3 bg-yellow-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-yellow-600 text-xs font-mono max-w-xs">
-      <div className="flex justify-between items-center mb-2">
-        <span className="font-bold text-yellow-400">🔧 GRIPPER DEBUG</span>
-        <button onClick={() => setVisible(false)} className="text-yellow-400 hover:text-white">✕</button>
-      </div>
-
-      <div className="text-yellow-200 mb-1">Store Position (cm):</div>
-      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2">
-        X: {(x * 100).toFixed(1)} | Y: {(y * 100).toFixed(1)} | Z: {(z * 100).toFixed(1)}
-      </div>
-
-      <div className="text-yellow-200 mb-1">Store Quaternion:</div>
-      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2 text-[10px]">
-        [{qx.toFixed(3)}, {qy.toFixed(3)}, {qz.toFixed(3)}, {qw.toFixed(3)}]
-      </div>
-
-      <div className="text-yellow-200 mb-1">Joints:</div>
-      <div className="text-white bg-black/30 px-2 py-1 rounded mb-2">
-        B:{joints.base.toFixed(0)}° S:{joints.shoulder.toFixed(0)}° E:{joints.elbow.toFixed(0)}° W:{joints.wrist.toFixed(0)}°
-      </div>
-
-      <div className="text-yellow-200 mb-1">Gripper: <span className="text-white">{joints.gripper.toFixed(0)}%</span></div>
-
-      <div className="text-yellow-400 text-[10px] mt-2 border-t border-yellow-700 pt-2">
-        Green/Blue boxes should be at gripper jaws
-      </div>
-    </div>
-  );
-};
 
 interface RobotArm3DProps {
   joints: JointState;

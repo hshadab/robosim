@@ -161,6 +161,10 @@ export const loggers = {
   state: createLogger('State'),
   multiRobot: createLogger('MultiRobot'),
   emulator: createLogger('Emulator'),
+  grasp: createLogger('Grasp'),
+  gripper: createLogger('Gripper'),
+  simulation: createLogger('Simulation'),
+  objects: createLogger('Objects'),
 };
 
 export default createLogger;

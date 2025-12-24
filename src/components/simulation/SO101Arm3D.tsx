@@ -14,6 +14,9 @@ import { SO101_DIMS } from './SO101Kinematics';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
 import { GraspManager } from './GraspManager';
 import { useAppStore } from '../../stores/useAppStore';
+import { loggers } from '../../lib/logger';
+
+const log = loggers.urdf;
 
 interface SO101ArmProps {
   joints: JointState;
@@ -179,8 +182,8 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     // Debug: log link finding once
     if (!linkDebugLoggedRef.current) {
       linkDebugLoggedRef.current = true;
-      console.log('[SO101Arm3D] Links found:', links ? Object.keys(links) : 'none');
-      console.log('[SO101Arm3D] Gripper link:', gripperLink ? 'found' : 'NOT FOUND');
+      log.debug('Links found:', links ? Object.keys(links) : 'none');
+      log.debug('Gripper link:', gripperLink ? 'found' : 'NOT FOUND');
     }
 
     if (gripperLink) {

@@ -6,6 +6,18 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 ## Recent Updates (December 2024)
 
+### Reliable Chat-Based Pickup
+- **Simplified 4-Step Sequence** - Position → Close (800ms) → Hold → Lift
+- **Physics-Tuned Timing** - 800ms gripper close gives physics time to detect contact
+- **Matches Demo Pick Up** - Chat pickup now as reliable as the one-click demo
+- **IK-Solver Based** - Accurate joint angles from numerical inverse kinematics
+
+### Production-Ready Training Data Pipeline
+- **Camera Frame Capture** - Capture RGB frames at 30 FPS during chat-based recording
+- **Task Success Detection** - Automatic verification that objects reached target positions
+- **Physics Domain Randomization** - Vary friction, mass, motor latency per episode for sim-to-real transfer
+- **Quality Gates** - Block export of low-quality episodes (jerky motion, static frames, failed tasks)
+
 ### WebGPU Renderer
 - **Migrated to WebGPU** - Now uses Three.js WebGPU renderer via React Three Fiber v9
 - **Node Materials** - All materials converted to TSL (Three Shading Language) node materials
@@ -219,10 +231,11 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 
 ### AI Chat Assistant (Prompt-First Architecture)
 - **Natural Language Control** - Describe what you want in plain English
+- **Reliable Pickup Commands** - "Pick up the red cube" works with physics-tuned 4-step sequence
+- **Physics-Accurate Grasping** - 800ms gripper timing ensures reliable physics contact detection
 - **Semantic State Awareness** - LLM sees robot state in natural language, not just raw numbers
-- **Bidirectional Communication** - Robot events appear in chat (task completed, errors, etc.)
 - **Context-Aware Responses** - LLM understands current pose, can do relative movements ("move a bit left")
-- **Live Status Bar** - Real-time robot state display in chat panel
+- **Bidirectional Communication** - Robot events appear in chat (task completed, errors, etc.)
 - **Clarifying Questions** - LLM can ask for more details when needed
 
 ### Policy Loading from HuggingFace Hub
@@ -339,6 +352,8 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 - **Success/Fail Labeling** - Mark episodes for filtering during training
 - **Language Instructions** - Chat messages become language labels automatically
 - **Natural Demonstrations** - Create diverse data through natural conversation
+- **Camera Frame Capture** - RGB frames captured at 30 FPS during recording
+- **Task Verification** - Automatic success detection (did object reach target?)
 
 ### Quick Train Flow (NEW - Apple-Inspired UX)
 - **One-Button Wizard** - Minimalist step-by-step flow: Add Object → Record Demo → Generate → Upload
@@ -383,6 +398,26 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 - **Slide-Out Tools Drawer** - Access all 20+ panels via settings button
 - **Step-Based Wizard** - Clear progression: Add Object → Demo → Generate → Upload
 - **Distraction-Free** - Focus on the task, not the UI
+
+### Physics Domain Randomization (NEW)
+- **Per-Episode Variation** - Randomize physics parameters for each training episode
+- **Friction Randomization** - Vary gripper, object, and floor friction (0.6x - 1.5x)
+- **Mass Randomization** - Object mass varies between episodes (0.7x - 1.4x)
+- **Motor Latency Simulation** - Simulate real servo command delays (0-50ms)
+- **Motor Jitter** - Add realistic noise to joint commands (up to 0.02 rad)
+- **Gravity Variation** - Small gravity changes for robustness (±0.2 m/s²)
+- **Seeded Randomization** - Reproducible physics for debugging
+- **Sim-to-Real Transfer** - Policies trained with randomization transfer better to real hardware
+
+### Quality Gates for Export (NEW)
+- **Automatic Quality Validation** - Episodes checked before export
+- **Jerk Detection** - Reject jerky, unsmooth trajectories
+- **Static Frame Detection** - Reject episodes with too much idle time
+- **Action Variance Check** - Reject no-op episodes with minimal movement
+- **Task Confidence Threshold** - Only export episodes with verified task success
+- **Batch Quality Summary** - See pass/fail rates across all episodes
+- **Filter or Block Modes** - Either skip failed episodes or block entire export
+- **Quality Score (0-100)** - Overall episode quality rating
 
 ### Physics Simulation Realism (NEW)
 
@@ -438,8 +473,12 @@ RoboSim implements several features to ensure training data transfers well to re
 | Stack commands | Not supported | IK-based | IK-based ✓ |
 | Move to object | Not supported | IK-based | IK-based ✓ |
 | Object spawning | Random X,Z | Polar reachable | N/A |
+| Friction | Fixed | Randomized ±50% | Varies ✓ |
+| Mass | Fixed | Randomized ±40% | Varies ✓ |
+| Motor latency | None | 0-50ms | 10-30ms ✓ |
+| Motor jitter | None | ±0.02 rad | Present ✓ |
 
-Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve.
+Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve, and domain randomization ensures policies are robust to real-world variations.
 
 ## Tech Stack
 
@@ -780,12 +819,16 @@ src/
 │   ├── safetensorsLoader.ts   # SafeTensors model format loader
 │   ├── parquetWriter.ts       # Apache Parquet file writer
 │   ├── taskDetection.ts       # Task success detection
+│   ├── taskVerification.ts    # Before/after snapshot task verification
+│   ├── cameraCapture.ts       # RGB frame capture from 3D viewport
+│   ├── qualityGates.ts        # Episode quality validation for export
 │   ├── huggingfaceUpload.ts   # HuggingFace Hub dataset upload
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...
 ├── stores/              # Zustand state management
-├── config/              # Robot profiles, environments
+├── config/              # Robot profiles, environments, physics
+│   ├── physics.ts       # Centralized physics constants + domain randomization
 └── types/               # TypeScript type definitions
 ```
 

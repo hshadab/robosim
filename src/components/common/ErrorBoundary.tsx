@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { loggers } from '../../lib/logger';
 
@@ -177,5 +177,36 @@ export class MinimalErrorBoundary extends Component<Props, State> {
     return children;
   }
 }
+
+/**
+ * Specialized error fallback for 3D/Canvas rendering failures
+ */
+export const Canvas3DErrorFallback: React.FC<{ onRetry?: () => void }> = ({ onRetry }) => (
+  <div className="w-full h-full flex items-center justify-center bg-slate-900 p-4">
+    <div className="text-center max-w-md">
+      <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+      <h3 className="text-lg font-semibold text-slate-200 mb-2">
+        3D Rendering Error
+      </h3>
+      <p className="text-sm text-slate-400 mb-2">
+        Failed to initialize the 3D viewport. This may be due to:
+      </p>
+      <ul className="text-xs text-slate-500 mb-4 text-left list-disc list-inside">
+        <li>WebGL/WebGPU not supported by your browser</li>
+        <li>Graphics driver issues</li>
+        <li>Insufficient GPU memory</li>
+      </ul>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Try Again
+        </button>
+      )}
+    </div>
+  </div>
+);
 
 export default ErrorBoundary;

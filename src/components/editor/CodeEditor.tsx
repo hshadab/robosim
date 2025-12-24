@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import Editor from '@monaco-editor/react';
+import React, { useState, Suspense, lazy } from 'react';
+
+// Lazy load Monaco editor to reduce initial bundle size
+const Editor = lazy(() => import('@monaco-editor/react').then(mod => ({ default: mod.default })));
 import { Code, Copy, Check, Play, Square, FileCode, ChevronDown, Download } from 'lucide-react';
 import { Button } from '../common';
 import { useAppStore } from '../../stores/useAppStore';
@@ -224,28 +226,36 @@ export const CodeEditor: React.FC = () => {
 
       {/* Monaco Editor */}
       <div className="flex-1">
-        <Editor
-          height="100%"
-          language="javascript"
-          value={code.source}
-          onChange={handleEditorChange}
-          theme="vs-dark"
-          options={{
-            readOnly: isReadOnly || isCodeRunning,
-            minimap: { enabled: false },
-            fontSize: 13,
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            lineNumbers: 'on',
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-            wordWrap: 'on',
-            padding: { top: 12, bottom: 12 },
-            renderLineHighlight: 'line',
-            cursorBlinking: 'smooth',
-            smoothScrolling: true,
-          }}
-        />
+        <Suspense
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-slate-900">
+              <div className="text-slate-400 text-sm">Loading editor...</div>
+            </div>
+          }
+        >
+          <Editor
+            height="100%"
+            language="javascript"
+            value={code.source}
+            onChange={handleEditorChange}
+            theme="vs-dark"
+            options={{
+              readOnly: isReadOnly || isCodeRunning,
+              minimap: { enabled: false },
+              fontSize: 13,
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              lineNumbers: 'on',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+              wordWrap: 'on',
+              padding: { top: 12, bottom: 12 },
+              renderLineHighlight: 'line',
+              cursorBlinking: 'smooth',
+              smoothScrolling: true,
+            }}
+          />
+        </Suspense>
       </div>
 
       {/* Status Bar */}

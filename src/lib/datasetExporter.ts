@@ -49,6 +49,8 @@ export interface EpisodeMetadata {
   /** Free-form natural language instruction for language-conditioned learning */
   languageInstruction?: string;
   success?: boolean;
+  /** Task completion confidence from verification system (0-1) */
+  taskConfidence?: number;
   duration: number;
   frameCount: number;
   recordedAt: string;
@@ -169,6 +171,13 @@ export class DatasetRecorder {
    */
   get recording(): boolean {
     return this.isRecording;
+  }
+
+  /**
+   * Get current frames (for attaching images asynchronously)
+   */
+  getCurrentFrames(): Frame[] {
+    return this.frames;
   }
 
   /**

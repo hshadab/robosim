@@ -11,6 +11,11 @@
 
 import type { Episode } from './datasetExporter';
 import { episodesToParquetFormat, writeParquetFilePure, validateParquetData, generateConversionScript } from './parquetWriter';
+import { checkBatchQuality, DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, type QualityThresholds, type QualityGateResult } from './qualityGates';
+
+// Re-export quality gates for convenience
+export { DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, checkBatchQuality };
+export type { QualityThresholds, QualityGateResult };
 
 // LeRobot dataset structure
 export interface LeRobotDatasetInfo {
@@ -479,16 +484,142 @@ train(
 `;
 }
 
+export interface ExportOptions {
+  datasetName: string;
+  robotId: string;
+  fps?: number;
+  videoBlobs?: Blob[];
+  /** Quality gate settings */
+  qualityGates?: {
+    enabled: boolean;
+    thresholds?: QualityThresholds;
+    /** If true, only export episodes that pass quality gates */
+    filterFailedEpisodes?: boolean;
+    /** If true, throw error if any episodes fail (when filterFailedEpisodes is false) */
+    blockOnFailure?: boolean;
+  };
+}
+
+export interface ExportResult {
+  success: boolean;
+  exportedEpisodes: number;
+  skippedEpisodes: number;
+  qualityResults?: {
+    passed: number;
+    failed: number;
+    averageScore: number;
+    details: QualityGateResult[];
+  };
+  error?: string;
+}
+
 /**
- * Export full LeRobot dataset as a ZIP file
+ * Export full LeRobot dataset as a ZIP file with optional quality gates
  */
 export async function exportLeRobotDataset(
   episodes: Episode[],
   datasetName: string,
   robotId: string,
-  fps = 30,
+  fps?: number,
   videoBlobs?: Blob[]
-): Promise<void> {
+): Promise<void>;
+export async function exportLeRobotDataset(
+  episodes: Episode[],
+  options: ExportOptions
+): Promise<ExportResult>;
+export async function exportLeRobotDataset(
+  episodes: Episode[],
+  datasetNameOrOptions: string | ExportOptions,
+  robotId?: string,
+  fps?: number,
+  videoBlobs?: Blob[]
+): Promise<void | ExportResult> {
+  // Handle overload
+  const options: ExportOptions = typeof datasetNameOrOptions === 'string'
+    ? { datasetName: datasetNameOrOptions, robotId: robotId!, fps, videoBlobs }
+    : datasetNameOrOptions;
+
+  const {
+    datasetName,
+    robotId: robot,
+    fps: framerate = 30,
+    videoBlobs: videos,
+    qualityGates,
+  } = options;
+
+  // Run quality gates if enabled
+  let episodesToExport = episodes;
+  let qualityResults: ExportResult['qualityResults'];
+
+  if (qualityGates?.enabled) {
+    const thresholds = qualityGates.thresholds ?? DEFAULT_THRESHOLDS;
+    const batchResult = checkBatchQuality(episodes, thresholds);
+
+    qualityResults = {
+      passed: batchResult.summary.passed,
+      failed: batchResult.summary.failed,
+      averageScore: batchResult.summary.averageScore,
+      details: batchResult.results,
+    };
+
+    if (batchResult.summary.failed > 0) {
+      if (qualityGates.filterFailedEpisodes) {
+        // Filter to only passed episodes
+        episodesToExport = batchResult.passedEpisodes;
+        console.warn(
+          `Quality gates: Filtered ${batchResult.summary.failed} failed episodes, exporting ${batchResult.summary.passed}`
+        );
+      } else if (qualityGates.blockOnFailure) {
+        // Block export entirely
+        const failureMessages = batchResult.results
+          .filter(r => !r.passed)
+          .flatMap(r => r.failures.map(f => f.message))
+          .slice(0, 5);
+
+        return {
+          success: false,
+          exportedEpisodes: 0,
+          skippedEpisodes: episodes.length,
+          qualityResults,
+          error: `Export blocked: ${batchResult.summary.failed} episodes failed quality gates. Issues: ${failureMessages.join('; ')}`,
+        };
+      }
+    }
+  }
+
+  if (episodesToExport.length === 0) {
+    return {
+      success: false,
+      exportedEpisodes: 0,
+      skippedEpisodes: episodes.length,
+      qualityResults,
+      error: 'No episodes to export after quality filtering',
+    };
+  }
+
+  // Original export logic with filtered episodes
+  return exportLeRobotDatasetInternal(
+    episodesToExport,
+    datasetName,
+    robot,
+    framerate,
+    videos,
+    typeof datasetNameOrOptions === 'object',
+    episodes.length - episodesToExport.length,
+    qualityResults
+  );
+}
+
+async function exportLeRobotDatasetInternal(
+  episodes: Episode[],
+  datasetName: string,
+  robotId: string,
+  fps: number,
+  videoBlobs?: Blob[],
+  returnResult = false,
+  skippedCount = 0,
+  qualityResults?: ExportResult['qualityResults']
+): Promise<void | ExportResult> {
   // We'll use JSZip to create the archive
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
@@ -577,6 +708,16 @@ export async function exportLeRobotDataset(
   document.body.removeChild(a);
 
   URL.revokeObjectURL(url);
+
+  // Return result if using options-based API
+  if (returnResult) {
+    return {
+      success: true,
+      exportedEpisodes: episodes.length,
+      skippedEpisodes: skippedCount,
+      qualityResults,
+    };
+  }
 }
 
 /**
