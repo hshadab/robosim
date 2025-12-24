@@ -305,8 +305,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Need to adjust to reach X=20cm - try higher elbow for more fold
 
       // SIMPLE 4-MOVE WATERFALL SEQUENCE:
-      // Move 1: Open gripper + arch over cube
-      await smoothMove({ base: 0, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 100 }, 700);
+      // Wrist stays at -95° throughout (gripper always pointing down)
+      // Arch achieved by: negative shoulder + high elbow (sum ≈132° for vertical gripper)
+      
+      // Move 1: Open gripper + arch over cube (wrist stays down)
+      await smoothMove({ base: 0, shoulder: -10, elbow: 142, wrist: -95, wristRoll: 90, gripper: 100 }, 700);
       
       // Move 2: Descend to cube
       await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 800);
@@ -314,8 +317,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Move 3: Close gripper
       await smoothMove({ gripper: 0 }, 400);
       
-      // Move 4: Lift with cube
-      await smoothMove({ base: 0, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 0 }, 700);
+      // Move 4: Lift with cube (same arch position, wrist unchanged)
+      await smoothMove({ base: 0, shoulder: -10, elbow: 142, wrist: -95, wristRoll: 90, gripper: 0 }, 700);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
