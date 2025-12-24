@@ -311,8 +311,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Move 2: Close gripper
       await smoothMove({ gripper: 0 }, 400);
       
-      // Move 3: Lift (raise shoulder more negative)
-      await smoothMove({ base: 5, shoulder: -35, elbow: 51, wrist: 63, wristRoll: 90, gripper: 0 }, 700);
+      // Move 3: Lift higher (more negative shoulder for horizontal wrist)
+      await smoothMove({ base: 5, shoulder: -50, elbow: 51, wrist: 63, wristRoll: 90, gripper: 0 }, 700);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
