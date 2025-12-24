@@ -248,11 +248,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Gripper max opening is ~6cm, so 3cm gives plenty of margin
       const demoScale = 0.03; // 3cm cube
 
-      // Position cube where arm naturally reaches based on actual URDF testing
-      // Cube must be on ground (Y = half height = 1.5cm for 3cm cube)
-      const x = 0.22;   // 22cm - tuned to match gripper reach
-      const z = 0.0;    // Directly in front (no base rotation needed)
-      const y = 0.015;  // 1.5cm - cube center on ground (half of 3cm height)
+      // Position cube to match user's arm config (base=5, shoulder=-22, elbow=51, wrist=63)
+      // From user's screenshot: cube at [16, 2, 1]cm
+      const x = 0.16;   // 16cm forward
+      const z = 0.01;   // 1cm to side (matches base=5°)
+      const y = 0.02;   // 2cm up (slightly above ground for 3cm cube)
 
       const newObject = createSimObjectFromTemplate(cubeTemplate, [x, y, z]);
       const { id, ...objWithoutId } = newObject;
