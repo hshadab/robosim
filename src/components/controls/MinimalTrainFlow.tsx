@@ -308,11 +308,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Move 1: Open gripper + position at cube
       await smoothMove({ base: 5, shoulder: -22, elbow: 51, wrist: 63, wristRoll: 90, gripper: 100 }, 800);
       
-      // Move 2: Close gripper
-      await smoothMove({ gripper: 0 }, 400);
+      // Move 2: Close gripper (slower for physics collision detection)
+      await smoothMove({ gripper: 0 }, 800);
       
-      // Move 3: Lift higher (more negative shoulder for horizontal wrist)
-      await smoothMove({ base: 5, shoulder: -50, elbow: 51, wrist: 63, wristRoll: 90, gripper: 0 }, 700);
+      // Move 3: Lift higher with wrist more horizontal
+      await smoothMove({ base: 5, shoulder: -50, elbow: 30, wrist: 90, wristRoll: 90, gripper: 0 }, 700);
 
       setDemoStatus('Done!');
       await new Promise(r => setTimeout(r, 1500));
