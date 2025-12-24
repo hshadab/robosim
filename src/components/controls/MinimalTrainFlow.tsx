@@ -312,15 +312,15 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       let pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Position DIRECTLY ABOVE cube - X≈22cm, Y≈7cm (hover high)
-      // More upright shoulder + folded elbow = same X reach but higher Y
-      await smoothMove({ base: 0, shoulder: -5, elbow: 95, wrist: -55, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3c: Position DIRECTLY ABOVE cube - X≈22cm, Y≈8cm (hover high)
+      // Negative shoulder (arm upright) + moderate elbow = high position above cube
+      await smoothMove({ base: 0, shoulder: -15, elbow: 80, wrist: -30, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Hover above - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
       // Step 3d: Vertical descent - drop straight down to cube
-      // Increase shoulder to lower Y while elbow compensates to hold X
-      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 700);
+      // Gradually increase shoulder and elbow to lower Y while maintaining X≈22cm
+      await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 800);
       pos = useAppStore.getState().gripperWorldPosition;
       
       // DIAGNOSTIC: Compare FK prediction vs actual URDF position
