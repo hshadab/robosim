@@ -307,19 +307,20 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       // Step 3a: Open gripper, rotate for top-down orientation
       await smoothMove({ gripper: 100, base: 0, wristRoll: 90 }, 500);
 
-      // Step 3b: Approach - start high, retracted position  
-      await smoothMove({ base: 0, shoulder: -30, elbow: 60, wrist: 0, wristRoll: 90, gripper: 100 }, 500);
+      // Step 3b: Start position - arm forward and high (POSITIVE shoulder for forward reach)
+      // Shoulder positive = arm reaches FORWARD (waterfall), negative = arm goes BACKWARD (scorpion)
+      await smoothMove({ base: 0, shoulder: 5, elbow: 60, wrist: -40, wristRoll: 90, gripper: 100 }, 500);
       let pos = useAppStore.getState().gripperWorldPosition;
-      console.log(`[DemoPick] Approach - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
+      console.log(`[DemoPick] Start - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3c: Position DIRECTLY ABOVE cube - X≈22cm, Y≈8cm (hover high)
-      // Negative shoulder (arm upright) + moderate elbow = high position above cube
-      await smoothMove({ base: 0, shoulder: -15, elbow: 80, wrist: -30, wristRoll: 90, gripper: 100 }, 600);
+      // Step 3c: Arch over cube - position high above with forward reach
+      // Positive shoulder + moderate elbow = arm arches FORWARD over the target
+      await smoothMove({ base: 0, shoulder: 15, elbow: 78, wrist: -70, wristRoll: 90, gripper: 100 }, 600);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Hover above - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
-      // Step 3d: Vertical descent - drop straight down to cube
-      // Gradually increase shoulder and elbow to lower Y while maintaining X≈22cm
+      // Step 3d: Vertical descent - drop straight down to cube (waterfall motion)
+      // Increase shoulder and elbow together to descend while maintaining X position
       await smoothMove({ base: 0, shoulder: 22, elbow: 110, wrist: -95, wristRoll: 90, gripper: 100 }, 800);
       pos = useAppStore.getState().gripperWorldPosition;
       
@@ -334,8 +335,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       await smoothMove({ gripper: 0 }, 500);
       await delay(300); // Pause to ensure grip
 
-      // Step 3f: Lift the cube - return to approach position
-      await smoothMove({ base: 0, shoulder: -40, elbow: 70, wrist: 0, wristRoll: 90, gripper: 0 }, 700);
+      // Step 3f: Lift the cube - reverse the waterfall (go back up and over)
+      await smoothMove({ base: 0, shoulder: 15, elbow: 78, wrist: -70, wristRoll: 90, gripper: 0 }, 700);
       pos = useAppStore.getState().gripperWorldPosition;
       console.log(`[DemoPick] Lift - gripper at: [${(pos[0]*100).toFixed(1)}, ${(pos[1]*100).toFixed(1)}, ${(pos[2]*100).toFixed(1)}]cm`);
 
