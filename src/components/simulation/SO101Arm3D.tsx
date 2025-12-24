@@ -36,54 +36,6 @@ const LoadingFallback: React.FC = () => (
   </mesh>
 );
 
-// Debug visualization showing gripper TIP (cone) and JAW contact (sphere)
-// Jaw contact aligns with gripper_frame_link
-const GripperDebugVisualization: React.FC<{
-  tipPosition: [number, number, number];
-  gripperQuaternion: [number, number, number, number]; // Gripper orientation for proper offset calculation
-  visible?: boolean;
-}> = ({ tipPosition, gripperQuaternion, visible = true }) => {
-  // Memoize jaw position calculation to avoid creating objects every frame
-  const jawPosition = React.useMemo((): [number, number, number] => {
-    if (!visible) return [0, 0, 0];
-
-    // Jaw center is offset from the gripper frame (midpoint between jaw tips)
-    const jawLocalOffset = new THREE.Vector3(-0.0079, 0, 0.0068);
-    const quat = new THREE.Quaternion(
-      gripperQuaternion[0],
-      gripperQuaternion[1],
-      gripperQuaternion[2],
-      gripperQuaternion[3]
-    );
-    jawLocalOffset.applyQuaternion(quat);
-
-    return [
-      tipPosition[0] + jawLocalOffset.x,
-      tipPosition[1] + jawLocalOffset.y,
-      tipPosition[2] + jawLocalOffset.z,
-    ];
-  }, [tipPosition, gripperQuaternion, visible]);
-
-  if (!visible) return null;
-
-  return (
-    <group>
-      {/* Gripper TIP - cyan cone pointing down */}
-      <mesh position={tipPosition} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.008, 0.02, 8]} />
-        <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
-      </mesh>
-
-      {/* JAW position - magenta sphere showing where jaws close */}
-      <mesh position={jawPosition}>
-        <sphereGeometry args={[0.012, 12, 12]} />
-        <meshBasicMaterial color="#ff00ff" transparent opacity={0.6} />
-      </mesh>
-
-    </group>
-  );
-};
-
 // Materials
 const PRINTED_MATERIAL = new THREE.MeshStandardMaterial({
   color: '#F5F0E6',
@@ -254,9 +206,6 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
     }
   });
 
-  // Get debug visualization state from store (default: disabled for clean UI)
-  const showGripperDebug = useAppStore((state) => state.showGripperDebug ?? false);
-
   return (
     <group ref={groupRef}>
       {/* Fixed base with collider */}
@@ -277,21 +226,7 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
       {/* Grasp manager - handles object attachment when gripper closes */}
       <GraspManager />
 
-      {/* Debug visualization: cyan cone = TIP, magenta sphere = JAW position */}
-      <GripperDebugVisualization
-        tipPosition={[
-          gripperWorldPosVec.current.x,
-          gripperWorldPosVec.current.y,
-          gripperWorldPosVec.current.z,
-        ]}
-        gripperQuaternion={[
-          gripperWorldQuat.current.x,
-          gripperWorldQuat.current.y,
-          gripperWorldQuat.current.z,
-          gripperWorldQuat.current.w,
-        ]}
-        visible={showGripperDebug}
-      />
+      {/* Debug visualization removed - was distracting */}
     </group>
   );
 };
