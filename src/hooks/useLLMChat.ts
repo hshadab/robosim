@@ -1,9 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
-import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
+import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage, type PickupAttemptInfo } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 import { createLogger } from '../lib/logger';
+import { logPickupAttempt, markPickupSuccess, markPickupFailure } from '../lib/pickupExamples';
 
 const log = createLogger('LLMChat');
 
@@ -12,14 +13,36 @@ export const SYSTEM_PROMPTS: Record<ActiveRobotType, string> = {
   arm: `You are a robot arm controller for the SO-101, a 6-DOF open-source desktop robot arm from The Robot Studio.
 
 HARDWARE SPECIFICATIONS:
-- Base/Shoulder Pan: -110° to +110° (0° = forward)
-- Shoulder Lift: -100° to +100° (0° = horizontal, positive = up)
-- Elbow Flex: -97° to +97° (0° = straight, negative = fold up)
-- Wrist Flex: -95° to +95° (0° = aligned with forearm)
-- Wrist Roll: -157° to +163°
+- Base/Shoulder Pan: -110° to +110° (0° = forward, positive = counter-clockwise from above)
+- Shoulder Lift: -100° to +100° (0° = horizontal, negative = down toward table)
+- Elbow Flex: -97° to +97° (0° = straight, positive = fold up)
+- Wrist Flex: -95° to +95° (0° = aligned with forearm, positive = tilt down)
+- Wrist Roll: -157° to +163° (controls gripper finger orientation)
 - Gripper: 0 (closed) to 100 (fully open)
 
 This robot uses STS3215 servo motors and is compatible with LeRobot for imitation learning.
+
+PROVEN WORKING PICKUP EXAMPLES:
+These configurations are verified to successfully grasp objects:
+
+1. Cube at [16, 2, 1]cm (close, slightly right):
+   - base=5°, shoulder=-22°, elbow=51°, wrist=63°, wristRoll=90°
+
+2. Cube at [12, 2, 15]cm (far, centered):
+   - base=51°, shoulder=-50°, elbow=80°, wrist=10°, wristRoll=90°
+
+3. Cylinder (horizontal grasp):
+   - Use wristRoll=0° for horizontal finger orientation
+   - Target 1/3 up from bottom of cylinder
+
+CRITICAL PICKUP RULES:
+1. Calculate base angle: base = atan2(Z, X) in degrees
+2. Use wristRoll=90° for cubes/balls (vertical fingers), wristRoll=0° for cylinders (horizontal)
+3. Gripper close step MUST have 800ms duration for physics to detect contact
+4. Use { gripper: 0, _gripperOnly: true } flag for gripper-only steps
+5. The gripper grab radius is only 4cm - object must be precisely between fingers
+6. Lift AFTER gripper fully closes (don't move arm during close)
+
 Respond with JSON for movements and sequences.`,
 
   wheeled: `You are a controller for a differential drive wheeled robot with ultrasonic and IR sensors.
@@ -333,14 +356,57 @@ export const useLLMChat = () => {
 
             log.debug(`Executing arm sequence with ${sequence.length} steps`);
 
+            // Log pickup attempt if this is a pickup command
+            let pickupAttemptId: string | null = null;
+            if (response.pickupAttempt) {
+              pickupAttemptId = logPickupAttempt({
+                objectPosition: response.pickupAttempt.objectPosition,
+                objectType: response.pickupAttempt.objectType,
+                objectName: response.pickupAttempt.objectName,
+                objectScale: response.pickupAttempt.objectScale,
+                jointSequence: sequence,
+                ikErrors: response.pickupAttempt.ikErrors,
+                userMessage: message,
+              });
+              log.debug(`Logged pickup attempt ${pickupAttemptId}`);
+            }
+
             // Record action and start task tracking
             robotContext.startTask(response.description);
 
             try {
               await executeArmSequence(sequence);
               robotContext.completeTask(response.description);
+
+              // Check if pickup was successful by looking for grabbed object
+              if (pickupAttemptId) {
+                // Delay to let physics settle after gripper closes
+                await new Promise(r => setTimeout(r, 500));
+                const currentObjects = useAppStore.getState().objects;
+                const grabbedObject = currentObjects.find(o => o.isGrabbed);
+
+                if (grabbedObject) {
+                  markPickupSuccess(pickupAttemptId);
+                  log.info(`Pickup SUCCESS: Grabbed "${grabbedObject.name || grabbedObject.id}"`);
+                } else {
+                  // Log detailed failure info for debugging
+                  const targetObj = currentObjects.find(o => o.isGrabbable);
+                  if (targetObj) {
+                    const [x, y, z] = targetObj.position;
+                    const dist = Math.sqrt(x * x + z * z);
+                    log.warn(`Pickup FAILED: Object "${targetObj.name}" at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm (${(dist*100).toFixed(1)}cm from base)`);
+                    log.warn(`  Grasp threshold is 4cm from jaw - IK may have positioned gripper too far from object`);
+                  } else {
+                    log.warn(`Pickup FAILED: No object grabbed`);
+                  }
+                  markPickupFailure(pickupAttemptId, 'No object grabbed after sequence');
+                }
+              }
             } catch (err) {
               robotContext.failTask(err instanceof Error ? err.message : 'Movement failed');
+              if (pickupAttemptId) {
+                markPickupFailure(pickupAttemptId, err instanceof Error ? err.message : 'Movement failed');
+              }
             }
           } else if (activeRobotType === 'wheeled' && response.wheeledAction) {
             robotContext.startTask(response.description);

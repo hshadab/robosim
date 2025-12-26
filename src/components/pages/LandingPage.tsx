@@ -4,27 +4,12 @@ import {
   Play,
   Zap,
   MessageSquare,
-  Brain,
   Download,
-  Gamepad2,
-  Monitor,
-  ChevronRight,
   Check,
   ArrowRight,
   Globe,
   Sparkles,
-  Mic,
-  Eye,
-  Box,
-  Code,
-  Database,
-  Wand2,
-  GraduationCap,
-  Upload,
-  Layers,
-  Palette,
   Camera,
-  Languages,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -50,370 +35,12 @@ const RobotArmSVG: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-// Feature tabs configuration
-type FeatureTab = 'quicktrain' | 'chat' | 'policies' | 'datasets' | 'control' | 'export' | 'voice' | 'vision' | 'copilot' | 'text3d' | 'image3d' | 'autogen' | 'challenges' | 'augment' | 'langlearn' | 'objects' | 'llmphysics';
-
-const FEATURE_TABS: {
-  id: FeatureTab;
-  label: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  benefits: string[];
-  howTo: string[];
-  color: string;
-}[] = [
-  {
-    id: 'quicktrain',
-    label: 'Quick Train',
-    icon: <Sparkles className="w-5 h-5" />,
-    title: 'Photo to Trained Robot in Minutes',
-    description: 'The fastest path from any object to a trained robot policy. One-click Demo Pick Up shows it working instantly, then chat to record your own demos.',
-    benefits: [
-      'One-click "Demo Pick Up" - see it work instantly',
-      '34 standard objects sized for reliable grasping',
-      'Photo to 3D via fal.ai (~20 seconds)',
-      'Chat-based pickup with physics-tuned timing',
-    ],
-    howTo: [
-      'Click "Demo Pick Up" to see instant success',
-      'Or add an object and chat "pick up the cube"',
-      'Watch physics-accurate grasping in action',
-      'Click "Generate" then "Upload to HuggingFace"',
-    ],
-    color: 'gradient',
-  },
-  {
-    id: 'chat',
-    label: 'AI Chat',
-    icon: <MessageSquare className="w-5 h-5" />,
-    title: 'Natural Language Control',
-    description: 'Talk to your robot like a teammate. Say "pick up the red cube" and watch physics-accurate grasping happen.',
-    benefits: [
-      'No coding required to get started',
-      'Reliable physics-based pickup with IK solver',
-      'Physics-tuned timing for real grasping',
-      'Context-aware scene understanding',
-    ],
-    howTo: [
-      'Open the Chat panel on the left',
-      'Type "pick up the red cube" or "grab the block"',
-      'Watch the robot grasp with realistic physics',
-      'Try "stack it on the blue cube"',
-    ],
-    color: 'blue',
-  },
-  {
-    id: 'policies',
-    label: 'AI Policies',
-    icon: <Brain className="w-5 h-5" />,
-    title: 'Load Trained Policies from HuggingFace',
-    description: 'Browse and run pre-trained robot policies directly in your browser. No GPU or server required.',
-    benefits: [
-      'Access to LeRobot community policies',
-      'ACT, Diffusion, and more architectures',
-      'Runs locally with ONNX Runtime',
-      'SafeTensors model format support',
-    ],
-    howTo: [
-      'Open the "LeRobot Policies" panel',
-      'Search for SO-101 compatible policies',
-      'Click Download on a policy with ONNX',
-      'Click Run to start autonomous control',
-    ],
-    color: 'purple',
-  },
-  {
-    id: 'datasets',
-    label: 'Datasets',
-    icon: <Database className="w-5 h-5" />,
-    title: 'Record & Share Training Datasets',
-    description: 'Record demonstrations, export to LeRobot format, and upload directly to HuggingFace Hub.',
-    benefits: [
-      'Real Apache Parquet file export',
-      'Multi-camera recording support',
-      'Dataset quality analysis dashboard',
-      'Direct upload to HuggingFace Hub',
-    ],
-    howTo: [
-      'Open the Data tab in the Tools panel',
-      'Click Record and demonstrate a task',
-      'Mark success or failure when done',
-      'Export to LeRobot or upload to Hub',
-    ],
-    color: 'teal',
-  },
-  {
-    id: 'control',
-    label: 'Manual Control',
-    icon: <Gamepad2 className="w-5 h-5" />,
-    title: 'Multiple Control Modes',
-    description: 'Control your robot with sliders, keyboard, gamepad, or click-to-move inverse kinematics.',
-    benefits: [
-      'Joint sliders for precise positioning',
-      'WASD + arrow keys for teleoperation',
-      'Full gamepad support',
-      'Click anywhere in 3D to move gripper',
-    ],
-    howTo: [
-      'Use the Joint Controls panel for direct control',
-      'Enable "Keyboard" mode in Advanced Controls',
-      'Connect a gamepad for analog control',
-      'Click "IK Mode" to point-and-click move',
-    ],
-    color: 'green',
-  },
-  {
-    id: 'export',
-    label: 'Hardware Export',
-    icon: <Download className="w-5 h-5" />,
-    title: 'Deploy to Real Hardware',
-    description: 'Export your simulation code to run on actual robots. Support for LeRobot, Arduino, and more.',
-    benefits: [
-      'LeRobot Python for SO-101 hardware',
-      'Arduino C++ for DIY projects',
-      'MicroPython for ESP32/Pico',
-      'Web Serial for direct connection',
-    ],
-    howTo: [
-      'Build your robot program in simulation',
-      'Click Export and choose your platform',
-      'Copy the generated code to your robot',
-      'Or connect via Web Serial for live sync',
-    ],
-    color: 'orange',
-  },
-  {
-    id: 'voice',
-    label: 'Voice Control',
-    icon: <Mic className="w-5 h-5" />,
-    title: 'Hands-Free Robot Control',
-    description: 'Control your robot using voice commands. Say "wave hello" or "pick up the block" and watch it happen.',
-    benefits: [
-      'Web Speech API integration',
-      'Wake word support ("Hey Robot")',
-      'Voice feedback and confirmations',
-      'Works in Chrome and Edge browsers',
-    ],
-    howTo: [
-      'Open the Voice Control panel',
-      'Click the microphone button to start',
-      'Speak commands like "move left"',
-      'Enable wake word for hands-free use',
-    ],
-    color: 'cyan',
-  },
-  {
-    id: 'vision',
-    label: 'Vision AI',
-    icon: <Eye className="w-5 h-5" />,
-    title: 'Scene Understanding with AI',
-    description: 'Ask "What\'s in the scene?" and get intelligent answers. Uses local models + Claude Vision for analysis.',
-    benefits: [
-      'Object detection with DETR',
-      'Scene classification',
-      'Graspable object recognition',
-      'Spatial queries ("where is the red object?")',
-    ],
-    howTo: [
-      'Open the Vision Analysis panel',
-      'Click "Analyze Scene" to capture',
-      'Ask questions about the scene',
-      'Get suggested robot actions',
-    ],
-    color: 'pink',
-  },
-  {
-    id: 'copilot',
-    label: 'Code Copilot',
-    icon: <Code className="w-5 h-5" />,
-    title: 'AI-Powered Code Editor',
-    description: 'Get intelligent code completions, generate code from comments, and explain robot programs.',
-    benefits: [
-      'Robot API autocomplete',
-      'Generate code from comments',
-      'Explain selected code',
-      'Fix errors with AI suggestions',
-    ],
-    howTo: [
-      'Write a comment like "// wave hello"',
-      'Press Ctrl+Shift+G to generate code',
-      'Select code and press Ctrl+Shift+E',
-      'Get intelligent completions as you type',
-    ],
-    color: 'yellow',
-  },
-  {
-    id: 'text3d',
-    label: 'Text to 3D',
-    icon: <Box className="w-5 h-5" />,
-    title: 'Generate 3D Objects from Text',
-    description: 'Describe objects like "red apple" or "wooden box" and generate interactive 3D models.',
-    benefits: [
-      'Natural language input',
-      'Multiple styles (realistic, cartoon, low-poly)',
-      'AI-generated textures with Gemini',
-      'Physics-enabled for robot interaction',
-    ],
-    howTo: [
-      'Open the Text to 3D panel',
-      'Type a description like "blue ball"',
-      'Choose style and click generate',
-      'Object appears in the scene',
-    ],
-    color: 'emerald',
-  },
-  {
-    id: 'image3d',
-    label: 'Image to 3D',
-    icon: <Camera className="w-5 h-5" />,
-    title: 'Photo to Training-Ready 3D Model',
-    description: 'Upload a photo of any real object and convert it to a physics-ready 3D model with auto-estimated grasp points.',
-    benefits: [
-      'Upload any object photo',
-      'CSM API generates accurate 3D mesh',
-      'Auto-estimated grasp points for manipulation',
-      'Generates training task templates automatically',
-    ],
-    howTo: [
-      'Open the AI tab → Image to 3D panel',
-      'Enter your CSM API key (free at csm.ai)',
-      'Upload a photo and set real dimensions',
-      'Generate model and add to scene for training',
-    ],
-    color: 'cyan',
-  },
-  {
-    id: 'autogen',
-    label: 'Auto-Generate',
-    icon: <Wand2 className="w-5 h-5" />,
-    title: 'One-Click Synthetic Data Generation',
-    description: 'Generate 100+ training episodes instantly from parameterized task templates with automatic augmentation.',
-    benefits: [
-      'Generate 100+ episodes in seconds',
-      'Randomized task parameters for variety',
-      'Built-in trajectory augmentation',
-      'Direct LeRobot format export',
-    ],
-    howTo: [
-      'Open the Data tab and Auto-Generate panel',
-      'Select task templates to use',
-      'Configure episode count and augmentation',
-      'Click Generate and export to Hub',
-    ],
-    color: 'lime',
-  },
-  {
-    id: 'challenges',
-    label: 'Challenges',
-    icon: <GraduationCap className="w-5 h-5" />,
-    title: 'Interactive Guided Challenges',
-    description: 'Learn robot control through hands-on challenges with real-time position validation and progress tracking.',
-    benefits: [
-      'Three difficulty levels',
-      'Real-time position feedback',
-      'Step-by-step guidance with hints',
-      'Auto-advance on completion',
-    ],
-    howTo: [
-      'Open the Control tab and Guided Challenges',
-      'Select a challenge to start',
-      'Follow the instructions to move joints',
-      'Match target positions to progress',
-    ],
-    color: 'rose',
-  },
-  {
-    id: 'augment',
-    label: 'Augmentation',
-    icon: <Layers className="w-5 h-5" />,
-    title: 'Dataset Augmentation & Domain Randomization',
-    description: 'Multiply your datasets with trajectory variations and visual randomization for robust sim-to-real transfer.',
-    benefits: [
-      'Action noise and time stretching',
-      'Lighting and material randomization',
-      'Preview before applying',
-      '2x-10x dataset expansion',
-    ],
-    howTo: [
-      'Record some demonstration episodes',
-      'Open the Augmentation panel',
-      'Configure noise and variation settings',
-      'Generate augmented dataset',
-    ],
-    color: 'indigo',
-  },
-  {
-    id: 'langlearn',
-    label: 'Language Training',
-    icon: <Languages className="w-5 h-5" />,
-    title: 'Language-Conditioned Robot Learning',
-    description: 'Train robots to follow natural language instructions like RT-1, RT-2, and OpenVLA. The holy grail of robot learning.',
-    benefits: [
-      'Free-form language instructions per episode',
-      'Compatible with RT-1, OpenVLA, LeRobot ACT',
-      'Export to HuggingFace in standard format',
-      'Train robots that understand human commands',
-    ],
-    howTo: [
-      'Open Data tab → LeRobot Dataset panel',
-      'Click Settings and enter a Language Instruction',
-      'Record an episode while demonstrating the task',
-      'Export with language_instruction in metadata',
-    ],
-    color: 'amber',
-  },
-  {
-    id: 'objects',
-    label: 'Object Library',
-    icon: <Box className="w-5 h-5" />,
-    title: 'Physics Object Library',
-    description: 'Browse 34 physics-enabled objects including YCB benchmark items. Load scene presets for common manipulation tasks.',
-    benefits: [
-      '34 objects with realistic physics',
-      'YCB benchmark objects (robotics standard)',
-      '7 scene presets (stacking, sorting, pouring)',
-      'One-click scene setup for training',
-    ],
-    howTo: [
-      'Open Control tab → Object Library',
-      'Choose a Scene Preset like "Block Stacking"',
-      'Or browse categories and add individual objects',
-      'Objects appear in scene ready for manipulation',
-    ],
-    color: 'purple',
-  },
-  {
-    id: 'llmphysics',
-    label: 'LLM → Physics',
-    icon: <Wand2 className="w-5 h-5" />,
-    title: 'Natural Language to Training Data',
-    description: 'Type "Pick up the red cube" and watch reliable physics-based grasping with IK solver. Physics-tuned 4-step pickup sequence ensures consistent training data.',
-    benefits: [
-      'Natural language → IK solver → physics execution',
-      'Simplified 4-step pickup (position → close → hold → lift)',
-      '800ms gripper timing for reliable physics contact',
-      'Language-conditioned datasets for RT-1/OpenVLA',
-    ],
-    howTo: [
-      'Open Chat panel and add an object',
-      'Type "Pick up the red cube"',
-      'Watch physics-accurate grasping (not scripted!)',
-      'Export recordings to LeRobot format',
-    ],
-    color: 'fuchsia',
-  },
-];
-
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, onInstructions, onComparison }) => {
   const [hoveredRobot, setHoveredRobot] = useState<string | null>(null);
-  const [activeFeatureTab, setActiveFeatureTab] = useState<FeatureTab>('quicktrain');
 
   const handleEnterApp = () => {
     onLogin();
   };
-
-  const activeFeature = FEATURE_TABS.find(f => f.id === activeFeatureTab)!;
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-base overflow-x-hidden">
@@ -475,7 +102,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
               }}
               className="hidden lg:inline text-slate-400 hover:text-white transition font-medium"
             >
-              How to Use
+              Advanced Features
             </a>
           )}
           <button
@@ -493,17 +120,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
           <div className="text-center lg:text-left">
             <div className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 px-3 md:px-4 py-2 text-xs md:text-sm mb-4 md:mb-6 border border-blue-500/30 font-mono">
               <Zap className="w-3 h-3 md:w-4 md:h-4" />
-              AI-NATIVE ROBOTICS
+              TRAIN ROBOTS WITH AI
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight tracking-tight">
-              From Chat to Real Robot
+              Train Your Robot
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400">
-                In Your Browser
+                In Minutes, Not Months
               </span>
             </h1>
             <p className="text-base md:text-xl text-slate-400 mb-6 md:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
-              No ROS. No MuJoCo. No GPU. Just open a URL and start building datasets for real robots.
+              Upload a photo. Teach by chatting. Export to real hardware. No coding required.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 md:gap-4">
               <button
@@ -512,15 +139,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
                 style={{ boxShadow: '4px 4px 0 rgba(59, 130, 246, 0.4)' }}
               >
                 <Play className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" />
-                Start Building
+                Get Started
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
                 onClick={onInstructions}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 text-slate-400 hover:text-white transition px-6 py-3 md:py-4 border-2 border-slate-700 hover:border-slate-500"
               >
-                <Monitor className="w-4 h-4 md:w-5 md:h-5" />
-                Watch Demo
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                Advanced Features
               </button>
             </div>
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 md:gap-6 mt-6 md:mt-8 text-xs md:text-sm text-slate-500">
@@ -578,216 +205,115 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
         </div>
       </section>
 
-      {/* Key Features Highlight - Mobile responsive */}
-      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-3 md:mb-4">
-          {[
-            { icon: <Sparkles className="w-5 h-5 md:w-6 md:h-6" />, label: 'Quick Train', desc: 'Photo → Policy', color: 'purple' },
-            { icon: <MessageSquare className="w-5 h-5 md:w-6 md:h-6" />, label: 'Chat Control', desc: 'Natural language', color: 'blue' },
-            { icon: <Mic className="w-5 h-5 md:w-6 md:h-6" />, label: 'Voice Control', desc: 'Hands-free', color: 'cyan' },
-            { icon: <Eye className="w-5 h-5 md:w-6 md:h-6" />, label: 'Vision AI', desc: 'Scene understanding', color: 'pink' },
-            { icon: <Box className="w-5 h-5 md:w-6 md:h-6" />, label: 'Object Library', desc: '34 objects', color: 'emerald' },
-            { icon: <Camera className="w-5 h-5 md:w-6 md:h-6" />, label: 'Image to 3D', desc: 'Photo → 3D', color: 'teal' },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={`p-3 md:p-4 bg-slate-800/50 border-l-4 border-${item.color}-500 hover:bg-slate-800 transition`}
-            >
-              <div className={`text-${item.color}-400 mb-1 md:mb-2`}>{item.icon}</div>
-              <div className="text-white font-bold text-sm md:text-base">{item.label}</div>
-              <div className="text-slate-500 text-xs md:text-sm hidden sm:block">{item.desc}</div>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-          {[
-            { icon: <Languages className="w-5 h-5 md:w-6 md:h-6" />, label: 'Language Training', desc: 'RT-1/OpenVLA', color: 'amber' },
-            { icon: <Wand2 className="w-5 h-5 md:w-6 md:h-6" />, label: 'Auto-Generate', desc: '100+ episodes', color: 'lime' },
-            { icon: <GraduationCap className="w-5 h-5 md:w-6 md:h-6" />, label: 'Challenges', desc: 'Learn by doing', color: 'rose' },
-            { icon: <Upload className="w-5 h-5 md:w-6 md:h-6" />, label: 'Hub Upload', desc: 'Direct publish', color: 'sky' },
-            { icon: <Layers className="w-5 h-5 md:w-6 md:h-6" />, label: 'Augmentation', desc: '10x datasets', color: 'indigo' },
-            { icon: <Palette className="w-5 h-5 md:w-6 md:h-6" />, label: 'Randomization', desc: 'Sim-to-real', color: 'violet' },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={`p-3 md:p-4 bg-slate-800/50 border-l-4 border-${item.color}-500 hover:bg-slate-800 transition`}
-            >
-              <div className={`text-${item.color}-400 mb-1 md:mb-2`}>{item.icon}</div>
-              <div className="text-white font-bold text-sm md:text-base">{item.label}</div>
-              <div className="text-slate-500 text-xs md:text-sm hidden sm:block">{item.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Why RoboSim? Mini Differentiators */}
-      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 text-center">
-          <h3 className="text-lg font-bold text-white">Why RoboSim?</h3>
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-              <span className="text-slate-400">Browser-first</span>
-              <span className="text-slate-600">– no install</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-2 h-2 bg-purple-500 rounded-full" />
-              <span className="text-slate-400">LeRobot-native</span>
-              <span className="text-slate-600">– Parquet + HF Hub</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <span className="text-slate-400">Prompt-first</span>
-              <span className="text-slate-600">– chat & voice control</span>
-            </div>
-          </div>
-          {onComparison && (
-            <button
-              onClick={onComparison}
-              className="text-orange-400 hover:text-orange-300 text-sm font-medium transition"
-            >
-              See full comparison →
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* 3-Step Workflow */}
+      {/* 3-Step Core Workflow - The Main Use Case */}
       <section className="relative px-4 md:px-8 py-12 md:py-16 max-w-7xl mx-auto">
         <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-3xl font-black text-white mb-3">What You Can Do in an Afternoon</h2>
-          <p className="text-slate-400">From zero to trained policy in three steps</p>
+          <h2 className="text-2xl md:text-3xl font-black text-white mb-3">How It Works</h2>
+          <p className="text-slate-400">From your photo to trained robot in three steps</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-          {/* Step 1 */}
-          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-blue-500/50 transition">
+          {/* Step 1 - SNAP IT */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-blue-500/50 transition group">
             <div className="absolute -top-4 left-6 bg-blue-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
               1
             </div>
             <div className="mt-2">
-              <h3 className="text-lg font-bold text-white mb-2">Teleoperate & Record</h3>
+              <div className="text-blue-400 mb-3">
+                <Camera className="w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">SNAP IT</h3>
               <p className="text-slate-400 text-sm mb-4">
-                Control the SO-101 with chat, keyboard, gamepad, or click-to-move IK.
-                Connect real hardware via Web Serial.
+                Upload a photo of any object you want your robot to pick up.
+                It becomes a 3D model in seconds.
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">WASD Control</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Gamepad</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Web Serial</span>
+                <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30">Photo → 3D</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Or use 34 built-in objects</span>
               </div>
             </div>
           </div>
-          {/* Step 2 */}
-          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-purple-500/50 transition">
+          {/* Step 2 - TEACH IT */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-purple-500/50 transition group">
             <div className="absolute -top-4 left-6 bg-purple-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
               2
             </div>
             <div className="mt-2">
-              <h3 className="text-lg font-bold text-white mb-2">Generate Dataset</h3>
+              <div className="text-purple-400 mb-3">
+                <MessageSquare className="w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">TEACH IT</h3>
               <p className="text-slate-400 text-sm mb-4">
-                Use task templates and auto-generation to create 100+ episodes.
-                Add language instructions for RT-1/OpenVLA training.
+                Just chat: "Pick up the apple". The robot learns from your commands.
+                No coding, no joint angles, just natural language.
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">LeRobot Format</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Parquet</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">HF Upload</span>
+                <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30">Chat commands</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Auto-generates 100+ demos</span>
               </div>
             </div>
           </div>
-          {/* Step 3 */}
-          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-green-500/50 transition">
+          {/* Step 3 - TRAIN & DEPLOY */}
+          <div className="relative bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-green-500/50 transition group">
             <div className="absolute -top-4 left-6 bg-green-500 text-white w-8 h-8 flex items-center justify-center font-black text-lg">
               3
             </div>
             <div className="mt-2">
-              <h3 className="text-lg font-bold text-white mb-2">Train & Deploy</h3>
+              <div className="text-green-400 mb-3">
+                <Download className="w-10 h-10" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">TRAIN & DEPLOY</h3>
               <p className="text-slate-400 text-sm mb-4">
-                Train ACT/Diffusion policies with LeRobot, load them back via ONNX Runtime Web,
-                and run on sim or real hardware.
+                One-click upload to HuggingFace, train on Google Colab (free GPU),
+                deploy to real SO-101 hardware.
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">ONNX Runtime</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">ACT Policy</span>
-                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Sim2Real</span>
+                <span className="text-xs px-2 py-1 bg-green-500/20 text-green-300 border border-green-500/30">Free Colab Training</span>
+                <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">~2 hours to trained model</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="text-center mt-8">
+        <div className="text-center mt-10">
           <button
             onClick={handleEnterApp}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 text-white px-8 py-3 font-bold hover:opacity-90 transition"
+            className="group inline-flex items-center gap-3 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 text-white px-10 py-4 text-lg font-bold hover:opacity-90 transition"
+            style={{ boxShadow: '4px 4px 0 rgba(147, 51, 234, 0.3)' }}
           >
-            Start the Workflow
-            <ArrowRight className="w-5 h-5" />
+            Get Started Free
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
+          <p className="text-slate-500 text-sm mt-4">No account required. Works in your browser.</p>
         </div>
       </section>
 
-      {/* Features Deep Dive with Tabs */}
-      <section id="features" className="relative px-4 md:px-8 py-12 md:py-20 max-w-7xl mx-auto">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-4xl font-black text-white mb-3 md:mb-4">Powerful Features</h2>
-          <p className="text-base md:text-xl text-slate-400">Everything you need to build robot intelligence</p>
-        </div>
-
-        {/* Feature Tabs - Scrollable on mobile */}
-        <div className="flex gap-2 mb-8 md:mb-12 overflow-x-auto pb-2 md:pb-0 md:flex-wrap md:justify-center scrollbar-hide">
-          {FEATURE_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFeatureTab(tab.id)}
-              className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 font-bold transition border-2 whitespace-nowrap flex-shrink-0 text-sm md:text-base ${
-                activeFeatureTab === tab.id
-                  ? `bg-${tab.color}-500/20 border-${tab.color}-500 text-${tab.color}-400`
-                  : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
-              }`}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Active Feature Content - Benefits Only */}
-        <div className="max-w-3xl mx-auto">
-          <div className={`p-6 md:p-8 bg-slate-800/50 border-2 border-${activeFeature.color}-500/50`}>
-            <div className={`inline-flex items-center gap-2 text-${activeFeature.color}-400 mb-4`}>
-              {activeFeature.icon}
-              <span className="font-bold uppercase tracking-wide">{activeFeature.label}</span>
+      {/* Key Benefits - 3 only */}
+      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/50">
+            <div className="w-12 h-12 bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-6 h-6 text-blue-400" />
             </div>
-            <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">{activeFeature.title}</h3>
-            <p className="text-base md:text-lg text-slate-400 mb-6">{activeFeature.description}</p>
-
-            <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-4">Benefits</h4>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-              {activeFeature.benefits.map((benefit, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <Check className={`w-5 h-5 text-${activeFeature.color}-400 flex-shrink-0 mt-0.5`} />
-                  <span className="text-slate-300">{benefit}</span>
-                </li>
-              ))}
-            </ul>
-
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-700/50">
-              <button
-                onClick={handleEnterApp}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 bg-${activeFeature.color}-500 text-white font-bold hover:bg-${activeFeature.color}-400 transition`}
-              >
-                Try {activeFeature.label} Now
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              {onInstructions && (
-                <button
-                  onClick={onInstructions}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-slate-600 text-slate-300 font-bold hover:border-slate-500 hover:text-white transition"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  See How It Works
-                </button>
-              )}
+            <div>
+              <h3 className="font-bold text-white mb-1">No Coding Required</h3>
+              <p className="text-slate-400 text-sm">Teach your robot by chatting. Say "pick up the red cube" and watch it learn.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/50">
+            <div className="w-12 h-12 bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+              <Camera className="w-6 h-6 text-purple-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white mb-1">Your Own Objects</h3>
+              <p className="text-slate-400 text-sm">Upload a photo of any object. It becomes a 3D model ready for training.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/50">
+            <div className="w-12 h-12 bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <Download className="w-6 h-6 text-green-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white mb-1">Real Hardware Ready</h3>
+              <p className="text-slate-400 text-sm">Export to HuggingFace & LeRobot. Deploy to real SO-101 robot arm.</p>
             </div>
           </div>
         </div>
@@ -824,14 +350,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
           <span className="font-bold">100% Browser-Based</span>
         </div>
         <h2 className="text-5xl font-black text-white mb-6">
-          Ready to Build Your
+          Ready to Train
           <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-            Robot Intelligence?
+            Your Robot?
           </span>
         </h2>
         <p className="text-xl text-slate-400 mb-10">
-          No downloads, no setup, no GPU required. Start building in seconds.
+          Upload a photo. Teach by chatting. Deploy to real hardware.
         </p>
         <button
           onClick={handleEnterApp}
@@ -839,11 +365,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
           style={{ boxShadow: '6px 6px 0 rgba(59, 130, 246, 0.5)' }}
         >
           <Play className="w-6 h-6" fill="currentColor" />
-          Launch RoboSim
+          Get Started Free
           <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
         <p className="text-slate-500 mt-6">
-          Free forever for personal use
+          No account required
         </p>
       </section>
 

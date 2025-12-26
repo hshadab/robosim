@@ -2,11 +2,67 @@ import React, { useRef, useEffect, Suspense, useState, useMemo, useCallback } fr
 import { useFrame } from '@react-three/fiber';
 import type { RapierRigidBody } from '@react-three/rapier';
 import { RigidBody, CuboidCollider, BallCollider, CylinderCollider, ConvexHullCollider } from '@react-three/rapier';
-import { RoundedBox, useGLTF } from '@react-three/drei';
+import { RoundedBox, useGLTF, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimObject, TargetZone } from '../../types';
 import { useAppStore } from '../../stores/useAppStore';
 import { OBJECT_PHYSICS, FLOOR_PHYSICS } from '../../config/physics';
+
+/**
+ * Floating 3D label that appears above an object
+ * Uses Billboard to always face the camera
+ */
+export const ObjectLabel: React.FC<{
+  object: SimObject;
+  showSize?: boolean;
+}> = ({ object, showSize = true }) => {
+  const [x, y, z] = object.position;
+
+  // Calculate label height based on object type
+  let labelHeight = object.scale + 0.03; // Default: above top of cube
+  if (object.type === 'cylinder') {
+    labelHeight = object.scale * 3 + 0.03; // Cylinder height is 6x scale, so half is 3x
+  } else if (object.type === 'ball') {
+    labelHeight = object.scale + 0.03;
+  }
+
+  // Size text
+  const sizeInCm = (object.scale * 100).toFixed(1);
+  const sizeText = object.type === 'cylinder'
+    ? ` (${sizeInCm}cm)` // Just diameter for cylinders
+    : ` (${sizeInCm}cm)`;
+
+  const displayName = object.name || object.type;
+  const labelText = showSize ? `${displayName}${sizeText}` : displayName;
+
+  return (
+    <Billboard position={[x, y + labelHeight, z]} follow={true}>
+      <Text
+        fontSize={0.018}
+        color={object.isGrabbed ? '#00ff00' : '#ffffff'}
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={0.002}
+        outlineColor="#000000"
+      >
+        {labelText}
+      </Text>
+      {object.isGrabbed && (
+        <Text
+          fontSize={0.012}
+          color="#00ff00"
+          anchorX="center"
+          anchorY="top"
+          position={[0, -0.005, 0]}
+          outlineWidth={0.001}
+          outlineColor="#000000"
+        >
+          GRABBED
+        </Text>
+      )}
+    </Billboard>
+  );
+};
 
 /** Shape classification for physics colliders */
 type ColliderShape = 'sphere' | 'box' | 'cylinder' | 'convex';

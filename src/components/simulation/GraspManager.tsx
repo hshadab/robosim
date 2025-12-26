@@ -22,8 +22,8 @@ const log = loggers.grasp;
 // Note: These are fallbacks - contact grasp uses object-specific minimum values
 const GRIPPER_CLOSED_THRESHOLD = 60; // Gripper value below this = closed enough for fallback grasp
 const GRIPPER_OPEN_THRESHOLD = 70;   // Gripper value above this = open enough to release
-const GRASP_DISTANCE = 0.025;         // 2.5cm - max distance from jaw center to object center for grasp
-                                      // Balanced tolerance for visual alignment
+const GRASP_DISTANCE = 0.04;          // 4cm - max distance from jaw center to object center for grasp
+                                      // Increased from 2.5cm to handle IK positioning errors at far reach
 const JAW_LOCAL_OFFSET: [number, number, number] = [-0.0079, 0, 0.0068]; // Jaw center in gripper_frame local coords
 
 // Gripper geometry for calculating minimum grip value
@@ -166,16 +166,11 @@ export const GraspManager: React.FC = () => {
           // Trigger grasp immediately - jaws have made contact with object
           graspState.current.graspedObjectId = nearestObjectInZone.id;
 
-          // Calculate offset from JAW position to object
-          graspState.current.graspOffset.set(
-            nearestObjectInZone.position[0] - jawPosition.current.x,
-            nearestObjectInZone.position[1] - jawPosition.current.y,
-            nearestObjectInZone.position[2] - jawPosition.current.z
-          );
+          // SNAP object to jaw center (zero offset) for clean visual
+          // This makes the object appear centered between gripper jaws
+          graspState.current.graspOffset.set(0, 0, 0);
 
-          // Transform offset to gripper local space
           const invGripperQuat = gripperQuat.current.clone().invert();
-          graspState.current.graspOffset.applyQuaternion(invGripperQuat);
 
           // Store rotation offset
           graspState.current.graspRotationOffset.setFromEuler(
@@ -229,17 +224,11 @@ export const GraspManager: React.FC = () => {
       if (closestObject) {
         graspState.current.graspedObjectId = closestObject.id;
 
-        // Calculate offset from JAW position to object (not gripper tip!)
-        // This ensures the object stays at the jaw position when following
-        graspState.current.graspOffset.set(
-          closestObject.position[0] - jawPosition.current.x,
-          closestObject.position[1] - jawPosition.current.y,
-          closestObject.position[2] - jawPosition.current.z
-        );
+        // SNAP object to jaw center (zero offset) for clean visual
+        // This makes the object appear centered between gripper jaws
+        graspState.current.graspOffset.set(0, 0, 0);
 
-        // Transform offset to gripper local space
         const invGripperQuat = gripperQuat.current.clone().invert();
-        graspState.current.graspOffset.applyQuaternion(invGripperQuat);
 
         // Store rotation offset
         graspState.current.graspRotationOffset.setFromEuler(

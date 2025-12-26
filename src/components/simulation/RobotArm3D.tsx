@@ -11,7 +11,7 @@ import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
-import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
+import { PhysicsObject, TargetZonePhysics, FloorCollider, ObjectLabel } from './PhysicsObjects';
 import { SO101Arm3D } from './SO101Arm3D';
 import { calculateSO101GripperPosition } from './SO101Kinematics';
 import { SensorVisualization3DLayer } from './SensorVisualization3D';
@@ -501,10 +501,17 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
                 <div className="text-xs text-slate-400 mt-2 mb-1 border-t border-slate-700 pt-2">Objects in Scene</div>
                 {objects.slice(0, 3).map((obj, i) => {
                   const [x, y, z] = obj.position;
-                  const dist = Math.sqrt(x * x + z * z);
+                  // Show object size: for cubes/balls it's the scale, for cylinders diameter x height
+                  const sizeInCm = (obj.scale * 100).toFixed(1);
+                  const sizeLabel = obj.type === 'cylinder'
+                    ? `${sizeInCm}x${(obj.scale * 6 * 100).toFixed(0)}cm`
+                    : `${sizeInCm}cm`;
                   return (
                     <div key={obj.id || i} className="text-xs font-mono text-slate-300">
-                      <span className="text-blue-400">{obj.name || obj.type}</span>: [{(x * 100).toFixed(0)}, {(y * 100).toFixed(0)}, {(z * 100).toFixed(0)}]cm <span className="text-slate-500">({(dist * 100).toFixed(0)}cm)</span>
+                      <span className="text-blue-400">{obj.name || obj.type}</span>{obj.isGrabbed && <span className="text-green-400 ml-1">[GRABBED]</span>}
+                      <div className="text-slate-500 pl-2">
+                        pos: [{(x * 100).toFixed(0)}, {(y * 100).toFixed(0)}, {(z * 100).toFixed(0)}]cm | size: {sizeLabel}
+                      </div>
                     </div>
                   );
                 })}

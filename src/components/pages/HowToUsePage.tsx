@@ -752,11 +752,11 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onBack, onGetStarted
       {/* Hero */}
       <section className="relative px-8 pt-8 pb-8 max-w-7xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
-          <span className="text-blue-400">Instructions</span> & User Guide
+          <span className="text-blue-400">Advanced</span> Features
         </h1>
         <p className="text-xl text-slate-400 max-w-3xl">
-          Complete guide to all controls, features, and capabilities in RoboSim. Learn how to control robots,
-          use AI features, write code, and create training datasets.
+          Deep dive into all controls, features, and capabilities in RoboSim. Manual controls,
+          code editor, voice control, vision AI, and more.
         </p>
       </section>
 

@@ -6,6 +6,32 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 ## Recent Updates (December 2024)
 
+### Google Colab Training Integration (NEW)
+- **One-Click Colab** - "Train on Google Colab" button opens pre-configured notebook
+- **Free GPU Training** - Uses Google's free T4 GPU (~2 hours for ACT policy)
+- **No Setup Required** - LeRobot installs automatically in notebook
+- **Dataset Auto-Fill** - Your HuggingFace dataset ID shown for easy copy-paste
+- **Full Pipeline** - Record demos → Upload → Train on Colab → Deploy to real SO-101
+
+### Demo-Like Reliable Pickup (NEW)
+- **Proven Joint Values** - Uses hardcoded Demo Pick Up values for cubes in sweet spot
+- **Approach from Above** - 4-step sequence: approach → descend → close → lift
+- **No IK Errors** - Bypasses unreliable IK solver for common pickup positions
+- **Object Snapping** - Grabbed objects snap to jaw center for clean visuals
+
+### LLM Training Data Collection
+- **Automatic Success/Failure Logging** - Every pickup attempt is logged with outcome
+- **Pickup Examples Store** - Successful pickups stored for few-shot learning
+- **Similar Pickup Lookup** - Find working examples for similar objects/positions
+- **Training Export** - Export successful pickups to LeRobot format
+- **Stats Dashboard** - Track success rates by object type
+
+### Few-Shot Learning in System Prompt (NEW)
+- **Proven Working Examples** - System prompt includes verified pickup configurations
+- **Dynamic Context** - Similar successful pickups shown for current scene objects
+- **Critical Pickup Rules** - wristRoll orientation, timing, physics requirements documented
+- **Success Rate Display** - LLM sees overall pickup success rate
+
 ### Reliable Chat-Based Pickup
 - **Simplified 4-Step Sequence** - Position → Close (800ms) → Hold → Lift
 - **Physics-Tuned Timing** - 800ms gripper close gives physics time to detect contact
@@ -355,14 +381,16 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 - **Camera Frame Capture** - RGB frames captured at 30 FPS during recording
 - **Task Verification** - Automatic success detection (did object reach target?)
 
-### Quick Train Flow (NEW - Apple-Inspired UX)
-- **One-Button Wizard** - Minimalist step-by-step flow: Add Object → Record Demo → Generate → Upload
+### Quick Train Flow (Apple-Inspired UX)
+- **One-Button Wizard** - Minimalist step-by-step flow: Add Object → Record Demo → Generate → Upload → Train
 - **Standard Object Library** - 34 physics-enabled objects (cubes, balls, cylinders) ready to use instantly
 - **Photo to 3D** - Upload a photo and convert to training-ready 3D model via fal.ai
 - **Chat-Based Recording** - Say "pick up the block" and the demo is auto-recorded
 - **Auto-Stop Recording** - Recording stops automatically when robot finishes moving
 - **Suggested Prompts** - Contextual command suggestions based on your object
 - **Direct HuggingFace Upload** - One-click export with automatic Parquet conversion
+- **Train on Google Colab** - One-click opens pre-configured notebook with your dataset
+- **Free GPU Training** - Uses Google's T4 GPU, no local setup required
 - **Tools Drawer** - All advanced tools hidden in slide-out panel for minimal distraction
 
 ### Guided Teleoperation Recording (NEW)
@@ -479,6 +507,60 @@ RoboSim implements several features to ensure training data transfers well to re
 | Motor jitter | None | ±0.02 rad | Present ✓ |
 
 Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve, and domain randomization ensures policies are robust to real-world variations.
+
+## End-to-End Training Workflow
+
+RoboSim provides a complete pipeline from demonstration to trained policy:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        ROBOSIM TRAINING PIPELINE                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   1. SNAP IT              2. TEACH IT             3. TRAIN IT            │
+│   ┌─────────────┐        ┌─────────────┐        ┌─────────────┐         │
+│   │  📸 Photo   │   →    │  💬 Chat    │   →    │  🚀 Colab   │         │
+│   │  or Object  │        │  Commands   │        │  Training   │         │
+│   │  Library    │        │  "pick up"  │        │  (Free GPU) │         │
+│   └─────────────┘        └─────────────┘        └─────────────┘         │
+│         │                       │                      │                 │
+│         ▼                       ▼                      ▼                 │
+│   3D model in scene      50-100 episodes       Trained ACT policy       │
+│                          on HuggingFace        ready for SO-101         │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Step-by-Step Guide
+
+1. **Add Object** - Use LeRobot Objects library or upload your own photo
+2. **Record Demos** - Chat "pick up the cube" ~10 times
+3. **Generate Variations** - Click to auto-generate 50+ episodes
+4. **Upload to HuggingFace** - One-click upload with your HF token
+5. **Train on Colab** - Click "Train on Google Colab" button
+6. **Run notebook** - Just click "Run All" in the Colab notebook
+7. **Deploy** - Download trained model and run on real SO-101
+
+### Training Requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| Demos needed | ~10 manual demonstrations |
+| Episodes generated | 50-100 (auto-generated from demos) |
+| Training time | ~2 hours on free Colab GPU |
+| GPU required | No (Colab provides free T4) |
+| Local setup | None (everything in browser + Colab) |
+
+### Google Colab Notebook
+
+The included notebook (`notebooks/train_so101_colab.ipynb`) handles:
+- LeRobot installation
+- Dataset loading from HuggingFace
+- ACT policy training configuration
+- Model saving to HuggingFace Hub
+- Download option for local deployment
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hshadab/robosim/blob/main/notebooks/train_so101_colab.ipynb)
 
 ## Tech Stack
 
@@ -738,6 +820,7 @@ RoboSim is designed with a **prompt-first** architecture where natural language 
 | Robot Context | `src/lib/robotContext.ts` | Central state + event bus |
 | Semantic State | `src/lib/semanticState.ts` | Converts state to natural language |
 | Claude API | `src/lib/claudeApi.ts` | LLM integration with semantic context |
+| Pickup Examples | `src/lib/pickupExamples.ts` | Training data from successful pickups |
 | Chat Panel | `src/components/chat/ChatPanel.tsx` | Bidirectional UI |
 
 ### Example Conversation
@@ -823,6 +906,7 @@ src/
 │   ├── cameraCapture.ts       # RGB frame capture from 3D viewport
 │   ├── qualityGates.ts        # Episode quality validation for export
 │   ├── huggingfaceUpload.ts   # HuggingFace Hub dataset upload
+│   ├── pickupExamples.ts      # Training data from successful pickups
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...

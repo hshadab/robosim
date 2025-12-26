@@ -67,6 +67,8 @@ RoboSim is a web-based robotics simulation platform built with a **prompt-first 
 │  │ claudeApi│ │ voiceCtrl│ │ vision   │ │ aiImageGen     │  │
 │  ├──────────┤ ├──────────┤ ├──────────┤ ├────────────────┤  │
 │  │semanticSt│ │ textTo3D │ │ copilot  │ │ policyRunner   │  │
+│  ├──────────┤ ├──────────┤ ├──────────┤ ├────────────────┤  │
+│  │pickupEx. │ │ikSolver  │ │ (NEW)    │ │ (training)     │  │
 │  └──────────┘ └──────────┘ └──────────┘ └────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -90,6 +92,46 @@ export function generateSemanticState(robotType, joints, ...): string {
   //  The end effector is at medium height, reaching forward."
 }
 ```
+
+### LLM Training Data Collection
+
+The system automatically learns from pickup attempts:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User Chat: "pick up the cube"                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  handlePickUpCommand() in claudeApi.ts                       │
+│  - Calculate IK for approach/grasp/lift                      │
+│  - Returns pickupAttempt metadata                            │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  useLLMChat Hook                                             │
+│  - logPickupAttempt() → stores attempt                       │
+│  - executeArmSequence() → 4-step pickup                      │
+│  - Check objects.isGrabbed                                   │
+│  - markPickupSuccess() or markPickupFailure()                │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  pickupExamples.ts (Training Store)                          │
+│  - VERIFIED_PICKUPS: Demo Pick Up configurations             │
+│  - Logged attempts with success/failure                      │
+│  - findSimilarPickups() for few-shot learning                │
+│  - exportForTraining() for LeRobot format                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Key files:
+- `src/lib/pickupExamples.ts` - Training data storage
+- `src/lib/claudeApi.ts` - IK calculation + pickupAttempt metadata
+- `src/hooks/useLLMChat.ts` - Success/failure logging
 
 ### Graceful Degradation
 
@@ -301,6 +343,19 @@ Interactive objects use dynamic physics:
 - Some valid poses may be incorrectly blocked
 - Tradeoff between safety and flexibility
 
+### ADR-006: LLM Training Data Collection
+
+**Context**: Pickup commands need to improve over time.
+
+**Decision**: Automatically log all pickup attempts with outcomes.
+
+**Consequences**:
+- Every pickup stores object position, joint sequence, IK errors
+- Success/failure determined by checking gripper holds object
+- System prompt includes similar successful examples (few-shot)
+- Training data can be exported to LeRobot format
+- Verified examples from Demo Pick Up seed the store
+
 ---
 
 ## File Organization
@@ -318,7 +373,9 @@ src/
 │   ├── useRobotContext.ts # Robot state + events
 │   └── useCodeCopilot.ts  # AI code completion
 ├── lib/                  # Non-React utilities
-│   ├── claudeApi.ts      # Claude API client
+│   ├── claudeApi.ts      # Claude API client + pickup commands
+│   ├── pickupExamples.ts # Training data from pickup attempts
+│   ├── ikSolverWorker.ts # Web Worker IK solver
 │   ├── voiceControl.ts   # Web Speech API
 │   ├── visionLanguage.ts # Scene understanding
 │   ├── textTo3D.ts       # Mesh generation

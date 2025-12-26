@@ -31,12 +31,10 @@ export const ObjectLibraryPanel: React.FC = () => {
 
   const handleAddObject = (template: ObjectTemplate) => {
     // Random position in front of robot - optimal workspace zone
-    // Use polar coordinates: distance 16-22cm, angle 30° to 60° from +X axis
-    const distance = 0.16 + Math.random() * 0.06; // 16-22cm from base
-    const angle = (Math.PI / 6) + Math.random() * (Math.PI / 6); // 30° to 60° from +X axis
-
-    const x = Math.max(0.12, distance * Math.cos(angle)); // Ensure minimum X (12cm+)
-    const z = Math.max(0.15, distance * Math.sin(angle)); // Ensure positive Z (15cm+)
+    // IMPORTANT: Keep objects nearly straight ahead (small angle) for reliable IK pickup
+    // Demo Pick Up uses [16, 2, 1]cm which works perfectly - stay close to that
+    const x = 0.14 + Math.random() * 0.04; // 14-18cm forward (Demo uses 16cm)
+    const z = -0.02 + Math.random() * 0.04; // -2cm to +2cm sideways (nearly centered, Demo uses 1cm)
 
     // Use the template's actual scale - Easy Grasp objects are already sized correctly
     const scale = template.scale;

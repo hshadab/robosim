@@ -7,14 +7,15 @@ Complete instructions for using all controls and features in RoboSim.
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Robot Types](#robot-types)
-3. [Control Panels](#control-panels)
-4. [AI Features](#ai-features)
-5. [Code Editor](#code-editor)
-6. [3D Simulation](#3d-simulation)
-7. [Data & Export](#data--export)
-8. [Keyboard Shortcuts](#keyboard-shortcuts)
-9. [Troubleshooting](#troubleshooting)
+2. [Training Workflow (End-to-End)](#training-workflow-end-to-end)
+3. [Robot Types](#robot-types)
+4. [Control Panels](#control-panels)
+5. [AI Features](#ai-features)
+6. [Code Editor](#code-editor)
+7. [3D Simulation](#3d-simulation)
+8. [Data & Export](#data--export)
+9. [Keyboard Shortcuts](#keyboard-shortcuts)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -49,6 +50,105 @@ Complete instructions for using all controls and features in RoboSim.
 2. **Talk to AI**: Type commands in the Chat panel (e.g., "wave hello")
 3. **Run code**: Write JavaScript in the Code Editor and click Run
 4. **Change robots**: Use the Robot Selector dropdown
+
+---
+
+## Training Workflow (End-to-End)
+
+RoboSim provides a complete pipeline from demonstration to trained robot policy.
+
+### Overview
+
+```
+SNAP IT → TEACH IT → TRAIN IT → DEPLOY IT
+   │          │          │          │
+   ▼          ▼          ▼          ▼
+Add object  Record    Train on   Run on
+from photo  demos     Colab      real robot
+or library  via chat  (free GPU)
+```
+
+### Step 1: Add an Object
+
+1. Click **"Use LeRobot Objects"** in the left panel
+2. Select a cube (recommended: "LeRobot Cube 2.5cm")
+3. Object appears in the scene in the optimal pickup zone
+
+**Alternative:** Upload a photo of your own object to generate a 3D model.
+
+### Step 2: Record Demonstrations
+
+1. Type **"pick up the cube"** in the chat panel
+2. Watch the robot pick up the cube
+3. Repeat **10 times** with slight variations
+4. The app automatically records each successful pickup
+
+**Tips for good demos:**
+- Let the robot finish each pickup before starting the next
+- Occasional failures are okay (they're filtered out)
+- Vary your phrasing: "grab the cube", "pick up the red block"
+
+### Step 3: Generate Episodes
+
+1. Click **"Generate Variations"** button
+2. App creates 50-100 episodes from your ~10 demos
+3. Wait a few seconds for generation
+
+### Step 4: Upload to HuggingFace
+
+1. Click **"Upload to HuggingFace"**
+2. Enter your HuggingFace token (get one at huggingface.co/settings/tokens)
+3. Dataset uploads automatically
+4. Note your dataset ID (e.g., `username/cube-pickup-training-123456`)
+
+### Step 5: Train on Google Colab
+
+1. Click **"Train on Google Colab"** button
+2. Colab notebook opens in new tab
+3. Enter your dataset ID in the notebook
+4. Click **Runtime → Run all**
+5. Wait ~2 hours for training to complete
+6. Trained model saves to HuggingFace
+
+### Step 6: Deploy to Real SO-101
+
+On your computer with the SO-101 connected:
+
+```bash
+# Install LeRobot
+pip install lerobot
+
+# Run your trained policy
+python -m lerobot.scripts.control_robot record \
+  --robot-path lerobot/configs/robot/so100.yaml \
+  --policy.path=YOUR_USERNAME/YOUR_MODEL_REPO \
+  --fps 30
+```
+
+### Training Requirements
+
+| Requirement | Details |
+|-------------|---------|
+| Human demos | ~10 successful pickups |
+| Total episodes | 50-100 (auto-generated) |
+| Training time | ~2 hours |
+| GPU needed locally | No (Colab provides free T4) |
+| Cost | Free |
+
+### Troubleshooting Training
+
+**Pickup failing?**
+- Objects should spawn nearly straight ahead (small angle from robot)
+- Clear and add a new object if position looks wrong
+- Demo Pick Up button always works as reference
+
+**Upload failing?**
+- Check your HuggingFace token is valid
+- Token needs "write" permission
+
+**Training not starting?**
+- Make sure GPU is enabled: Runtime → Change runtime type → GPU
+- Check dataset ID is correct in notebook
 
 ---
 
@@ -643,6 +743,52 @@ Natural language interface for robot control.
 3. AI processes and executes command
 4. Robot moves accordingly
 5. Response appears in chat
+
+---
+
+### Pickup Training (LLM Learning)
+
+The chat pickup system automatically learns from every attempt to improve over time.
+
+**How It Works:**
+
+1. **Automatic Logging** - Every pickup command is logged with:
+   - Object position and type
+   - Joint sequence used
+   - IK solver errors
+   - Success/failure outcome
+
+2. **Success Detection** - After the 4-step pickup sequence:
+   - System checks if gripper is holding an object
+   - Logs SUCCESS or FAILURE automatically
+   - Failed attempts include reason (e.g., "No object grabbed")
+
+3. **Few-Shot Learning** - The system prompt includes:
+   - Verified working pickup examples from Demo Pick Up
+   - Similar successful pickups for current scene objects
+   - Critical rules (wristRoll, timing, physics)
+
+**Training Data Access:**
+
+Open browser console to view pickup stats:
+```javascript
+import { getPickupStats } from './lib/pickupExamples';
+console.log(getPickupStats());
+// { total: 10, successful: 8, failed: 2, successRate: 0.8, byObjectType: {...} }
+```
+
+**Verified Working Examples:**
+
+| Object Position | Type | Joint Configuration |
+|----------------|------|---------------------|
+| [16, 2, 1]cm | Cube | base=5°, shoulder=-22°, elbow=51°, wrist=63° |
+| [12, 2, 15]cm | Cube | base=51°, shoulder=-50°, elbow=80°, wrist=10° |
+
+**Critical Rules:**
+- Use `wristRoll=90°` for cubes/balls (vertical fingers)
+- Use `wristRoll=0°` for cylinders (horizontal fingers)
+- Gripper close needs 800ms for physics detection
+- Use `_gripperOnly: true` flag for gripper-only steps
 
 ---
 

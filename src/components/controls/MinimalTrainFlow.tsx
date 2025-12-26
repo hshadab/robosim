@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   Send,
   Play,
+  ExternalLink,
+  Cpu,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Episode, Frame } from '../../lib/datasetExporter';
@@ -326,15 +328,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
-    // Random position in FRONT of robot - within optimal workspace zone
-    // Use polar coordinates: distance 16-22cm, angle 30° to 60° from +X axis
-    // This ensures objects are in the +X, +Z quadrant (front-right of robot)
-    // where the arm has best reach and can approach from above
-    const distance = 0.16 + Math.random() * 0.06; // 16-22cm from base
-    const angle = (Math.PI / 6) + Math.random() * (Math.PI / 6); // 30° to 60° from +X axis (always positive Z)
-
-    const x = Math.max(0.12, distance * Math.cos(angle)); // Ensure minimum positive X (12cm+)
-    const z = Math.max(0.15, distance * Math.sin(angle)); // Ensure minimum positive Z (15cm+)
+    // Random position in front of robot - optimal workspace zone
+    // IMPORTANT: Keep objects nearly straight ahead (small angle) for reliable IK pickup
+    // Demo Pick Up uses [16, 2, 1]cm which works perfectly - stay close to that
+    const x = 0.14 + Math.random() * 0.04; // 14-18cm forward (Demo uses 16cm)
+    const z = -0.02 + Math.random() * 0.04; // -2cm to +2cm sideways (nearly centered, Demo uses 1cm)
 
     // Use the template's actual scale - Easy Grasp objects are already sized correctly
     const scale = template.scale;
@@ -877,6 +875,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         );
 
       case 'done':
+        // Build Colab URL with dataset parameter
+        const colabNotebookUrl = 'https://colab.research.google.com/github/hshadab/robosim/blob/main/notebooks/train_so101_colab.ipynb';
+        const datasetParam = state.exportedUrl && state.exportedUrl !== 'downloaded'
+          ? `?dataset=${encodeURIComponent(state.exportedUrl)}`
+          : '';
+
         return (
           <div className="text-center py-4">
             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -884,12 +888,38 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">Ready to Train!</h3>
             {state.exportedUrl && state.exportedUrl !== 'downloaded' ? (
-              <p className="text-slate-400 text-sm">
-                Dataset uploaded to HuggingFace
-              </p>
+              <>
+                <p className="text-slate-400 text-sm mb-4">
+                  Dataset uploaded to HuggingFace
+                </p>
+
+                {/* Train on Colab Button */}
+                <a
+                  href={colabNotebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-400 hover:to-yellow-400 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 mb-3"
+                >
+                  <Cpu className="w-6 h-6" />
+                  Train on Google Colab
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+
+                <p className="text-slate-500 text-xs mb-4">
+                  Free GPU • ~2 hours • No setup required
+                </p>
+
+                <div className="bg-slate-800/50 rounded-lg p-3 text-left mb-4">
+                  <p className="text-xs text-slate-400 mb-1">Your dataset ID:</p>
+                  <code className="text-xs text-blue-400 break-all">{state.exportedUrl}</code>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Copy this into the Colab notebook when prompted
+                  </p>
+                </div>
+              </>
             ) : (
-              <p className="text-slate-400 text-sm">
-                Dataset downloaded. Run LeRobot training.
+              <p className="text-slate-400 text-sm mb-4">
+                Dataset downloaded. Run LeRobot training locally.
               </p>
             )}
             <button
@@ -898,7 +928,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 setStep('add-object');
                 setObjectMode('choose');
               }}
-              className="mt-4 px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition"
+              className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition"
             >
               Train Another Object
             </button>
