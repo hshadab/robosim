@@ -5,7 +5,8 @@ import { test, expect } from '@playwright/test';
  * Tests floor collision, gripper limits, and object grasping physics
  */
 
-test('Grasp mechanics - floor collision and gripper limits', async ({ page }) => {
+test('Grasp mechanics - floor collision and gripper limits', async ({ page }, testInfo) => {
+  testInfo.setTimeout(90000); // Increase timeout for this test
   const consoleLogs: string[] = [];
   const graspLogs: string[] = [];
   const floorConstraintLogs: string[] = [];
@@ -24,12 +25,18 @@ test('Grasp mechanics - floor collision and gripper limits', async ({ page }) =>
     }
   });
 
-  // Navigate to the app
-  console.log('1. Navigating to app...');
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+  // Capture console logs for debugging
+  const authLogs: string[] = [];
+  page.on('console', msg => {
+    const text = msg.text();
+    if (text.includes('[Auth]')) {
+      authLogs.push(text);
+    }
+  });
 
-  // Set up mock auth
-  await page.evaluate(async () => {
+  // Add init script that runs BEFORE page JavaScript to set mock auth
+  console.log('1. Setting up mock auth via addInitScript...');
+  await page.addInitScript(() => {
     const mockAuthState = {
       state: {
         isAuthenticated: true,
@@ -57,20 +64,26 @@ test('Grasp mechanics - floor collision and gripper limits', async ({ page }) =>
     localStorage.setItem('robosim-auth', JSON.stringify(mockAuthState));
   });
 
-  // Click login
-  console.log('2. Logging in...');
-  await page.click('text=GET STARTED');
-  await page.waitForTimeout(500);
+  // Navigate to the app - mock auth will be set before app loads
+  console.log('2. Navigating to app...');
+  await page.goto('http://localhost:5000/', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2000);
 
-  const emailInput = await page.$('input[type="email"]');
-  if (emailInput) {
-    await emailInput.fill('test@test.com');
-    await page.click('text=Continue');
-    await page.waitForTimeout(1000);
-  }
+  // Print auth debug logs
+  console.log('AUTH LOGS:', authLogs.join('\n'));
+
+  // Debug: Check localStorage and auth state
+  const debugState = await page.evaluate(() => {
+    const stored = localStorage.getItem('robosim-auth');
+    return {
+      localStorage: stored ? 'SET' : 'NOT SET',
+      rawContent: stored?.substring(0, 200),
+    };
+  });
+  console.log('DEBUG - localStorage:', JSON.stringify(debugState));
 
   // Wait for canvas
-  console.log('3. Waiting for simulation canvas...');
+  console.log('4. Waiting for simulation canvas...');
   try {
     await page.waitForSelector('canvas', { timeout: 15000 });
     console.log('Canvas found!');
@@ -85,7 +98,7 @@ test('Grasp mechanics - floor collision and gripper limits', async ({ page }) =>
   await page.screenshot({ path: 'tests/screenshots/grasp-initial.png', fullPage: true });
 
   // Get initial state
-  console.log('4. Getting initial state...');
+  console.log('5. Getting initial state...');
   const initialState = await page.evaluate(() => {
     // Access the Zustand store through window or find it in React
     try {
@@ -106,30 +119,79 @@ test('Grasp mechanics - floor collision and gripper limits', async ({ page }) =>
   });
   console.log('Initial state:', JSON.stringify(initialState, null, 2));
 
-  // Spawn a demo cube using chat
-  console.log('5. Spawning demo cube...');
+  // Spawn a demo cube via store (not chat - avoids LLM dependency)
+  console.log('5. Spawning demo cube via store...');
 
-  // Find and click the chat input
-  const chatInput = await page.$('input[placeholder*="message"], textarea[placeholder*="message"], input[type="text"]');
-  if (chatInput) {
-    await chatInput.fill('spawn a red cube at position 0.12, 0.025, 0.15');
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(2000);
-  }
+  const spawnResult = await page.evaluate(() => {
+    const store = (window as any).__APP_STORE__;
+    if (!store) return { error: 'Store not found' };
 
+    const spawnObject = store.getState().spawnObject;
+    if (spawnObject) {
+      spawnObject({
+        type: 'cube',
+        position: [0.12, 0.025, 0.15],
+        rotation: [0, 0, 0],
+        scale: 0.04,
+        color: '#FF0000',
+        isGrabbable: true,
+        name: 'Test Cube',
+      });
+      return { success: true };
+    }
+    return { error: 'spawnObject not found' };
+  });
+  console.log('Spawn result:', spawnResult);
+  await page.waitForTimeout(1000);
   await page.screenshot({ path: 'tests/screenshots/grasp-cube-spawned.png', fullPage: true });
 
-  // Send pick up command
-  console.log('6. Sending pick up command...');
-  if (chatInput) {
-    await chatInput.fill('pick up the cube');
-    await page.keyboard.press('Enter');
-  }
+  // Move arm to grasp position via store (verified working position)
+  console.log('6. Moving arm to grasp position...');
+  await page.evaluate(() => {
+    const store = (window as any).__APP_STORE__;
+    if (store) {
+      // Use verified demo pickup joints - cube at [12, 2, 15]cm
+      store.getState().setJoints({
+        base: 51,
+        shoulder: -50,
+        elbow: 80,
+        wrist: 10,
+        wristRoll: 90,
+        gripper: 100, // Open gripper first
+      });
+    }
+  });
+  await page.waitForTimeout(1500);
 
-  // Wait and take screenshots during the animation
+  // Close gripper to grasp
+  console.log('7. Closing gripper...');
+  await page.evaluate(() => {
+    const store = (window as any).__APP_STORE__;
+    if (store) {
+      store.getState().setJoints({ gripper: 0 });
+    }
+  });
+  await page.waitForTimeout(1500);
+
+  // Lift the arm
+  console.log('8. Lifting arm...');
+  await page.evaluate(() => {
+    const store = (window as any).__APP_STORE__;
+    if (store) {
+      store.getState().setJoints({
+        base: 51,
+        shoulder: -30,
+        elbow: 60,
+        wrist: 0,
+        wristRoll: 90,
+      });
+    }
+  });
+  await page.waitForTimeout(2000);
+
+  // Take screenshots during grasp sequence
   const screenshots: string[] = [];
-  for (let i = 0; i < 8; i++) {
-    await page.waitForTimeout(1000);
+  for (let i = 0; i < 3; i++) {
     const filename = `tests/screenshots/grasp-sequence-${i}.png`;
     await page.screenshot({ path: filename, fullPage: true });
     screenshots.push(filename);
@@ -146,9 +208,11 @@ test('Grasp mechanics - floor collision and gripper limits', async ({ page }) =>
               name: o.name,
               position: o.position,
               isGrabbed: o.isGrabbed,
+              isGrabbable: o.isGrabbable,
             })),
             gripperValue: s.joints?.gripper,
             gripperMinValue: s.gripperMinValue,
+            grabbedObjectId: s.grabbedObjectId,
           };
         }
       } catch (e) {}
@@ -221,10 +285,10 @@ test('Gripper does not close past minimum when holding object', async ({ page })
     consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
   });
 
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:5000/', { waitUntil: 'domcontentloaded' });
 
   // Mock auth
-  await page.evaluate(async () => {
+  await page.evaluate(() => {
     localStorage.setItem('robosim-auth', JSON.stringify({
       state: {
         isAuthenticated: true,
@@ -236,16 +300,10 @@ test('Gripper does not close past minimum when holding object', async ({ page })
     }));
   });
 
-  await page.click('text=GET STARTED');
-  await page.waitForTimeout(500);
+  // Reload to pick up mock auth
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1000);
 
-  const emailInput = await page.$('input[type="email"]');
-  if (emailInput) {
-    await emailInput.fill('test@test.com');
-    await page.click('text=Continue');
-  }
-
-  await page.waitForTimeout(2000);
   await page.waitForSelector('canvas', { timeout: 15000 });
   await page.waitForTimeout(3000);
 

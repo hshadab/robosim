@@ -16,14 +16,11 @@ Complete pipeline for generating transfer-ready synthetic training data:
 - **Camera Jitter** - Position and rotation variation for viewpoint diversity
 
 **Motion Quality**
-- **Minimum-Jerk Interpolation** - Smoothest possible trajectories (10t³ - 15t⁴ + 6t⁵)
-- **Approach Angle Variation** - ±3° base offset, 80-100° wrist roll per episode
-- **Speed Variation** - 0.7-1.3x speed factor per episode
-- **Recovery Behaviors** - 40% of episodes include mistake→correction→success sequences
-  - Overshoot (move past target, correct back)
-  - Undershoot (stop short, continue)
-  - Miss and reapproach (miss grasp, pull back, retry)
-  - Partial grasp (off-center grasp, release, re-grasp)
+- **Ease-in-out Cubic Interpolation** - Smooth, natural trajectories matching real robot motion
+- **Approach Angle Variation** - ±1.5° base offset (conservative for reliable grasp)
+- **Wrist Roll Variation** - 85-95° (within proven working range)
+- **Speed Variation** - 0.9-1.1x speed factor per episode (realistic motor variance)
+- **Joint Offset Variation** - ±1° shoulder/elbow offsets for approach diversity
 
 **Post-Hoc Augmentation**
 - **Image Augmentation** - Color jitter, random crop, cutout/occlusion, Gaussian noise
@@ -44,9 +41,18 @@ Complete pipeline for generating transfer-ready synthetic training data:
 
 ### Batch Demo Generation (NEW)
 - **"Generate 10 Demos" Button** - One-click generates 10 varied pickup demonstrations
-- **Position Interpolation** - Arm reach adjusts per cube position (not fixed angles)
-- **Honest Physics** - 1.5cm grasp threshold (gripper must actually reach cube)
-- **Real Training Data** - Each demo at different position creates genuine variety
+- **Position Interpolation** - Arm reach adjusts per cube position (14-18cm forward, ±2cm sideways)
+- **Proven Motion Pattern** - Same 3-move sequence as reliable single demo (position → grasp → lift)
+- **Physics-Tuned Timing** - 800ms gripper close for reliable collision detection
+- **Real Training Data** - Each demo at different position with motion variation
+
+### LeRobot Format Compatibility (NEW)
+Export format matches official SO-101 datasets on HuggingFace:
+- **Same Joint Names** - shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper
+- **Same Data Structure** - observation.state [6], action [6], episode_index, frame_index, timestamp
+- **stats.json Normalization** - Min/max/mean/std for policy training
+- **Parquet + MP4** - Native LeRobot v3.0 format
+- **Tested Against** - [lerobot/svla_so101_pickplace](https://huggingface.co/datasets/lerobot/svla_so101_pickplace)
 
 ### LLM Training Data Collection
 - **Automatic Success/Failure Logging** - Every pickup attempt is logged with outcome

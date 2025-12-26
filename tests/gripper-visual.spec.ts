@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Gripper Visual Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:5173/');
+    await page.goto('http://localhost:5000/');
 
     // Inject mock auth
     await page.evaluate(() => {

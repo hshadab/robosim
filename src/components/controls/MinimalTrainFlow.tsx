@@ -46,16 +46,8 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
-import {
-  generateMotionVariation,
-  applySpeedFactor,
-} from '../../lib/motionVariation';
-import {
-  shouldApplyRecovery,
-  generateRecoverySequence,
-  type RecoverySequence,
-  DEFAULT_RECOVERY_CONFIG,
-} from '../../lib/recoveryBehaviors';
+// Motion variation and recovery behaviors removed for reliable demos
+// (can be re-enabled once base pickup is more robust)
 import { randomizeVisualsForEpisode } from '../../stores/useVisualStore';
 
 const log = createLogger('TrainFlow');
@@ -336,7 +328,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     }
   }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, sendMessage]);
 
-  // Batch generate 10 varied demos with visual randomization, motion variation, and recovery behaviors
+  // Batch generate 10 varied demos - uses same proven pattern as single demo
   const handleBatchDemos = useCallback(async () => {
     if (isDemoRunning || isAnimating || isLLMLoading) return;
 
@@ -385,7 +377,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         // Clear scene and reset arm
         clearObjects();
         setJoints({ base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 100 });
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 500));
 
         // Spawn cube at varied position
         const pos = positions[i];
@@ -394,26 +386,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         const { id, ...objWithoutId } = newObject;
         spawnObject({ ...objWithoutId, name: `Cube ${i + 1}`, scale: demoScale });
 
-        // Wait for physics
-        await new Promise(r => setTimeout(r, 800));
-
-        // === MOTION VARIATION ===
-        // Generate speed and approach angle variation for this episode
-        const motionVariation = generateMotionVariation();
-        const { speedFactor, approachVariation } = motionVariation;
-        log.debug(`Episode ${i + 1}: Motion variation`, {
-          speedFactor: speedFactor.toFixed(2),
-          baseOffset: approachVariation.baseOffset.toFixed(1),
-          wristRoll: approachVariation.wristRollVariation.toFixed(1),
-        });
-
-        // === RECOVERY BEHAVIOR ===
-        // Check if this episode should include a recovery behavior (~40% chance)
-        const recovery = shouldApplyRecovery(DEFAULT_RECOVERY_CONFIG);
-        let recoverySequence: RecoverySequence | null = null;
-        if (recovery) {
-          log.debug(`Episode ${i + 1}: Recovery behavior triggered`, { type: recovery.type });
-        }
+        // Wait for physics to settle (same as single demo)
+        await new Promise(r => setTimeout(r, 1500));
 
         // Start recording this demo
         const startTime = Date.now();
@@ -426,24 +400,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           });
         }, 33);
 
-        // === MINIMUM-JERK INTERPOLATION ===
-        // Execute pickup sequence with minimum-jerk for smooth motion
+        // === USE SAME SMOOTH MOVE AS SINGLE DEMO ===
+        // Ease-in-out cubic for natural motion (matches working single demo)
         const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-        const smoothMove = async (targetJoints: Partial<typeof joints>, baseDurationMs: number) => {
-          // Apply speed factor to duration
-          const durationMs = applySpeedFactor(baseDurationMs, speedFactor);
+        const smoothMove = async (targetJoints: Partial<typeof joints>, durationMs: number) => {
           const startJoints = { ...useAppStore.getState().joints };
-          const steps = Math.max(10, Math.floor(durationMs / 16));
+          const steps = Math.max(10, Math.floor(durationMs / 16)); // ~60fps
           const stepDelay = durationMs / steps;
 
           for (let s = 1; s <= steps; s++) {
             const t = s / steps;
-            // MINIMUM-JERK interpolation: 10t³ - 15t⁴ + 6t⁵
-            // Provides zero velocity, acceleration, AND jerk at endpoints
-            const t3 = t * t * t;
-            const t4 = t3 * t;
-            const t5 = t4 * t;
-            const ease = 10 * t3 - 15 * t4 + 6 * t5;
+            // Ease-in-out cubic for natural motion (same as single demo)
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
             const interpolated: Partial<typeof joints> = {};
             for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
@@ -458,58 +426,54 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           }
         };
 
-        // Calculate base angle for this cube position + approach variation
-        const baseAngle = Math.atan2(pos.z, pos.x) * (180 / Math.PI) + approachVariation.baseOffset;
+        // === MODERATE VARIATIONS FOR SIM-TO-REAL (within proven working range) ===
+        // Speed: 0.9x-1.1x (conservative, was 0.7-1.3x)
+        const speedFactor = 0.9 + Math.random() * 0.2;
+        // Approach angle: ±1.5° (conservative, was ±3°)
+        const baseOffset = (Math.random() - 0.5) * 3;
+        // Wrist roll: 85-95° (conservative, was 80-100°)
+        const wristRollVar = 85 + Math.random() * 10;
+        // Joint offsets: ±1° (conservative, was ±3° via gaussian)
+        const shoulderOffset = (Math.random() - 0.5) * 2;
+        const elbowOffset = (Math.random() - 0.5) * 2;
 
-        // Interpolate joint angles based on X distance for accurate reach
-        // Reference: X=0.16m → shoulder=-22, elbow=51 (demo position)
-        // Closer (X=0.14m): less reach needed → shoulder=-16, elbow=43
-        // Further (X=0.18m): more reach needed → shoulder=-28, elbow=59
+        // Calculate base angle for this cube position + small variation
+        const baseAngle = Math.atan2(pos.z, pos.x) * (180 / Math.PI) + baseOffset;
+        log.debug(`Cube ${i + 1} at [${(pos.x*100).toFixed(1)}, 2, ${(pos.z*100).toFixed(1)}]cm, base: ${baseAngle.toFixed(1)}°, speed: ${speedFactor.toFixed(2)}x`);
+
+        // Interpolate joint angles based on X distance + small variation
+        // Reference: X=0.16m → shoulder=-22, elbow=51, wrist=63 (verified demo position)
         const xNormalized = (pos.x - 0.14) / (0.18 - 0.14); // 0 at 14cm, 1 at 18cm
-        const shoulderGrasp = -16 + xNormalized * (-28 - -16) + approachVariation.shoulderOffset;
-        const elbowGrasp = 43 + xNormalized * (59 - 43) + approachVariation.elbowOffset;
+        const shoulderGrasp = -16 + xNormalized * (-28 - -16) + shoulderOffset;
+        const elbowGrasp = 43 + xNormalized * (59 - 43) + elbowOffset;
         const wristGrasp = 60 + xNormalized * (68 - 60);
-        const wristRoll = approachVariation.wristRollVariation; // Varied from 80-100°
 
-        // Target joints for grasp position (used for recovery sequences)
-        const targetJoints = {
+        // Apply speed factor to timing (faster = shorter duration)
+        const applySpeed = (ms: number) => Math.round(ms / speedFactor);
+
+        // === 3-MOVE SEQUENCE WITH MODERATE VARIATION ===
+        // Move 1: Go directly to grasp position with gripper open
+        await smoothMove({
           base: baseAngle,
           shoulder: shoulderGrasp,
           elbow: elbowGrasp,
           wrist: wristGrasp,
-          wristRoll: wristRoll,
-          gripper: 0,
-        };
+          wristRoll: wristRollVar,
+          gripper: 100
+        }, applySpeed(800));
 
-        // Move sequence: approach → descend → (recovery if triggered) → grab → lift
-        await smoothMove({ base: baseAngle, shoulder: -50, elbow: 30, wrist: 45, wristRoll: wristRoll, gripper: 100 }, 600);
-        await smoothMove({ base: baseAngle, shoulder: shoulderGrasp, elbow: elbowGrasp, wrist: wristGrasp, wristRoll: wristRoll, gripper: 100 }, 500);
+        // Move 2: Close gripper (keep minimum 700ms for physics regardless of speed)
+        await smoothMove({ gripper: 0 }, Math.max(700, applySpeed(800)));
 
-        // === EXECUTE RECOVERY SEQUENCE IF TRIGGERED ===
-        if (recovery) {
-          recoverySequence = generateRecoverySequence(recovery, targetJoints, 'grasp');
-          log.debug(`Episode ${i + 1}: Executing recovery`, {
-            type: recovery.type,
-            steps: recoverySequence.steps.length,
-            totalDuration: recoverySequence.totalDurationMs,
-          });
-
-          // Execute each recovery step
-          for (const step of recoverySequence.steps) {
-            if (Object.keys(step.joints).length > 0) {
-              const stepTargets = { ...step.joints };
-              // Execute partial joint updates
-              await smoothMove(stepTargets, step.durationMs);
-            } else {
-              // Pause step (no joint movement)
-              await delay(step.durationMs);
-            }
-          }
-        }
-
-        // Complete the grasp and lift (always succeeds)
-        await smoothMove({ gripper: 0 }, 600);
-        await smoothMove({ base: baseAngle, shoulder: -50, elbow: 30, wrist: 45, wristRoll: wristRoll, gripper: 0 }, 500);
+        // Move 3: Lift
+        await smoothMove({
+          base: baseAngle,
+          shoulder: -50,
+          elbow: 30,
+          wrist: 45,
+          wristRoll: wristRollVar,
+          gripper: 0
+        }, applySpeed(700));
 
         // Stop recording
         clearInterval(recordInterval);
@@ -532,7 +496,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               robotType: 'arm',
               robotId: selectedRobotId,
               task: 'pick_cube',
-              languageInstruction: `Pick up the cube at position ${i + 1}. Motion: speed=${speedFactor.toFixed(2)}, approach=${approachVariation.baseOffset.toFixed(1)}deg${recovery ? `, recovery=${recovery.type}` : ''}. Visual: light=${visualConfig.domain.lighting.keyLightIntensity.toFixed(2)}, floor=${visualConfig.texture.floor.type}, distractors=${visualConfig.distractors.length}`,
+              languageInstruction: `Pick up the cube at [${(pos.x*100).toFixed(0)}, 2, ${(pos.z*100).toFixed(0)}]cm. Motion: speed=${speedFactor.toFixed(2)}x, wristRoll=${wristRollVar.toFixed(0)}°. Visual: light=${visualConfig.domain.lighting.keyLightIntensity.toFixed(2)}, floor=${visualConfig.texture.floor.type}`,
               duration,
               frameCount: frames.length,
               recordedAt: new Date().toISOString(),

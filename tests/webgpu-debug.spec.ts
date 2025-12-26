@@ -20,7 +20,7 @@ test('Arm rendering test', async ({ page }) => {
 
   // Navigate to the app
   console.log('Navigating to app...');
-  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:5000/', { waitUntil: 'domcontentloaded' });
 
   // Call mockLogin via the exposed store
   console.log('Logging in via mockLogin...');

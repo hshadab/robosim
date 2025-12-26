@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Physics Store Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate and inject mock auth directly
-    await page.goto('http://localhost:5173/');
+    await page.goto('http://localhost:5000/');
 
     // Inject authenticated state directly into localStorage before any auth check
     await page.evaluate(() => {

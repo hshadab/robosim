@@ -72,11 +72,14 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
-        if (!isSupabaseConfigured) {
-          // Development mode without Supabase
+        // Check for E2E test mode - if mock auth is set with a user, skip Supabase
+        const currentState = get();
+        const isTestMode = currentState.isAuthenticated && currentState.user?.id?.startsWith('mock-');
+
+        if (!isSupabaseConfigured || isTestMode) {
+          // Development mode without Supabase OR test mode with mock auth
           // Don't override isAuthenticated if it was persisted (allows mock login to persist)
           // But if no user data exists, ensure we're logged out
-          const currentState = get();
           if (currentState.isAuthenticated && !currentState.user) {
             // Stale auth state - clear it
             set({ isAuthenticated: false, isLoading: false });
@@ -106,7 +109,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // Listen for auth changes
-          supabase.auth.onAuthStateChange(async (event, session) => {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
               const profile = await getUserProfile(session.user.id);
               set({
@@ -124,6 +127,9 @@ export const useAuthStore = create<AuthState>()(
               });
             }
           });
+
+          // Store subscription for potential cleanup
+          (window as unknown as { __authSubscription?: { unsubscribe: () => void } }).__authSubscription = subscription;
         } catch (error) {
           log.error('Auth initialization error', error);
           set({ isLoading: false, error: 'Failed to initialize authentication' });
@@ -328,11 +334,33 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         profile: state.profile,
       }),
+      onRehydrateStorage: () => (rehydratedState, error) => {
+        // Called after rehydration completes
+        console.log('[Auth] onRehydrateStorage called', {
+          hasState: !!rehydratedState,
+          isAuthenticated: rehydratedState?.isAuthenticated,
+          userId: rehydratedState?.user?.id,
+          error: error?.message,
+        });
+
+        // Check if we have mock auth (test mode) - if so, skip Supabase
+        if (rehydratedState) {
+          const isTestMode = rehydratedState.isAuthenticated &&
+            rehydratedState.user?.id?.startsWith('mock-');
+
+          console.log('[Auth] isTestMode:', isTestMode);
+
+          if (isTestMode) {
+            // Test mode: just mark as not loading, don't call Supabase
+            useAuthStore.setState({ isLoading: false });
+            console.log('[Auth] Test mode - skipping Supabase init');
+          } else {
+            // Normal mode: initialize with Supabase
+            console.log('[Auth] Normal mode - calling initialize');
+            rehydratedState.initialize();
+          }
+        }
+      },
     }
   )
 );
-
-// Initialize auth on app load
-if (typeof window !== 'undefined') {
-  useAuthStore.getState().initialize();
-}

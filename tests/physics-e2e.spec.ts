@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Physics E2E Tests', () => {
   test('Object stays above floor when grasped', async ({ page }) => {
     // Go directly to simulation (bypass auth by using localStorage)
-    await page.goto('http://localhost:5173/');
+    await page.goto('http://localhost:5000/');
 
     // Inject mock auth
     await page.evaluate(() => {
@@ -127,7 +127,7 @@ test.describe('Physics E2E Tests', () => {
   });
 
   test('Gripper value is clamped when holding object', async ({ page }) => {
-    await page.goto('http://localhost:5173/');
+    await page.goto('http://localhost:5000/');
 
     await page.evaluate(() => {
       localStorage.setItem('robosim-auth', JSON.stringify({

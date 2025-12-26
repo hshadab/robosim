@@ -356,15 +356,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
             <div className="text-purple-400 mb-3">
               <Activity className="w-10 h-10" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Human-Like Motion</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Realistic Motion</h3>
             <p className="text-slate-400 text-sm mb-4">
-              Minimum-jerk trajectories, approach angle variation, and recovery behaviors
-              that mimic real human demonstrations.
+              Smooth cubic interpolation, speed variation (0.9-1.1x), and approach angle diversity
+              that match real robot motor characteristics.
             </p>
             <div className="flex flex-wrap gap-2">
               <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30">Smooth Trajectories</span>
               <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Speed Variation</span>
-              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Recovery Behaviors</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Position Diversity</span>
             </div>
           </div>
           {/* Calibration */}
