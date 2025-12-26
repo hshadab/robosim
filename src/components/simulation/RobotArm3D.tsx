@@ -4,7 +4,6 @@ import {
   OrbitControls,
   PerspectiveCamera,
   Environment,
-  ContactShadows,
   Lightformer,
 } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';

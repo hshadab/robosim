@@ -15,7 +15,7 @@ interface ProceduralFloorProps {
 /**
  * Generate a noise texture procedurally
  */
-function generateNoiseTexture(baseColor: string, secondaryColor: string): THREE.CanvasTexture {
+function generateNoiseTexture(baseColor: string, _secondaryColor: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
@@ -271,7 +271,7 @@ export const ProceduralFloor: React.FC<ProceduralFloorProps> = ({
  */
 export const ProceduralBackground: React.FC<{
   config?: ProceduralTextureConfig;
-}> = ({ config }) => {
+}> = ({ config: _config }) => {
   // Background is handled by Canvas scene.background
   // This component can render additional background elements if needed
   return null;

@@ -8,7 +8,6 @@
 import { create } from 'zustand';
 import {
   DEFAULT_DOMAIN_CONFIG,
-  DEFAULT_FULL_VISUAL_CONFIG,
   randomizeDomainConfig,
   randomizeVisuals,
   applyLightingPreset,
@@ -56,7 +55,7 @@ interface VisualState {
   resetVisuals: () => void;
 }
 
-export const useVisualStore = create<VisualState>((set, get) => ({
+export const useVisualStore = create<VisualState>((set) => ({
   config: DEFAULT_DOMAIN_CONFIG,
   fullRandomization: null,
   distractorObjects: [],

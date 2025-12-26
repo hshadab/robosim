@@ -49,7 +49,6 @@ import { createLogger } from '../../lib/logger';
 import {
   generateMotionVariation,
   applySpeedFactor,
-  type ApproachVariation,
 } from '../../lib/motionVariation';
 import {
   shouldApplyRecovery,
@@ -498,9 +497,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           // Execute each recovery step
           for (const step of recoverySequence.steps) {
             if (Object.keys(step.joints).length > 0) {
-              const currentState = useAppStore.getState().joints;
               const stepTargets = { ...step.joints };
-              // Merge with current state for partial updates
+              // Execute partial joint updates
               await smoothMove(stepTargets, step.durationMs);
             } else {
               // Pause step (no joint movement)
@@ -534,26 +532,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               robotType: 'arm',
               robotId: selectedRobotId,
               task: 'pick_cube',
-              languageInstruction: `Pick up the cube at position ${i + 1}`,
+              languageInstruction: `Pick up the cube at position ${i + 1}. Motion: speed=${speedFactor.toFixed(2)}, approach=${approachVariation.baseOffset.toFixed(1)}deg${recovery ? `, recovery=${recovery.type}` : ''}. Visual: light=${visualConfig.domain.lighting.keyLightIntensity.toFixed(2)}, floor=${visualConfig.texture.floor.type}, distractors=${visualConfig.distractors.length}`,
               duration,
               frameCount: frames.length,
               recordedAt: new Date().toISOString(),
-              // Sim-to-real metadata
-              motionVariation: {
-                interpolationType: 'minimum-jerk',
-                speedFactor,
-                approachVariation,
-              },
-              recovery: recovery ? {
-                hasRecovery: true,
-                recoveryType: recovery.type,
-                recoveryDurationMs: recoverySequence?.totalDurationMs,
-              } : { hasRecovery: false },
-              visualRandomization: {
-                lightingIntensity: visualConfig.domain.lighting.intensity,
-                floorTexture: visualConfig.texture.floor.type,
-                distractorCount: visualConfig.distractors.length,
-              },
             },
           };
 

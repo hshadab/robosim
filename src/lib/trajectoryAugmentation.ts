@@ -423,8 +423,9 @@ export function timeWarpEpisode(
     );
 
     // Interpolate gripper (simple linear)
-    const interpolatedGripper = lowerFrame.action.gripper +
-      interpT * (upperFrame.action.gripper - lowerFrame.action.gripper);
+    const lowerGripper = lowerFrame.action.gripper ?? 0;
+    const upperGripper = upperFrame.action.gripper ?? 0;
+    const interpolatedGripper = lowerGripper + interpT * (upperGripper - lowerGripper);
 
     warpedFrames.push({
       timestamp: originalFrames[i].timestamp, // Keep original timing
@@ -447,12 +448,8 @@ export function timeWarpEpisode(
     frames: warpedFrames,
     metadata: {
       ...episode.metadata,
-      // Add time warp info to metadata
-      timeWarp: {
-        type: fullConfig.warpType,
-        amplitude: fullConfig.amplitude,
-        frequency: fullConfig.frequency,
-      },
+      // Time warp info encoded in task description
+      task: `${episode.metadata.task || 'unknown'}_timewarped_${fullConfig.warpType}`,
     },
   };
 }

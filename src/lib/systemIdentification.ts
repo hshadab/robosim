@@ -250,7 +250,7 @@ export function applyFrictionModel(
 export function applyBacklash(
   commandedPosition: number,
   actualPosition: number,
-  direction: number,
+  _direction: number,
   backlash: number
 ): number {
   const deadzone = backlash / 2;
@@ -333,10 +333,10 @@ export function applyPhysicsModel(
  * Uses least-squares fitting to estimate friction and damping
  */
 export function estimatePhysicsFromTrajectory(
-  positions: number[][],
+  _positions: number[][],
   velocities: number[][],
   accelerations: number[][],
-  dt: number
+  _dt: number
 ): Partial<RobotPhysicsIdentification> {
   // This is a simplified estimation - real system ID would use more sophisticated methods
   const jointNames = ['base', 'shoulder', 'elbow', 'wrist', 'wristRoll', 'gripper'] as const;

@@ -111,7 +111,7 @@ export function generateRecoverySequence(
     wristRoll: number;
     gripper: number;
   },
-  phase: 'approach' | 'grasp' | 'lift' = 'grasp'
+  _phase: 'approach' | 'grasp' | 'lift' = 'grasp'
 ): RecoverySequence {
   const steps: RecoveryMotionStep[] = [];
 
