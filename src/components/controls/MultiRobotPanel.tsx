@@ -186,14 +186,17 @@ export const MultiRobotPanel: React.FC = () => {
           </div>
         ) : (
           robots.map((robot) => (
-            <div
+            <button
               key={robot.id}
+              type="button"
               onClick={() => handleSetActive(robot.id)}
-              className={`p-2 rounded-lg cursor-pointer transition-colors ${
+              className={`w-full text-left p-2 rounded-lg cursor-pointer transition-colors ${
                 activeId === robot.id
                   ? 'bg-slate-700/70 border border-cyan-500/50'
                   : 'bg-slate-900/30 hover:bg-slate-800/50 border border-transparent'
               }`}
+              aria-pressed={activeId === robot.id}
+              aria-label={`Select robot ${robot.name}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -214,7 +217,7 @@ export const MultiRobotPanel: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleToggleEnabled(robot.id)}
                     className={`p-1 rounded transition-colors ${
@@ -247,7 +250,7 @@ export const MultiRobotPanel: React.FC = () => {
                   Position: ({robot.position.x.toFixed(2)}, {robot.position.y.toFixed(2)}, {robot.position.z.toFixed(2)})
                 </div>
               )}
-            </div>
+            </button>
           ))
         )}
       </div>

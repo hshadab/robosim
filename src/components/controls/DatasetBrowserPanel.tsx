@@ -214,6 +214,8 @@ export const DatasetBrowserPanel: React.FC = () => {
         <button
           onClick={() => setExpanded(!expanded)}
           className="p-1 text-slate-400 hover:text-white transition-colors"
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse Dataset Browser panel' : 'Expand Dataset Browser panel'}
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
@@ -232,6 +234,7 @@ export const DatasetBrowserPanel: React.FC = () => {
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search datasets (e.g., pick_place)"
                 className="w-full pl-8 pr-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50"
+                aria-label="Search HuggingFace datasets"
               />
             </div>
             <Button
@@ -281,14 +284,17 @@ export const DatasetBrowserPanel: React.FC = () => {
               </div>
             )}
             {filteredDatasets.map((dataset) => (
-              <div
+              <button
                 key={dataset.id}
-                className={`p-3 rounded-lg border bg-slate-900/50 transition-colors cursor-pointer ${
+                type="button"
+                className={`w-full text-left p-3 rounded-lg border bg-slate-900/50 transition-colors cursor-pointer ${
                   selectedDataset?.id === dataset.id
                     ? 'border-cyan-500/50 bg-cyan-500/5'
                     : 'border-slate-700/50 hover:border-slate-600/50'
                 }`}
                 onClick={() => setSelectedDataset(selectedDataset?.id === dataset.id ? null : dataset)}
+                aria-expanded={selectedDataset?.id === dataset.id}
+                aria-label={`Dataset ${dataset.id.split('/')[1] || dataset.id} by ${dataset.author}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -382,7 +388,7 @@ export const DatasetBrowserPanel: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
+              </button>
             ))}
           </div>
 

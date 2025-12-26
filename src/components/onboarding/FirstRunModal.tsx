@@ -189,7 +189,7 @@ export const resetOnboarding = () => {
   window.location.reload();
 };
 
-// Expose to window for debugging
-if (typeof window !== 'undefined') {
+// Expose to window for debugging (dev mode only)
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   (window as unknown as { resetRoboSimOnboarding: typeof resetOnboarding }).resetRoboSimOnboarding = resetOnboarding;
 }

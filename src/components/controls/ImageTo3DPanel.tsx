@@ -363,6 +363,8 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
         <button
           onClick={() => setExpanded(!expanded)}
           className="p-1 text-slate-400 hover:text-white transition-colors"
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse Image to 3D panel' : 'Expand Image to 3D panel'}
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
@@ -521,7 +523,7 @@ export const ImageTo3DPanel: React.FC<ImageTo3DPanelProps> = ({
               <div className="space-y-2">
                 <div className="grid grid-cols-4 gap-2">
                   {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative group">
+                    <div key={`preview-${index}-${imageFiles[index]?.name || 'img'}`} className="relative group">
                       <img
                         src={preview}
                         alt={`View ${index + 1}`}
