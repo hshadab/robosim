@@ -261,7 +261,7 @@ export const ProceduralFloor: React.FC<ProceduralFloorProps> = ({
       </mesh>
 
       {/* Grid overlay */}
-      <gridHelper args={[size, 20, '#3a4a5f66', '#2a3a4f66']} position={[0, 0.001, 0]} />
+      <gridHelper args={[size, 20, '#3a4a5f', '#2a3a4f']} position={[0, 0.001, 0]} />
     </group>
   );
 };

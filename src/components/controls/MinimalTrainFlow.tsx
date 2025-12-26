@@ -378,7 +378,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         // Randomize lighting, textures, distractors for this episode
         const visualConfig = randomizeVisualsForEpisode();
         log.debug(`Episode ${i + 1}: Visual randomization applied`, {
-          lighting: visualConfig.domain.lighting.intensity.toFixed(2),
+          lighting: visualConfig.domain.lighting.keyLightIntensity.toFixed(2),
           floorTexture: visualConfig.texture.floor.type,
           distractorCount: visualConfig.distractors.length,
         });

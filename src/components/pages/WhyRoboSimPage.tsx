@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Bot, ArrowLeft, Check, X, Clock, DollarSign, Zap,
   Monitor, Cloud, Cpu, Target, Users, GraduationCap,
-  Wrench, FlaskConical, BookOpen
+  Wrench, FlaskConical, BookOpen, Shuffle, Activity, Settings
 } from 'lucide-react';
 
 interface WhyRoboSimPageProps {
@@ -229,6 +229,63 @@ export const WhyRoboSimPage: React.FC<WhyRoboSimPageProps> = ({ onBack, onGetSta
               <p className="text-slate-400">{feature.description}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Sim-to-Real Transfer - NEW */}
+      <section className="relative px-8 py-12 max-w-4xl mx-auto border-t border-slate-800">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 bg-orange-500 flex items-center justify-center">
+            <Shuffle className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-white">SIM-TO-REAL TRANSFER</h2>
+            <p className="text-orange-400">Production-ready training data</p>
+          </div>
+        </div>
+
+        <p className="text-slate-300 text-lg mb-8">
+          RoboSim generates training data that actually transfers to real robots.
+          Every demo includes visual randomization, human-like motion, and calibration metadata.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <div className="p-5 bg-orange-500/10 border border-orange-500/30">
+            <Shuffle className="w-8 h-8 text-orange-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Visual Randomization</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Lighting intensity & color variation</li>
+              <li>• Procedural floor textures</li>
+              <li>• Random distractor objects</li>
+              <li>• Camera position jitter</li>
+            </ul>
+          </div>
+          <div className="p-5 bg-purple-500/10 border border-purple-500/30">
+            <Activity className="w-8 h-8 text-purple-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Motion Quality</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Minimum-jerk trajectories</li>
+              <li>• Approach angle variation (±3°)</li>
+              <li>• Speed factor (0.7-1.3x)</li>
+              <li>• Recovery behaviors (40%)</li>
+            </ul>
+          </div>
+          <div className="p-5 bg-green-500/10 border border-green-500/30">
+            <Settings className="w-8 h-8 text-green-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Calibration</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Per-joint physics parameters</li>
+              <li>• Sim-to-real action mapping</li>
+              <li>• PWM servo calibration</li>
+              <li>• Camera config matching</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gradient-to-r from-orange-500/10 to-purple-500/10 border border-orange-500/30 text-center">
+          <p className="text-white font-bold">
+            Result: Demos that train policies which work on real SO-101 hardware
+          </p>
         </div>
       </section>
 

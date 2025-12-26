@@ -10,6 +10,9 @@ import {
   Globe,
   Sparkles,
   Camera,
+  Shuffle,
+  Activity,
+  Settings,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -327,6 +330,70 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
             <div>
               <h3 className="font-bold text-white mb-1">Real Hardware Ready</h3>
               <p className="text-slate-400 text-sm">Export to HuggingFace & LeRobot. Deploy to real SO-101 robot arm.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sim-to-Real Transfer Features - NEW */}
+      <section id="features" className="relative px-4 md:px-8 py-12 md:py-16 max-w-7xl mx-auto bg-gradient-to-b from-transparent to-slate-900/30">
+        <div className="text-center mb-8 md:mb-12">
+          <div className="inline-flex items-center gap-2 bg-orange-500/10 text-orange-400 px-4 py-2 text-sm mb-4 border border-orange-500/30 font-mono">
+            <Zap className="w-4 h-4" />
+            SIM-TO-REAL TRANSFER
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-white mb-3">Production-Ready Training Data</h2>
+          <p className="text-slate-400 max-w-2xl mx-auto">
+            Advanced features that make synthetic demos transfer to real robots
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Visual Randomization */}
+          <div className="bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-orange-500/50 transition">
+            <div className="text-orange-400 mb-3">
+              <Shuffle className="w-10 h-10" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Visual Randomization</h3>
+            <p className="text-slate-400 text-sm mb-4">
+              Every episode gets unique lighting, textures, and distractor objects.
+              Your model learns to ignore visual noise.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs px-2 py-1 bg-orange-500/20 text-orange-300 border border-orange-500/30">Lighting Variation</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Procedural Textures</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Distractors</span>
+            </div>
+          </div>
+          {/* Motion Quality */}
+          <div className="bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-purple-500/50 transition">
+            <div className="text-purple-400 mb-3">
+              <Activity className="w-10 h-10" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Human-Like Motion</h3>
+            <p className="text-slate-400 text-sm mb-4">
+              Minimum-jerk trajectories, approach angle variation, and recovery behaviors
+              that mimic real human demonstrations.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30">Smooth Trajectories</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Speed Variation</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Recovery Behaviors</span>
+            </div>
+          </div>
+          {/* Calibration */}
+          <div className="bg-slate-800/50 border-2 border-slate-700 p-6 hover:border-green-500/50 transition">
+            <div className="text-green-400 mb-3">
+              <Settings className="w-10 h-10" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Sim-to-Real Calibration</h3>
+            <p className="text-slate-400 text-sm mb-4">
+              Physics parameters, action mapping, and camera configs that match
+              real SO-101 hardware exactly.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs px-2 py-1 bg-green-500/20 text-green-300 border border-green-500/30">Physics ID</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Action Calibration</span>
+              <span className="text-xs px-2 py-1 bg-slate-700 text-slate-300">Camera Match</span>
             </div>
           </div>
         </div>
