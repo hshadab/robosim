@@ -6,6 +6,35 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 ## Recent Updates (December 2024)
 
+### Production-Ready Sim-to-Real Transfer (NEW)
+Complete pipeline for generating transfer-ready synthetic training data:
+
+**Visual Domain Randomization**
+- **Randomizable Lighting** - Intensity, color temperature, shadow variation per episode
+- **Procedural Textures** - Floor textures (wood, concrete, metal, checker, noise) generated in-browser
+- **Distractor Objects** - Random cubes, spheres, cylinders in the scene for visual robustness
+- **Camera Jitter** - Position and rotation variation for viewpoint diversity
+
+**Motion Quality**
+- **Minimum-Jerk Interpolation** - Smoothest possible trajectories (10t³ - 15t⁴ + 6t⁵)
+- **Approach Angle Variation** - ±3° base offset, 80-100° wrist roll per episode
+- **Speed Variation** - 0.7-1.3x speed factor per episode
+- **Recovery Behaviors** - 40% of episodes include mistake→correction→success sequences
+  - Overshoot (move past target, correct back)
+  - Undershoot (stop short, continue)
+  - Miss and reapproach (miss grasp, pull back, retry)
+  - Partial grasp (off-center grasp, release, re-grasp)
+
+**Post-Hoc Augmentation**
+- **Image Augmentation** - Color jitter, random crop, cutout/occlusion, Gaussian noise
+- **Time Warping** - Non-linear temporal stretching (sine, quadratic, smooth warp types)
+
+**Sim-to-Real Calibration**
+- **System Identification** - Per-joint friction, damping, backlash, inertia parameters
+- **Action Calibration** - Sim-to-real angle mapping, PWM pulse conversion
+- **Camera Presets** - SO-101 camera configurations matching real hardware
+- **Export Metadata** - All calibration data included in LeRobot exports
+
 ### Google Colab Training Integration (NEW)
 - **One-Click Colab** - "Train on Google Colab" button opens pre-configured notebook
 - **Free GPU Training** - Uses Google's free T4 GPU (~2 hours for ACT policy)
@@ -13,11 +42,11 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 - **Dataset Auto-Fill** - Your HuggingFace dataset ID shown for easy copy-paste
 - **Full Pipeline** - Record demos → Upload → Train on Colab → Deploy to real SO-101
 
-### Demo-Like Reliable Pickup (NEW)
-- **Proven Joint Values** - Uses hardcoded Demo Pick Up values for cubes in sweet spot
-- **Approach from Above** - 4-step sequence: approach → descend → close → lift
-- **No IK Errors** - Bypasses unreliable IK solver for common pickup positions
-- **Object Snapping** - Grabbed objects snap to jaw center for clean visuals
+### Batch Demo Generation (NEW)
+- **"Generate 10 Demos" Button** - One-click generates 10 varied pickup demonstrations
+- **Position Interpolation** - Arm reach adjusts per cube position (not fixed angles)
+- **Honest Physics** - 1.5cm grasp threshold (gripper must actually reach cube)
+- **Real Training Data** - Each demo at different position creates genuine variety
 
 ### LLM Training Data Collection
 - **Automatic Success/Failure Logging** - Every pickup attempt is logged with outcome
@@ -50,13 +79,12 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 - **Automatic Fallback** - Seamlessly falls back to WebGL on unsupported browsers
 - **Browser Support**: Chrome 113+, Safari 18+, Edge 113+, Firefox (experimental)
 
-### LeRobot Training Objects
-Objects now match the SO-101 training data from HuggingFace (svla_so101_pickplace, svla_so100_stacking):
-- **LeRobot Cubes (2.5cm)** - Graspable by SO-101 gripper
-- **Stack Cubes (3cm)** - For stacking tasks
-- **Pink Lego Blocks (1.5cm)** - Precision grasping
-- **Pens** - Table cleanup tasks
-- **Target Zones** - Placement targets
+### Simplified Training Objects
+Streamlined object library focused on reliable training:
+- **6 Training Cubes** - Red, Blue, Green, Yellow, Purple, Orange (2.5-3cm)
+- **Optimized for SO-101** - Size matched to gripper capacity
+- **Consistent Physics** - All objects have reliable grasp behavior
+- **No Clutter** - Removed 30+ unused objects for cleaner UI
 
 ### Reliable Object Grasping
 - **Grasp Manager** - Detects gripper closing, attaches objects kinematically
@@ -350,15 +378,12 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
   - JSON Export: For custom training pipelines
 - **Estimated Output** - Preview episode count before generating
 
-### Object Library (NEW)
-- **34 Physics Objects** - Cubes, balls, cylinders with realistic physics
-- **YCB Benchmark Objects** - Standard robotics research objects (soup cans, boxes, tools)
-- **6 Object Categories** - Containers, Food, Tools, Toys, Kitchen, Office
-- **7 Scene Presets** - Pre-configured manipulation scenarios:
-  - Block Stacking, Multi-Block Stack, Cup Pouring
-  - Color Sorting, Fruit Pick & Place, Can Lineup, Office Desk
-- **One-Click Setup** - Load complete scenes instantly
-- **Add/Remove Objects** - Build custom manipulation environments
+### Object Library (Simplified)
+- **6 Training Cubes** - Red, Blue, Green, Yellow, Purple, Orange cubes
+- **Optimized Sizes** - 2.5-3cm cubes ideal for SO-101 gripper
+- **3 Scene Presets** - Single Cube, Two Cubes, Color Set
+- **One-Click Setup** - Load scenes instantly for training
+- **Clean UI** - Streamlined from 34 objects to focus on what works
 
 ### LLM → Physics Recording (NEW)
 - **Natural Language to Data** - Type "Stack the red block on blue" → generates training episodes
@@ -382,12 +407,11 @@ See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technica
 - **Task Verification** - Automatic success detection (did object reach target?)
 
 ### Quick Train Flow (Apple-Inspired UX)
-- **One-Button Wizard** - Minimalist step-by-step flow: Add Object → Record Demo → Generate → Upload → Train
-- **Standard Object Library** - 34 physics-enabled objects (cubes, balls, cylinders) ready to use instantly
+- **"Generate 10 Demos" Button** - One-click creates 10 varied pickup demonstrations
+- **Honest Physics** - 1.5cm grasp threshold ensures real training data (no fake pickups)
+- **Position-Aware Reach** - Arm angles interpolate per object position
+- **6 Training Cubes** - Simplified object library focused on what works
 - **Photo to 3D** - Upload a photo and convert to training-ready 3D model via fal.ai
-- **Chat-Based Recording** - Say "pick up the block" and the demo is auto-recorded
-- **Auto-Stop Recording** - Recording stops automatically when robot finishes moving
-- **Suggested Prompts** - Contextual command suggestions based on your object
 - **Direct HuggingFace Upload** - One-click export with automatic Parquet conversion
 - **Train on Google Colab** - One-click opens pre-configured notebook with your dataset
 - **Free GPU Training** - Uses Google's T4 GPU, no local setup required
@@ -533,20 +557,19 @@ RoboSim provides a complete pipeline from demonstration to trained policy:
 
 ### Step-by-Step Guide
 
-1. **Add Object** - Use LeRobot Objects library or upload your own photo
-2. **Record Demos** - Chat "pick up the cube" ~10 times
-3. **Generate Variations** - Click to auto-generate 50+ episodes
-4. **Upload to HuggingFace** - One-click upload with your HF token
-5. **Train on Colab** - Click "Train on Google Colab" button
-6. **Run notebook** - Just click "Run All" in the Colab notebook
-7. **Deploy** - Download trained model and run on real SO-101
+1. **Click "Generate 10 Demos"** - Auto-runs 10 pickups at varied positions
+2. **Click "Generate Training Data"** - Augments 10 → 50 episodes
+3. **Upload to HuggingFace** - One-click upload with your HF token
+4. **Train on Colab** - Click "Train on Google Colab" button
+5. **Run notebook** - Just click "Run All" in the Colab notebook
+6. **Deploy** - Download trained model and run on real SO-101
 
 ### Training Requirements
 
 | Component | Requirement |
 |-----------|-------------|
-| Demos needed | ~10 manual demonstrations |
-| Episodes generated | 50-100 (auto-generated from demos) |
+| Demos needed | 10 (auto-generated with one click) |
+| Episodes generated | 50 (augmented from 10 base demos) |
 | Training time | ~2 hours on free Colab GPU |
 | GPU required | No (Colab provides free T4) |
 | Local setup | None (everything in browser + Colab) |

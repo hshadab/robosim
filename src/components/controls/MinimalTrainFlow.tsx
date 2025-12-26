@@ -29,7 +29,6 @@ import { getFalApiKey, setFalApiKey, getHfToken, setHfToken } from '../../lib/ap
 import { getOptimalPlacement } from '../../lib/workspacePlacement';
 import {
   PRIMITIVE_OBJECTS,
-  OBJECT_CATEGORIES,
   createSimObjectFromTemplate,
   type ObjectTemplate,
 } from '../../lib/objectLibrary';
@@ -47,6 +46,18 @@ import {
 } from '../../lib/huggingfaceUpload';
 import { calculateQualityMetrics } from '../../lib/teleoperationGuide';
 import { createLogger } from '../../lib/logger';
+import {
+  generateMotionVariation,
+  applySpeedFactor,
+  type ApproachVariation,
+} from '../../lib/motionVariation';
+import {
+  shouldApplyRecovery,
+  generateRecoverySequence,
+  type RecoverySequence,
+  DEFAULT_RECOVERY_CONFIG,
+} from '../../lib/recoveryBehaviors';
+import { randomizeVisualsForEpisode } from '../../stores/useVisualStore';
 
 const log = createLogger('TrainFlow');
 
@@ -83,7 +94,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Object selection mode
   const [objectMode, setObjectMode] = useState<'choose' | 'library' | 'photo'>('choose');
-  const [selectedCategory, setSelectedCategory] = useState<string>('lerobot');
 
   // Recording
   const [isRecording, setIsRecording] = useState(false);
@@ -103,6 +113,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   // Demo mode
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Check backend on mount
   useEffect(() => {
@@ -326,6 +337,257 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     }
   }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, sendMessage]);
 
+  // Batch generate 10 varied demos with visual randomization, motion variation, and recovery behaviors
+  const handleBatchDemos = useCallback(async () => {
+    if (isDemoRunning || isAnimating || isLLMLoading) return;
+
+    const BATCH_COUNT = 10;
+    const demoScale = 0.03; // 3cm cube
+
+    // Generate varied positions in the sweet spot (14-18cm forward, -2cm to +2cm sideways)
+    const positions: Array<{ x: number; z: number }> = [
+      { x: 0.14, z: -0.02 },  // Near left
+      { x: 0.16, z: 0.00 },   // Center (like demo)
+      { x: 0.18, z: 0.02 },   // Far right
+      { x: 0.15, z: -0.01 },  // Near center-left
+      { x: 0.17, z: 0.01 },   // Far center-right
+      { x: 0.14, z: 0.02 },   // Near right
+      { x: 0.18, z: -0.02 },  // Far left
+      { x: 0.16, z: -0.02 },  // Center left
+      { x: 0.15, z: 0.02 },   // Near right
+      { x: 0.17, z: -0.01 },  // Far center-left
+    ];
+
+    setIsDemoRunning(true);
+    setError(null);
+    setBatchProgress({ current: 0, total: BATCH_COUNT });
+
+    const collectedEpisodes: Episode[] = [];
+    const collectedQuality: any[] = [];
+
+    try {
+      const { clearObjects, setJoints } = useAppStore.getState();
+      const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
+      if (!cubeTemplate) throw new Error('Cube template not found');
+
+      for (let i = 0; i < BATCH_COUNT; i++) {
+        setBatchProgress({ current: i + 1, total: BATCH_COUNT });
+        setDemoStatus(`Demo ${i + 1}/${BATCH_COUNT}...`);
+
+        // === VISUAL RANDOMIZATION ===
+        // Randomize lighting, textures, distractors for this episode
+        const visualConfig = randomizeVisualsForEpisode();
+        log.debug(`Episode ${i + 1}: Visual randomization applied`, {
+          lighting: visualConfig.domain.lighting.intensity.toFixed(2),
+          floorTexture: visualConfig.texture.floor.type,
+          distractorCount: visualConfig.distractors.length,
+        });
+
+        // Clear scene and reset arm
+        clearObjects();
+        setJoints({ base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 100 });
+        await new Promise(r => setTimeout(r, 400));
+
+        // Spawn cube at varied position
+        const pos = positions[i];
+        const y = 0.02;
+        const newObject = createSimObjectFromTemplate(cubeTemplate, [pos.x, y, pos.z]);
+        const { id, ...objWithoutId } = newObject;
+        spawnObject({ ...objWithoutId, name: `Cube ${i + 1}`, scale: demoScale });
+
+        // Wait for physics
+        await new Promise(r => setTimeout(r, 800));
+
+        // === MOTION VARIATION ===
+        // Generate speed and approach angle variation for this episode
+        const motionVariation = generateMotionVariation();
+        const { speedFactor, approachVariation } = motionVariation;
+        log.debug(`Episode ${i + 1}: Motion variation`, {
+          speedFactor: speedFactor.toFixed(2),
+          baseOffset: approachVariation.baseOffset.toFixed(1),
+          wristRoll: approachVariation.wristRollVariation.toFixed(1),
+        });
+
+        // === RECOVERY BEHAVIOR ===
+        // Check if this episode should include a recovery behavior (~40% chance)
+        const recovery = shouldApplyRecovery(DEFAULT_RECOVERY_CONFIG);
+        let recoverySequence: RecoverySequence | null = null;
+        if (recovery) {
+          log.debug(`Episode ${i + 1}: Recovery behavior triggered`, { type: recovery.type });
+        }
+
+        // Start recording this demo
+        const startTime = Date.now();
+        const recordedFrames: { timestamp: number; jointPositions: number[] }[] = [];
+        const recordInterval = setInterval(() => {
+          const currentJoints = useAppStore.getState().joints;
+          recordedFrames.push({
+            timestamp: Date.now() - startTime,
+            jointPositions: [currentJoints.base, currentJoints.shoulder, currentJoints.elbow, currentJoints.wrist, currentJoints.wristRoll, currentJoints.gripper],
+          });
+        }, 33);
+
+        // === MINIMUM-JERK INTERPOLATION ===
+        // Execute pickup sequence with minimum-jerk for smooth motion
+        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+        const smoothMove = async (targetJoints: Partial<typeof joints>, baseDurationMs: number) => {
+          // Apply speed factor to duration
+          const durationMs = applySpeedFactor(baseDurationMs, speedFactor);
+          const startJoints = { ...useAppStore.getState().joints };
+          const steps = Math.max(10, Math.floor(durationMs / 16));
+          const stepDelay = durationMs / steps;
+
+          for (let s = 1; s <= steps; s++) {
+            const t = s / steps;
+            // MINIMUM-JERK interpolation: 10t³ - 15t⁴ + 6t⁵
+            // Provides zero velocity, acceleration, AND jerk at endpoints
+            const t3 = t * t * t;
+            const t4 = t3 * t;
+            const t5 = t4 * t;
+            const ease = 10 * t3 - 15 * t4 + 6 * t5;
+
+            const interpolated: Partial<typeof joints> = {};
+            for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
+              const start = startJoints[key];
+              const end = targetJoints[key];
+              if (typeof start === 'number' && typeof end === 'number') {
+                (interpolated as any)[key] = start + (end - start) * ease;
+              }
+            }
+            setJoints(interpolated);
+            await delay(stepDelay);
+          }
+        };
+
+        // Calculate base angle for this cube position + approach variation
+        const baseAngle = Math.atan2(pos.z, pos.x) * (180 / Math.PI) + approachVariation.baseOffset;
+
+        // Interpolate joint angles based on X distance for accurate reach
+        // Reference: X=0.16m → shoulder=-22, elbow=51 (demo position)
+        // Closer (X=0.14m): less reach needed → shoulder=-16, elbow=43
+        // Further (X=0.18m): more reach needed → shoulder=-28, elbow=59
+        const xNormalized = (pos.x - 0.14) / (0.18 - 0.14); // 0 at 14cm, 1 at 18cm
+        const shoulderGrasp = -16 + xNormalized * (-28 - -16) + approachVariation.shoulderOffset;
+        const elbowGrasp = 43 + xNormalized * (59 - 43) + approachVariation.elbowOffset;
+        const wristGrasp = 60 + xNormalized * (68 - 60);
+        const wristRoll = approachVariation.wristRollVariation; // Varied from 80-100°
+
+        // Target joints for grasp position (used for recovery sequences)
+        const targetJoints = {
+          base: baseAngle,
+          shoulder: shoulderGrasp,
+          elbow: elbowGrasp,
+          wrist: wristGrasp,
+          wristRoll: wristRoll,
+          gripper: 0,
+        };
+
+        // Move sequence: approach → descend → (recovery if triggered) → grab → lift
+        await smoothMove({ base: baseAngle, shoulder: -50, elbow: 30, wrist: 45, wristRoll: wristRoll, gripper: 100 }, 600);
+        await smoothMove({ base: baseAngle, shoulder: shoulderGrasp, elbow: elbowGrasp, wrist: wristGrasp, wristRoll: wristRoll, gripper: 100 }, 500);
+
+        // === EXECUTE RECOVERY SEQUENCE IF TRIGGERED ===
+        if (recovery) {
+          recoverySequence = generateRecoverySequence(recovery, targetJoints, 'grasp');
+          log.debug(`Episode ${i + 1}: Executing recovery`, {
+            type: recovery.type,
+            steps: recoverySequence.steps.length,
+            totalDuration: recoverySequence.totalDurationMs,
+          });
+
+          // Execute each recovery step
+          for (const step of recoverySequence.steps) {
+            if (Object.keys(step.joints).length > 0) {
+              const currentState = useAppStore.getState().joints;
+              const stepTargets = { ...step.joints };
+              // Merge with current state for partial updates
+              await smoothMove(stepTargets, step.durationMs);
+            } else {
+              // Pause step (no joint movement)
+              await delay(step.durationMs);
+            }
+          }
+        }
+
+        // Complete the grasp and lift (always succeeds)
+        await smoothMove({ gripper: 0 }, 600);
+        await smoothMove({ base: baseAngle, shoulder: -50, elbow: 30, wrist: 45, wristRoll: wristRoll, gripper: 0 }, 500);
+
+        // Stop recording
+        clearInterval(recordInterval);
+
+        // Create episode from recorded frames
+        if (recordedFrames.length > 10) {
+          const frames: Frame[] = recordedFrames.map((f, idx) => ({
+            timestamp: f.timestamp,
+            observation: { jointPositions: f.jointPositions },
+            action: { jointTargets: f.jointPositions, gripper: f.jointPositions[5] },
+            done: idx === recordedFrames.length - 1,
+          }));
+
+          const duration = (recordedFrames[recordedFrames.length - 1].timestamp - recordedFrames[0].timestamp) / 1000;
+
+          const episode: Episode = {
+            episodeId: collectedEpisodes.length,
+            frames,
+            metadata: {
+              robotType: 'arm',
+              robotId: selectedRobotId,
+              task: 'pick_cube',
+              languageInstruction: `Pick up the cube at position ${i + 1}`,
+              duration,
+              frameCount: frames.length,
+              recordedAt: new Date().toISOString(),
+              // Sim-to-real metadata
+              motionVariation: {
+                interpolationType: 'minimum-jerk',
+                speedFactor,
+                approachVariation,
+              },
+              recovery: recovery ? {
+                hasRecovery: true,
+                recoveryType: recovery.type,
+                recoveryDurationMs: recoverySequence?.totalDurationMs,
+              } : { hasRecovery: false },
+              visualRandomization: {
+                lightingIntensity: visualConfig.domain.lighting.intensity,
+                floorTexture: visualConfig.texture.floor.type,
+                distractorCount: visualConfig.distractors.length,
+              },
+            },
+          };
+
+          const quality = calculateQualityMetrics(recordedFrames);
+          collectedEpisodes.push(episode);
+          collectedQuality.push(quality);
+        }
+
+        // Brief pause between demos
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // Save all episodes to state
+      setState(s => ({
+        ...s,
+        objectName: 'Cube',
+        objectPlaced: true,
+        demoEpisodes: [...s.demoEpisodes, ...collectedEpisodes],
+        demoQuality: [...s.demoQuality, ...collectedQuality],
+      }));
+
+      setDemoStatus('Done! 10 demos recorded');
+      await new Promise(r => setTimeout(r, 1000));
+      setStep('record-demo');
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Batch demo failed');
+    } finally {
+      setIsDemoRunning(false);
+      setDemoStatus(null);
+      setBatchProgress(null);
+    }
+  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, selectedRobotId, joints]);
+
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
     // Random position in front of robot - optimal workspace zone
@@ -545,65 +807,91 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     switch (step) {
       case 'add-object':
-        // Choose between library and photo
+        // Choose between options
         if (objectMode === 'choose') {
           return (
             <div className="space-y-3">
-              {/* Demo Pick Up Button - One-click test */}
+              {/* Batch Demo Button - Generate 10 varied demos */}
               <button
-                onClick={handleDemoPickUp}
+                onClick={handleBatchDemos}
                 disabled={isDemoRunning || isAnimating || isLLMLoading}
-                className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-700 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 flex items-center justify-center gap-3 ring-2 ring-green-400/50 ring-offset-2 ring-offset-slate-900"
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-600 disabled:to-slate-700 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 flex items-center justify-center gap-3 ring-2 ring-purple-400/50 ring-offset-2 ring-offset-slate-900"
               >
-                {isDemoRunning ? (
+                {isDemoRunning && batchProgress ? (
                   <>
                     <Loader2 className="w-6 h-6 animate-spin" />
-                    {demoStatus || 'Running demo...'}
+                    {demoStatus || `Demo ${batchProgress.current}/${batchProgress.total}`}
                   </>
                 ) : (
                   <>
-                    <Play className="w-6 h-6" />
-                    Demo Pick Up
+                    <Sparkles className="w-6 h-6" />
+                    Generate 10 Demos
                   </>
                 )}
               </button>
+              <p className="text-center text-xs text-slate-400">
+                Auto-runs 10 pickups at varied positions. Best for training!
+              </p>
 
-              <div className="relative">
+              <div className="relative my-2">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-700"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-slate-900 px-2 text-slate-500">or start training</span>
+                  <span className="bg-slate-900 px-2 text-slate-500">or test first</span>
                 </div>
               </div>
 
+              {/* Demo Pick Up Button - One-click test */}
               <button
-                onClick={() => setObjectMode('library')}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                onClick={handleDemoPickUp}
+                disabled={isDemoRunning || isAnimating || isLLMLoading}
+                className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-700 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
               >
-                <Box className="w-6 h-6" />
-                Use LeRobot Objects
+                {isDemoRunning && !batchProgress ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {demoStatus || 'Running...'}
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5" />
+                    Test Single Pickup
+                  </>
+                )}
               </button>
-              <button
-                onClick={() => setObjectMode('photo')}
-                className="w-full py-4 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
-              >
-                <Camera className="w-6 h-6" />
-                Upload Photo
-              </button>
-              <p className="text-center text-sm text-slate-500 mt-2">
-                LeRobot objects match SO-101 training data. Photos take ~20s.
-              </p>
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-slate-900 px-2 text-slate-500">or add custom object</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setObjectMode('library')}
+                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition flex items-center justify-center gap-2"
+                >
+                  <Box className="w-4 h-4" />
+                  Cubes
+                </button>
+                <button
+                  onClick={() => setObjectMode('photo')}
+                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition flex items-center justify-center gap-2"
+                >
+                  <Camera className="w-4 h-4" />
+                  Photo
+                </button>
+              </div>
             </div>
           );
         }
 
-        // Library object selection
+        // Library object selection - simplified to just cubes
         if (objectMode === 'library') {
-          const filteredObjects = PRIMITIVE_OBJECTS.filter(obj => obj.category === selectedCategory);
-          // LeRobot objects - match training data for best compatibility
-          const lerobotObjects = PRIMITIVE_OBJECTS.filter(obj => obj.category === 'lerobot');
-
           return (
             <div className="space-y-3">
               <button
@@ -614,73 +902,23 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 Back
               </button>
 
-              {/* LeRobot Training Objects - Recommended */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-medium text-blue-400">LeRobot Training Objects</span>
-                </div>
-                <p className="text-xs text-slate-500">Match SO-101 training data for best results</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {lerobotObjects.slice(0, 6).map(template => (
-                    <button
-                      key={template.id}
-                      onClick={() => handleAddLibraryObject(template)}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-500/30 hover:border-blue-400/50 transition text-left"
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex-shrink-0"
-                        style={{ backgroundColor: template.color }}
-                      />
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium text-blue-300 truncate">{template.name}</div>
-                        <div className="text-xs text-slate-400 truncate">{template.description?.split(' - ')[0] || template.type}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="text-center text-sm text-slate-400 mb-2">
+                Pick a cube color to add
               </div>
 
-              <div className="border-t border-slate-700/50 pt-3">
-                <span className="text-xs text-slate-500">Or pick other objects:</span>
-              </div>
-
-              {/* Category tabs */}
-              <div className="flex flex-wrap gap-1">
-                {OBJECT_CATEGORIES.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-2 py-1 rounded text-xs transition ${
-                      selectedCategory === cat.id
-                        ? 'bg-purple-500/30 text-purple-300'
-                        : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
-                    }`}
-                  >
-                    {cat.icon} {cat.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Object grid */}
-              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                {filteredObjects.map(template => (
+              {/* Simple cube grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {PRIMITIVE_OBJECTS.map(template => (
                   <button
                     key={template.id}
                     onClick={() => handleAddLibraryObject(template)}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-purple-500/50 transition text-left"
+                    className="flex flex-col items-center gap-1 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/50 transition"
                   >
                     <div
-                      className="w-8 h-8 rounded flex-shrink-0"
-                      style={{
-                        backgroundColor: template.color,
-                        borderRadius: template.type === 'ball' ? '50%' : template.type === 'cylinder' ? '20%' : '4px',
-                      }}
+                      className="w-10 h-10 rounded"
+                      style={{ backgroundColor: template.color }}
                     />
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium text-slate-200 truncate">{template.name}</div>
-                      <div className="text-xs text-slate-500 truncate">{template.description}</div>
-                    </div>
+                    <span className="text-xs text-slate-300">{template.name.replace(' Cube', '')}</span>
                   </button>
                 ))}
               </div>
@@ -754,15 +992,71 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           );
         }
 
+        // If we have demos, show generate button prominently
+        if (state.demoEpisodes.length >= 1 && !isRecording) {
+          return (
+            <div className="space-y-4">
+              {/* Success status */}
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-900/30 rounded-full text-green-400 mb-2">
+                  <CheckCircle className="w-5 h-5" />
+                  {state.demoEpisodes.length} demo{state.demoEpisodes.length > 1 ? 's' : ''} recorded
+                </div>
+              </div>
+
+              {/* Generate button - PROMINENT */}
+              <button
+                onClick={handleGenerate}
+                disabled={isProcessing}
+                className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 ring-2 ring-green-400/50 ring-offset-2 ring-offset-slate-900"
+              >
+                <Sparkles className="w-6 h-6" />
+                Generate Training Data ({TARGET_EPISODE_COUNT} episodes)
+              </button>
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-slate-900 px-2 text-slate-500">or add more demos</span>
+                </div>
+              </div>
+
+              {/* Chat input for more demos */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleChatSend()}
+                  placeholder={`"Pick up the ${state.objectName}"`}
+                  disabled={isLLMLoading}
+                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                />
+                <button
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || isLLMLoading}
+                  className="p-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 rounded-xl text-white transition"
+                >
+                  {isLLMLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        // No demos yet - show instructions
         return (
           <div className="space-y-4">
             {/* Status */}
             <div className="text-center">
               <p className="text-slate-300 text-sm">
-                {state.demoEpisodes.length === 0
-                  ? `Tell the robot what to do with the ${state.objectName}`
-                  : `${state.demoEpisodes.length} demo${state.demoEpisodes.length > 1 ? 's' : ''} recorded`
-                }
+                Tell the robot what to do with the {state.objectName}
               </p>
               {isRecording && (
                 <div className="flex items-center justify-center gap-2 mt-2 text-red-400">
@@ -773,14 +1067,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             </div>
 
             {/* Suggested prompts */}
-            {state.demoEpisodes.length === 0 && !isRecording && (
+            {!isRecording && (
               <div className="flex flex-wrap gap-1 justify-center">
-                {[`Pick up the ${state.objectName}`, `Move to the ${state.objectName}`, `Grab the ${state.objectName}`].map((prompt) => (
+                {[`Pick up the ${state.objectName}`, `Grab the ${state.objectName}`].map((prompt) => (
                   <button
                     key={prompt}
-                    onClick={() => {
-                      setChatInput(prompt);
-                    }}
+                    onClick={() => setChatInput(prompt)}
                     className="px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"
                   >
                     {prompt}
@@ -818,18 +1110,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               <div className="text-xs text-slate-500 truncate">
                 Last: {messages[messages.length - 1]?.content?.slice(0, 50)}...
               </div>
-            )}
-
-            {/* Generate button */}
-            {state.demoEpisodes.length >= 1 && !isRecording && (
-              <button
-                onClick={handleGenerate}
-                disabled={isProcessing}
-                className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
-              >
-                <Sparkles className="w-6 h-6" />
-                Generate Training Data
-              </button>
             )}
           </div>
         );
@@ -875,11 +1155,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         );
 
       case 'done':
-        // Build Colab URL with dataset parameter
+        // Colab notebook URL
         const colabNotebookUrl = 'https://colab.research.google.com/github/hshadab/robosim/blob/main/notebooks/train_so101_colab.ipynb';
-        const datasetParam = state.exportedUrl && state.exportedUrl !== 'downloaded'
-          ? `?dataset=${encodeURIComponent(state.exportedUrl)}`
-          : '';
 
         return (
           <div className="text-center py-4">

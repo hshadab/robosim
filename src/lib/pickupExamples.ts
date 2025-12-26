@@ -5,7 +5,7 @@
  * Seeds with verified working examples from Demo Pick Up.
  */
 
-import type { JointState, SimObject } from '../types';
+import type { JointState } from '../types';
 import { createLogger } from './logger';
 
 const log = createLogger('PickupExamples');

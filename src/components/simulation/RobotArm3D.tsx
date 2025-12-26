@@ -11,7 +11,7 @@ import { Physics } from '@react-three/rapier';
 import * as THREE from 'three';
 import type { JointState, SimObject, TargetZone, EnvironmentType, SensorReading, SensorVisualization, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../../types';
 import { EnvironmentLayer } from './Environments';
-import { PhysicsObject, TargetZonePhysics, FloorCollider, ObjectLabel } from './PhysicsObjects';
+import { PhysicsObject, TargetZonePhysics, FloorCollider } from './PhysicsObjects';
 import { SO101Arm3D } from './SO101Arm3D';
 import { calculateSO101GripperPosition } from './SO101Kinematics';
 import { SensorVisualization3DLayer } from './SensorVisualization3D';
@@ -21,6 +21,14 @@ import { Humanoid3D } from './Humanoid3D';
 import { DEFAULT_DRONE_STATE, DEFAULT_HUMANOID_STATE } from './defaults';
 import { ClickToMove, WorkspaceVisualization } from './ClickToMove';
 import type { AIGeneratedObject } from '../../lib/aiImageGeneration';
+import { RandomizableLighting } from './RandomizableLighting';
+import { ProceduralFloor } from './ProceduralBackground';
+import { DistractorObjects } from './DistractorObjects';
+import {
+  useLightingConfig,
+  useDistractorObjects,
+  useFullRandomization,
+} from '../../stores/useVisualStore';
 
 interface RobotArm3DProps {
   joints: JointState;
@@ -188,6 +196,11 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
     showIRIndicators: false,
     showDistanceLabels: false,
   };
+
+  // Visual randomization state from store
+  const lightingConfig = useLightingConfig();
+  const distractorObjects = useDistractorObjects();
+  const fullRandomization = useFullRandomization();
 
   const [contextLost, setContextLost] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -369,41 +382,17 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           </group>
         </Environment>
 
-        {/* Key light */}
-        <directionalLight
-          position={[5, 8, 5]}
-          intensity={2}
-          castShadow
-          shadow-mapSize={[1024, 1024]}
-          shadow-bias={-0.0001}
-        >
-          <orthographicCamera attach="shadow-camera" args={[-1, 1, 1, -1, 0.1, 20]} />
-        </directionalLight>
-
-        {/* Fill light */}
-        <directionalLight position={[-3, 4, -2]} intensity={0.8} color="#a0c4ff" />
-
-        {/* Rim light */}
-        <directionalLight position={[0, 3, -5]} intensity={0.6} color="#ffd6a5" />
-
-        {/* Ambient for shadow fill */}
-        <ambientLight intensity={0.15} />
-
-        {/* Contact shadows for grounding - all robot types */}
-        <ContactShadows
-          position={[
+        {/* Randomizable lighting system - controlled by visual store */}
+        <RandomizableLighting
+          lighting={lightingConfig}
+          shadowConfig={fullRandomization?.shadows}
+          robotPosition={[
             activeRobotType === 'wheeled' ? wheeledRobot.position.x :
             activeRobotType === 'drone' ? drone.position.x : 0,
             0,
             activeRobotType === 'wheeled' ? wheeledRobot.position.z :
             activeRobotType === 'drone' ? drone.position.z : 0
           ]}
-          opacity={activeRobotType === 'drone' && drone.position.y > 0.1 ? 0.3 : 0.5}
-          scale={activeRobotType === 'humanoid' ? 1.5 : 1}
-          blur={2}
-          far={activeRobotType === 'humanoid' ? 1 : 0.5}
-          resolution={256}
-          color="#000000"
         />
 
         <Physics gravity={[0, -9.81, 0]} timeStep={1/60}>
@@ -451,8 +440,21 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           ))}
         </Physics>
 
-        <WorkspaceGrid size={activeRobotType === 'drone' ? 1 : 0.5} textureUrl={aiFloorTextureUrl} />
+        {/* Floor rendering - use procedural textures when randomization is active */}
+        {fullRandomization?.texture ? (
+          <ProceduralFloor
+            textureConfig={fullRandomization.texture}
+            size={activeRobotType === 'drone' ? 2 : 1}
+          />
+        ) : (
+          <WorkspaceGrid size={activeRobotType === 'drone' ? 1 : 0.5} textureUrl={aiFloorTextureUrl} />
+        )}
         <EnvironmentLayer environmentId={environment} />
+
+        {/* Distractor objects for domain randomization */}
+        {distractorObjects.length > 0 && (
+          <DistractorObjects distractors={distractorObjects} />
+        )}
 
         {/* Sensor visualization (for arm) */}
         {activeRobotType === 'arm' && sensors && (

@@ -60,6 +60,87 @@ export interface DomainRandomizationConfig {
   camera: CameraConfig;
 }
 
+// ============================================
+// NEW: Visual Domain Randomization Extensions
+// ============================================
+
+/**
+ * Camera jitter configuration for per-episode variation
+ */
+export interface CameraJitterConfig {
+  positionOffset: [number, number, number]; // x, y, z offset in meters
+  rotationOffset: [number, number, number]; // roll, pitch, yaw in radians
+}
+
+/**
+ * Shadow configuration for variation
+ */
+export interface ShadowConfig {
+  opacity: number;     // 0-1
+  blur: number;        // softness (1-5)
+  far: number;         // shadow reach
+  resolution: number;  // shadow map resolution
+}
+
+/**
+ * Distractor object configuration
+ */
+export interface DistractorConfig {
+  enabled: boolean;
+  count: number;  // max number of distractors (0-5)
+  shapes: ('cube' | 'sphere' | 'cylinder')[];
+  sizeRange: [number, number]; // min/max scale in meters
+  positionBounds: {
+    xRange: [number, number];
+    yRange: [number, number];
+    zRange: [number, number];
+  };
+  colors: string[];
+}
+
+/**
+ * Procedural texture configuration
+ */
+export interface ProceduralTextureConfig {
+  floor: {
+    type: 'solid' | 'noise' | 'checker' | 'wood' | 'concrete' | 'metal';
+    baseColor: string;
+    secondaryColor?: string;
+    roughness: number;
+    metalness: number;
+  };
+  background: {
+    type: 'solid' | 'gradient' | 'industrial';
+    primaryColor: string;
+    secondaryColor?: string;
+  };
+}
+
+/**
+ * Distractor object representation
+ */
+export interface DistractorObject {
+  id: string;
+  shape: 'cube' | 'sphere' | 'cylinder';
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+  color: string;
+  roughness: number;
+  metalness: number;
+}
+
+/**
+ * Full visual randomization config for an episode
+ */
+export interface FullVisualRandomizationConfig {
+  domain: DomainRandomizationConfig;
+  cameraJitter: CameraJitterConfig;
+  shadows: ShadowConfig;
+  distractors: DistractorObject[];
+  texture: ProceduralTextureConfig;
+}
+
 /**
  * Default configuration (realistic studio lighting)
  */
@@ -120,6 +201,20 @@ export interface RandomizationRanges {
     exposureRange: [number, number];
     saturationRange: [number, number];
   };
+  // New visual randomization ranges
+  cameraJitter: {
+    positionRange: number; // +/- meters (0.01 = 1cm)
+    rotationRange: number; // +/- radians (0.035 = ~2 degrees)
+  };
+  shadows: {
+    opacityRange: [number, number];
+    blurRange: [number, number];
+  };
+  distractors: DistractorConfig;
+  textures: {
+    floorTypes: ProceduralTextureConfig['floor']['type'][];
+    backgroundTypes: ProceduralTextureConfig['background']['type'][];
+  };
 }
 
 export const DEFAULT_RANDOMIZATION_RANGES: RandomizationRanges = {
@@ -143,6 +238,31 @@ export const DEFAULT_RANDOMIZATION_RANGES: RandomizationRanges = {
     noiseRange: [0, 0.1],
     exposureRange: [-1, 1],
     saturationRange: [0.6, 1.4],
+  },
+  // New visual randomization defaults
+  cameraJitter: {
+    positionRange: 0.01,  // ±1cm
+    rotationRange: 0.035, // ±2 degrees
+  },
+  shadows: {
+    opacityRange: [0.3, 0.7],
+    blurRange: [1.5, 3.0],
+  },
+  distractors: {
+    enabled: true,
+    count: 3,
+    shapes: ['cube', 'sphere', 'cylinder'],
+    sizeRange: [0.01, 0.03],
+    positionBounds: {
+      xRange: [-0.25, 0.35],
+      yRange: [0.01, 0.08],
+      zRange: [-0.25, 0.25],
+    },
+    colors: ['#888888', '#555555', '#aaaaaa', '#666666', '#777777'],
+  },
+  textures: {
+    floorTypes: ['solid', 'noise', 'checker', 'wood', 'concrete', 'metal'],
+    backgroundTypes: ['solid', 'gradient', 'industrial'],
   },
 };
 
@@ -407,3 +527,163 @@ export function generateDomainVariations(
   }
   return variations;
 }
+
+// ============================================
+// NEW: Full Visual Randomization Functions
+// ============================================
+
+/**
+ * Generate random camera jitter
+ */
+function generateCameraJitter(ranges: RandomizationRanges): CameraJitterConfig {
+  const { positionRange, rotationRange } = ranges.cameraJitter;
+  return {
+    positionOffset: [
+      randomInRange(-positionRange, positionRange),
+      randomInRange(-positionRange, positionRange),
+      randomInRange(-positionRange, positionRange),
+    ],
+    rotationOffset: [
+      randomInRange(-rotationRange, rotationRange),
+      randomInRange(-rotationRange, rotationRange),
+      randomInRange(-rotationRange, rotationRange),
+    ],
+  };
+}
+
+/**
+ * Generate random shadow configuration
+ */
+function generateShadowConfig(ranges: RandomizationRanges): ShadowConfig {
+  return {
+    opacity: randomInRange(ranges.shadows.opacityRange[0], ranges.shadows.opacityRange[1]),
+    blur: randomInRange(ranges.shadows.blurRange[0], ranges.shadows.blurRange[1]),
+    far: 0.5,
+    resolution: 256,
+  };
+}
+
+/**
+ * Generate random distractor objects
+ */
+function generateDistractors(config: DistractorConfig): DistractorObject[] {
+  if (!config.enabled) return [];
+
+  const distractors: DistractorObject[] = [];
+  const count = Math.floor(Math.random() * (config.count + 1)); // 0 to count
+
+  for (let i = 0; i < count; i++) {
+    const shape = config.shapes[Math.floor(Math.random() * config.shapes.length)];
+    const color = config.colors[Math.floor(Math.random() * config.colors.length)];
+    const scale = randomInRange(config.sizeRange[0], config.sizeRange[1]);
+
+    distractors.push({
+      id: `distractor-${i}-${Date.now()}`,
+      shape,
+      position: [
+        randomInRange(config.positionBounds.xRange[0], config.positionBounds.xRange[1]),
+        randomInRange(config.positionBounds.yRange[0], config.positionBounds.yRange[1]),
+        randomInRange(config.positionBounds.zRange[0], config.positionBounds.zRange[1]),
+      ],
+      rotation: [0, Math.random() * Math.PI * 2, 0],
+      scale,
+      color,
+      roughness: randomInRange(0.4, 0.9),
+      metalness: randomInRange(0.0, 0.3),
+    });
+  }
+
+  return distractors;
+}
+
+/**
+ * Generate random procedural texture configuration
+ */
+function generateTextureConfig(ranges: RandomizationRanges): ProceduralTextureConfig {
+  const floorType = ranges.textures.floorTypes[
+    Math.floor(Math.random() * ranges.textures.floorTypes.length)
+  ];
+  const bgType = ranges.textures.backgroundTypes[
+    Math.floor(Math.random() * ranges.textures.backgroundTypes.length)
+  ];
+
+  // Generate floor colors based on type
+  const floorColors: Record<string, { base: string; secondary?: string }> = {
+    solid: { base: '#334155' },
+    noise: { base: '#3a4a5f', secondary: '#2a3a4f' },
+    checker: { base: '#404040', secondary: '#303030' },
+    wood: { base: '#8B4513', secondary: '#A0522D' },
+    concrete: { base: '#808080', secondary: '#696969' },
+    metal: { base: '#708090', secondary: '#778899' },
+  };
+
+  const bgColors: Record<string, { primary: string; secondary?: string }> = {
+    solid: { primary: '#0f172a' },
+    gradient: { primary: '#0f172a', secondary: '#1e293b' },
+    industrial: { primary: '#1a1a2e', secondary: '#16213e' },
+  };
+
+  const floorColorConfig = floorColors[floorType] || floorColors.solid;
+  const bgColorConfig = bgColors[bgType] || bgColors.solid;
+
+  return {
+    floor: {
+      type: floorType,
+      baseColor: floorColorConfig.base,
+      secondaryColor: floorColorConfig.secondary,
+      roughness: randomInRange(0.6, 0.95),
+      metalness: floorType === 'metal' ? randomInRange(0.5, 0.8) : randomInRange(0.0, 0.2),
+    },
+    background: {
+      type: bgType,
+      primaryColor: bgColorConfig.primary,
+      secondaryColor: bgColorConfig.secondary,
+    },
+  };
+}
+
+/**
+ * Generate a complete visual randomization configuration for an episode
+ * This is the main function to call before each demo in batch generation
+ */
+export function randomizeVisuals(
+  ranges: RandomizationRanges = DEFAULT_RANDOMIZATION_RANGES
+): FullVisualRandomizationConfig {
+  return {
+    domain: randomizeDomainConfig(DEFAULT_DOMAIN_CONFIG, ranges),
+    cameraJitter: generateCameraJitter(ranges),
+    shadows: generateShadowConfig(ranges),
+    distractors: generateDistractors(ranges.distractors),
+    texture: generateTextureConfig(ranges),
+  };
+}
+
+/**
+ * Default full visual config (no randomization)
+ */
+export const DEFAULT_FULL_VISUAL_CONFIG: FullVisualRandomizationConfig = {
+  domain: DEFAULT_DOMAIN_CONFIG,
+  cameraJitter: {
+    positionOffset: [0, 0, 0],
+    rotationOffset: [0, 0, 0],
+  },
+  shadows: {
+    opacity: 0.5,
+    blur: 2,
+    far: 0.5,
+    resolution: 256,
+  },
+  distractors: [],
+  texture: {
+    floor: {
+      type: 'solid',
+      baseColor: '#334155',
+      roughness: 0.8,
+      metalness: 0.2,
+    },
+    background: {
+      type: 'solid',
+      primaryColor: '#0f172a',
+    },
+  },
+};

@@ -1037,7 +1037,7 @@ await moveJoints({ base: ${baseForObject.toFixed(1)}, shoulder: -50, elbow: 30, 
         objectType: objType,
         objectName: objName,
         objectScale: objScale,
-        ikErrors: [0, 0, 0], // Demo values, no IK error
+        ikErrors: { approach: 0, grasp: 0, lift: 0 }, // Demo values, no IK error
       } as PickupAttemptInfo,
     };
   }

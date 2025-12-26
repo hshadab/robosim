@@ -20,7 +20,7 @@ export interface Trajectory {
   interpolationType: InterpolationType;
 }
 
-export type InterpolationType = 'linear' | 'cubic' | 'quintic' | 'trapezoidal';
+export type InterpolationType = 'linear' | 'cubic' | 'quintic' | 'trapezoidal' | 'minimum-jerk';
 
 /**
  * Linear interpolation between two values
@@ -43,6 +43,19 @@ const quinticEaseInOut = (t: number): number => {
   return t < 0.5
     ? 16 * t * t * t * t * t
     : 1 - Math.pow(-2 * t + 2, 5) / 2;
+};
+
+/**
+ * Minimum-jerk trajectory (5th order polynomial)
+ * Provides zero velocity, acceleration, AND jerk at endpoints
+ * This is the smoothest possible trajectory for point-to-point motion
+ * Formula: 10t³ - 15t⁴ + 6t⁵
+ */
+const minimumJerk = (t: number): number => {
+  const t3 = t * t * t;
+  const t4 = t3 * t;
+  const t5 = t4 * t;
+  return 10 * t3 - 15 * t4 + 6 * t5;
 };
 
 /**
@@ -81,6 +94,8 @@ const applyInterpolation = (t: number, type: InterpolationType): number => {
       return quinticEaseInOut(t);
     case 'trapezoidal':
       return trapezoidalProfile(t);
+    case 'minimum-jerk':
+      return minimumJerk(t);
     default:
       return t;
   }

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Bot, ArrowLeft, Camera, MessageSquare, Download,
   Check, ArrowRight, Lightbulb, Clock, Zap, Upload,
-  ExternalLink, Cpu
+  Cpu
 } from 'lucide-react';
 
 interface LearnMorePageProps {

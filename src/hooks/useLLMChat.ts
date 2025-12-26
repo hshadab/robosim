@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
-import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage, type PickupAttemptInfo } from '../lib/claudeApi';
+import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 import { createLogger } from '../lib/logger';
 import { logPickupAttempt, markPickupSuccess, markPickupFailure } from '../lib/pickupExamples';

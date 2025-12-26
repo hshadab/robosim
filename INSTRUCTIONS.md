@@ -68,40 +68,33 @@ from photo  demos     Colab      real robot
 or library  via chat  (free GPU)
 ```
 
-### Step 1: Add an Object
+### Step 1: Generate 10 Demos (One Click)
 
-1. Click **"Use LeRobot Objects"** in the left panel
-2. Select a cube (recommended: "LeRobot Cube 2.5cm")
-3. Object appears in the scene in the optimal pickup zone
+1. Click **"Generate 10 Demos"** button in the left panel
+2. Watch the robot automatically pick up cubes at 10 different positions
+3. Each pickup is recorded as a separate training episode
 
-**Alternative:** Upload a photo of your own object to generate a 3D model.
+**What happens:**
+- Cubes spawn at varied positions (14-18cm forward, -2cm to +2cm sideways)
+- Arm angles interpolate per position (not fixed - real reach variation)
+- 1.5cm grasp threshold ensures honest physics (no fake pickups)
 
-### Step 2: Record Demonstrations
+**Alternative:** Add custom objects or upload a photo.
 
-1. Type **"pick up the cube"** in the chat panel
-2. Watch the robot pick up the cube
-3. Repeat **10 times** with slight variations
-4. The app automatically records each successful pickup
+### Step 2: Generate Training Data
 
-**Tips for good demos:**
-- Let the robot finish each pickup before starting the next
-- Occasional failures are okay (they're filtered out)
-- Vary your phrasing: "grab the cube", "pick up the red block"
-
-### Step 3: Generate Episodes
-
-1. Click **"Generate Variations"** button
-2. App creates 50-100 episodes from your ~10 demos
+1. Click **"Generate Training Data (50 episodes)"** button
+2. App augments your 10 demos → 50 varied episodes
 3. Wait a few seconds for generation
 
-### Step 4: Upload to HuggingFace
+### Step 3: Upload to HuggingFace
 
 1. Click **"Upload to HuggingFace"**
 2. Enter your HuggingFace token (get one at huggingface.co/settings/tokens)
 3. Dataset uploads automatically
 4. Note your dataset ID (e.g., `username/cube-pickup-training-123456`)
 
-### Step 5: Train on Google Colab
+### Step 4: Train on Google Colab
 
 1. Click **"Train on Google Colab"** button
 2. Colab notebook opens in new tab
@@ -110,7 +103,7 @@ or library  via chat  (free GPU)
 5. Wait ~2 hours for training to complete
 6. Trained model saves to HuggingFace
 
-### Step 6: Deploy to Real SO-101
+### Step 5: Deploy to Real SO-101
 
 On your computer with the SO-101 connected:
 
@@ -129,8 +122,8 @@ python -m lerobot.scripts.control_robot record \
 
 | Requirement | Details |
 |-------------|---------|
-| Human demos | ~10 successful pickups |
-| Total episodes | 50-100 (auto-generated) |
+| Demo generation | 10 demos (one click) |
+| Total episodes | 50 (auto-augmented) |
 | Training time | ~2 hours |
 | GPU needed locally | No (Colab provides free T4) |
 | Cost | Free |

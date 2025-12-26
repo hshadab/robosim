@@ -407,3 +407,61 @@ export interface RobotCameraConfig {
   farClip: number;
   position: 'gripper' | 'base' | 'overhead';
 }
+
+/**
+ * Simulation Camera Configuration for Sim-to-Real Transfer
+ * Matches real SO-101 camera setup for accurate data capture
+ */
+export interface SimCameraConfig {
+  // Intrinsics
+  fov: number;                           // Field of view in degrees
+  resolution: [number, number];          // [width, height] in pixels
+  aspectRatio: number;                   // width/height
+
+  // Extrinsics
+  position: [number, number, number];    // Camera position in world coords
+  target: [number, number, number];      // Look-at target
+  up: [number, number, number];          // Up vector
+
+  // Capture settings
+  jpegQuality: number;                   // 0.0 - 1.0
+
+  // Preset identifier
+  preset?: 'SO-101-default' | 'SO-101-overhead' | 'SO-101-side' | 'custom';
+}
+
+/**
+ * SO-101 camera presets matching real hardware configurations
+ */
+export const SO101_CAMERA_PRESETS: Record<string, SimCameraConfig> = {
+  'SO-101-default': {
+    fov: 60,
+    resolution: [640, 480],
+    aspectRatio: 640 / 480,
+    position: [0.3, 0.25, 0.3],
+    target: [0.15, 0.05, 0],
+    up: [0, 1, 0],
+    jpegQuality: 0.85,
+    preset: 'SO-101-default',
+  },
+  'SO-101-overhead': {
+    fov: 55,
+    resolution: [640, 480],
+    aspectRatio: 640 / 480,
+    position: [0.15, 0.5, 0.0],
+    target: [0.15, 0, 0],
+    up: [0, 0, -1],
+    jpegQuality: 0.85,
+    preset: 'SO-101-overhead',
+  },
+  'SO-101-side': {
+    fov: 50,
+    resolution: [640, 480],
+    aspectRatio: 640 / 480,
+    position: [0.4, 0.2, 0.0],
+    target: [0.15, 0.1, 0],
+    up: [0, 1, 0],
+    jpegQuality: 0.85,
+    preset: 'SO-101-side',
+  },
+};

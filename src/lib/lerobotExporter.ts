@@ -12,6 +12,11 @@
 import type { Episode } from './datasetExporter';
 import { episodesToParquetFormat, writeParquetFilePure, validateParquetData, generateConversionScript } from './parquetWriter';
 import { checkBatchQuality, DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, type QualityThresholds, type QualityGateResult } from './qualityGates';
+import type { ImageAugmentationConfig } from './imageAugmentation';
+import type { TimeWarpConfig } from './trajectoryAugmentation';
+import type { PhysicsIdentification } from './systemIdentification';
+import type { ActionCalibrationConfig } from './actionCalibration';
+import type { SimCameraConfig } from '../types';
 
 // Re-export quality gates for convenience
 export { DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, checkBatchQuality };
@@ -37,6 +42,33 @@ export interface LeRobotDatasetInfo {
   // RoboSim specific
   robosim_version: string;
   robot_id: string;
+  // Sim-to-real transfer metadata
+  simToReal?: SimToRealMetadata;
+}
+
+/**
+ * Sim-to-real transfer metadata for reproducibility and calibration
+ */
+export interface SimToRealMetadata {
+  // Camera configuration used for image capture
+  cameraConfig?: SimCameraConfig;
+  // Physics identification used in simulation
+  physicsIdentification?: PhysicsIdentification;
+  // Action calibration for servo mapping
+  actionCalibration?: ActionCalibrationConfig;
+  // Augmentation settings applied during generation
+  augmentation?: {
+    imageAugmentation?: Partial<ImageAugmentationConfig>;
+    trajectoryAugmentation?: Partial<TimeWarpConfig>;
+    augmentedVersionsPerEpisode?: number;
+  };
+  // Domain randomization settings
+  domainRandomization?: {
+    enabled: boolean;
+    visualRandomization: boolean;
+    motionVariation: boolean;
+    recoveryBehaviors: boolean;
+  };
 }
 
 interface FeatureInfo {
@@ -259,7 +291,8 @@ export function generateInfoJson(
   episodes: Episode[],
   robotId: string,
   fps = 30,
-  hasVideo = false
+  hasVideo = false,
+  simToReal?: ExportOptions['simToReal']
 ): LeRobotDatasetInfo {
   const totalFrames = episodes.reduce((sum, ep) => sum + ep.frames.length, 0);
   const features = ROBOT_FEATURES[robotId] || DEFAULT_FEATURES;
@@ -272,6 +305,19 @@ export function generateInfoJson(
       names: ['height', 'width', 'channels'],
     };
   }
+
+  // Build sim-to-real metadata if provided
+  const simToRealMetadata: SimToRealMetadata | undefined = simToReal ? {
+    cameraConfig: simToReal.cameraConfig,
+    physicsIdentification: simToReal.physicsIdentification,
+    actionCalibration: simToReal.actionCalibration,
+    augmentation: (simToReal.imageAugmentation?.enabled || simToReal.trajectoryAugmentation?.enabled) ? {
+      imageAugmentation: simToReal.imageAugmentation?.enabled ? simToReal.imageAugmentation.config : undefined,
+      trajectoryAugmentation: simToReal.trajectoryAugmentation?.enabled ? simToReal.trajectoryAugmentation.config : undefined,
+      augmentedVersionsPerEpisode: simToReal.imageAugmentation?.versionsPerEpisode,
+    } : undefined,
+    domainRandomization: simToReal.domainRandomization,
+  } : undefined;
 
   return {
     codebase_version: '0.4.2',
@@ -291,6 +337,7 @@ export function generateInfoJson(
     video_path: hasVideo ? 'videos/observation.images.cam_high/episode_{episode:06d}.mp4' : '',
     robosim_version: '1.0.0',
     robot_id: robotId,
+    simToReal: simToRealMetadata,
   };
 }
 
@@ -498,6 +545,33 @@ export interface ExportOptions {
     /** If true, throw error if any episodes fail (when filterFailedEpisodes is false) */
     blockOnFailure?: boolean;
   };
+  /** Sim-to-real transfer settings */
+  simToReal?: {
+    /** Camera configuration used for capture */
+    cameraConfig?: SimCameraConfig;
+    /** Physics identification data */
+    physicsIdentification?: PhysicsIdentification;
+    /** Action calibration for real robot */
+    actionCalibration?: ActionCalibrationConfig;
+    /** Image augmentation settings */
+    imageAugmentation?: {
+      enabled: boolean;
+      config?: Partial<ImageAugmentationConfig>;
+      versionsPerEpisode?: number;
+    };
+    /** Trajectory augmentation settings */
+    trajectoryAugmentation?: {
+      enabled: boolean;
+      config?: Partial<TimeWarpConfig>;
+    };
+    /** Domain randomization settings used during generation */
+    domainRandomization?: {
+      enabled: boolean;
+      visualRandomization: boolean;
+      motionVariation: boolean;
+      recoveryBehaviors: boolean;
+    };
+  };
 }
 
 export interface ExportResult {
@@ -606,7 +680,8 @@ export async function exportLeRobotDataset(
     videos,
     typeof datasetNameOrOptions === 'object',
     episodes.length - episodesToExport.length,
-    qualityResults
+    qualityResults,
+    options.simToReal
   );
 }
 
@@ -618,7 +693,8 @@ async function exportLeRobotDatasetInternal(
   videoBlobs?: Blob[],
   returnResult = false,
   skippedCount = 0,
-  qualityResults?: ExportResult['qualityResults']
+  qualityResults?: ExportResult['qualityResults'],
+  simToReal?: ExportOptions['simToReal']
 ): Promise<void | ExportResult> {
   // We'll use JSZip to create the archive
   const { default: JSZip } = await import('jszip');
@@ -626,8 +702,8 @@ async function exportLeRobotDatasetInternal(
 
   const hasVideo = !!(videoBlobs && videoBlobs.length > 0);
 
-  // meta/info.json
-  const info = generateInfoJson(episodes, robotId, fps, hasVideo);
+  // meta/info.json - now includes sim-to-real metadata
+  const info = generateInfoJson(episodes, robotId, fps, hasVideo, simToReal);
   zip.file('meta/info.json', JSON.stringify(info, null, 2));
 
   // meta/stats.json
