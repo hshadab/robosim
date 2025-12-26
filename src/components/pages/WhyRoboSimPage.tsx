@@ -162,12 +162,12 @@ export const WhyRoboSimPage: React.FC<WhyRoboSimPageProps> = ({ onBack, onGetSta
             </thead>
             <tbody>
               {[
-                { platform: 'ROS/Gazebo', what: 'Industry standard', barrier: 'Complex install', advantage: 'Zero setup, browser-based' },
-                { platform: 'Isaac Sim', what: 'NVIDIA photorealistic', barrier: 'RTX GPU required', advantage: 'Works on any device' },
-                { platform: 'MuJoCo', what: 'Physics engine', barrier: 'Python, no GUI', advantage: 'Visual UI, no code' },
-                { platform: 'PyBullet', what: 'Python physics', barrier: 'Coding required', advantage: 'Natural language' },
-                { platform: 'Webots', what: 'Educational sim', barrier: 'Desktop install', advantage: 'Browser, mobile-friendly' },
-                { platform: 'LeRobot', what: 'HF training framework', barrier: 'Real robot for demos', advantage: 'Synthetic demos' },
+                { platform: 'ROS/Gazebo', what: 'Industry standard', barrier: 'Complex install', advantage: 'Zero setup + domain randomization' },
+                { platform: 'Isaac Sim', what: 'NVIDIA photorealistic', barrier: 'RTX GPU required', advantage: 'Any device + domain randomization' },
+                { platform: 'MuJoCo', what: 'Physics engine', barrier: 'Python, no GUI', advantage: 'Visual UI + physics calibration' },
+                { platform: 'PyBullet', what: 'Python physics', barrier: 'Coding required', advantage: 'Natural language + recovery behaviors' },
+                { platform: 'Webots', what: 'Educational sim', barrier: 'Desktop install', advantage: 'Browser + sim-to-real calibration' },
+                { platform: 'LeRobot', what: 'HF training framework', barrier: 'Real robot for demos', advantage: 'Transfer-ready synthetic demos' },
               ].map((row, i) => (
                 <tr key={i} className="border-b border-slate-800">
                   <td className="py-3 px-4 text-white font-medium">{row.platform}</td>
