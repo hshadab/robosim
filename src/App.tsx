@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout';
-import { LandingPage, LearnMorePage, HowToUsePage, ComparisonPage, WhyRoboSimPage, LoginModal } from './components/pages';
+import { LandingPage, LearnMorePage, HowToUsePage, ComparisonPage, LoginModal } from './components/pages';
 import { useLoadSharedState } from './hooks/useLoadSharedState';
 import { useAuthStore } from './stores/useAuthStore';
 
-type MarketingPage = 'landing' | 'learnmore' | 'how-to-use' | 'comparison' | 'why-robosim';
+type MarketingPage = 'landing' | 'learnmore' | 'how-to-use' | 'comparison';
 
 function getPageFromPath(): MarketingPage {
   const path = window.location.pathname;
   if (path === '/learnmore') return 'learnmore';
   if (path === '/how-to-use') return 'how-to-use';
-  if (path === '/comparison') return 'comparison';
-  if (path === '/why-robosim') return 'why-robosim';
+  if (path === '/comparison' || path === '/why-robosim') return 'comparison';
   return 'landing';
 }
 
@@ -71,14 +70,6 @@ function App() {
         />
       );
     }
-    if (marketingPage === 'why-robosim') {
-      return (
-        <WhyRoboSimPage
-          onBack={() => navigateTo('landing')}
-          onGetStarted={handleGetStarted}
-        />
-      );
-    }
     return (
       <>
         <LandingPage
@@ -86,7 +77,6 @@ function App() {
           onLearnMore={() => navigateTo('learnmore')}
           onInstructions={() => navigateTo('how-to-use')}
           onComparison={() => navigateTo('comparison')}
-          onWhyRoboSim={() => navigateTo('why-robosim')}
         />
         {showLoginModal && (
           <LoginModal

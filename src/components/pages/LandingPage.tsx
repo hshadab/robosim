@@ -20,7 +20,6 @@ interface LandingPageProps {
   onLearnMore?: () => void;
   onInstructions?: () => void;
   onComparison?: () => void;
-  onWhyRoboSim?: () => void;
 }
 
 // Brutalist Robot Arm SVG
@@ -39,7 +38,7 @@ const RobotArmSVG: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, onInstructions, onComparison, onWhyRoboSim }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, onInstructions, onComparison }) => {
   const [hoveredRobot, setHoveredRobot] = useState<string | null>(null);
 
   const handleEnterApp = () => {
@@ -73,18 +72,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onLearnMore, 
           <a href="#features" className="hidden md:inline text-slate-400 hover:text-white transition font-medium">
             Features
           </a>
-          {onWhyRoboSim && (
-            <a
-              href="/why-robosim"
-              onClick={(e) => {
-                e.preventDefault();
-                onWhyRoboSim();
-              }}
-              className="hidden lg:inline text-orange-400 hover:text-orange-300 transition font-medium"
-            >
-              Why RoboSim?
-            </a>
-          )}
           {onComparison && (
             <a
               href="/comparison"

@@ -12,6 +12,18 @@ import {
   X,
   Minus,
   Download,
+  DollarSign,
+  Clock,
+  Wrench,
+  Monitor,
+  Cloud,
+  Users,
+  GraduationCap,
+  FlaskConical,
+  BookOpen,
+  Shuffle,
+  Activity,
+  Settings,
 } from 'lucide-react';
 
 interface ComparisonPageProps {
@@ -191,6 +203,78 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onBack, onGetSta
           See how RoboSim compares to other popular robot simulators.
           Choose the right tool for your robotics learning and development needs.
         </p>
+      </section>
+
+      {/* The Problem vs Solution */}
+      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* The Problem */}
+          <div className="bg-red-500/5 border border-red-500/30 p-6 rounded-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-500 flex items-center justify-center rounded">
+                <X className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">The Problem</h3>
+                <p className="text-red-400 text-sm">Traditional robot training is painful</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: DollarSign, label: 'Hardware', value: '$500-2000' },
+                { icon: Clock, label: 'Setup', value: 'Hours/days' },
+                { icon: Wrench, label: 'Data', value: '50-200 demos' },
+                { icon: Cpu, label: 'Training', value: '$100s/mo GPU' },
+              ].map((item, i) => (
+                <div key={i} className="p-3 bg-red-500/10 border border-red-500/20 rounded">
+                  <item.icon className="w-4 h-4 text-red-400 mb-1" />
+                  <p className="text-white text-sm font-medium">{item.label}</p>
+                  <p className="text-red-300 text-xs">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* The Solution */}
+          <div className="bg-green-500/5 border border-green-500/30 p-6 rounded-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-500 flex items-center justify-center rounded">
+                <Check className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">RoboSim Solution</h3>
+                <p className="text-green-400 text-sm">Zero cost, zero friction</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: Monitor, label: 'Setup', value: 'Open browser' },
+                { icon: Cloud, label: 'Hardware', value: 'None needed' },
+                { icon: Zap, label: 'Data', value: '1-click demos' },
+                { icon: Cpu, label: 'Training', value: 'Free Colab' },
+              ].map((item, i) => (
+                <div key={i} className="p-3 bg-green-500/10 border border-green-500/20 rounded">
+                  <item.icon className="w-4 h-4 text-green-400 mb-1" />
+                  <p className="text-white text-sm font-medium">{item.label}</p>
+                  <p className="text-green-300 text-xs">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Time to Success */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { time: '< 1 min', action: 'Generate 10 demos' },
+            { time: '< 1 min', action: 'Upload to HuggingFace' },
+            { time: '~2 hours', action: 'Train on Colab' },
+            { time: 'Same day', action: 'Deploy to SO-101' },
+          ].map((step, i) => (
+            <div key={i} className="p-3 bg-blue-500/10 border border-blue-500/30 rounded text-center">
+              <p className="text-xl font-black text-blue-400">{step.time}</p>
+              <p className="text-slate-400 text-xs mt-1">{step.action}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* Key Differentiators */}
@@ -380,6 +464,72 @@ export const ComparisonPage: React.FC<ComparisonPageProps> = ({ onBack, onGetSta
               </li>
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/* Sim-to-Real Transfer */}
+      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Shuffle className="w-6 h-6 text-orange-400" />
+          Sim-to-Real Transfer
+        </h2>
+        <p className="text-slate-400 mb-6">
+          RoboSim generates training data that actually transfers to real robots with domain randomization and calibration.
+        </p>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="p-5 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+            <Shuffle className="w-8 h-8 text-orange-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Visual Randomization</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Lighting intensity & color</li>
+              <li>• Procedural floor textures</li>
+              <li>• Random distractor objects</li>
+              <li>• Camera position jitter</li>
+            </ul>
+          </div>
+          <div className="p-5 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+            <Activity className="w-8 h-8 text-purple-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Motion Quality</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Minimum-jerk trajectories</li>
+              <li>• Approach angle variation</li>
+              <li>• Speed factor (0.7-1.3x)</li>
+              <li>• Recovery behaviors (40%)</li>
+            </ul>
+          </div>
+          <div className="p-5 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <Settings className="w-8 h-8 text-green-400 mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Calibration</h3>
+            <ul className="text-slate-400 text-sm space-y-1">
+              <li>• Per-joint physics params</li>
+              <li>• Sim-to-real action mapping</li>
+              <li>• PWM servo calibration</li>
+              <li>• Camera config matching</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Who It's For */}
+      <section className="relative px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto">
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Users className="w-6 h-6 text-orange-400" />
+          Who It's For
+        </h2>
+        <div className="grid md:grid-cols-4 gap-4">
+          {[
+            { icon: GraduationCap, user: 'Students', pain: "Can't afford robot + GPU", solution: 'Free sim + Colab' },
+            { icon: Wrench, user: 'Hobbyists', pain: 'ROS is too complex', solution: 'Browser, no code' },
+            { icon: FlaskConical, user: 'Researchers', pain: 'Data collection takes weeks', solution: 'Synthetic batch demos' },
+            { icon: BookOpen, user: 'Educators', pain: 'Lab setup is expensive', solution: 'Any browser works' },
+          ].map((item, i) => (
+            <div key={i} className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg hover:border-orange-500/50 transition">
+              <item.icon className="w-6 h-6 text-orange-400 mb-2" />
+              <h3 className="text-white font-bold mb-1">{item.user}</h3>
+              <p className="text-red-400 text-xs mb-1">Pain: {item.pain}</p>
+              <p className="text-green-400 text-xs">Solution: {item.solution}</p>
+            </div>
+          ))}
         </div>
       </section>
 

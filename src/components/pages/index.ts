@@ -3,4 +3,3 @@ export { LoginModal } from './LoginModal';
 export { LearnMorePage } from './LearnMorePage';
 export { HowToUsePage } from './HowToUsePage';
 export { ComparisonPage } from './ComparisonPage';
-export { WhyRoboSimPage } from './WhyRoboSimPage';
