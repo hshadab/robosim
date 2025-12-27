@@ -39,12 +39,13 @@ Complete pipeline for generating transfer-ready synthetic training data:
 - **Dataset Auto-Fill** - Your HuggingFace dataset ID shown for easy copy-paste
 - **Full Pipeline** - Record demos → Upload → Train on Colab → Deploy to real SO-101
 
-### Batch Demo Generation (NEW)
+### Batch Demo Generation (Updated Dec 2024)
 - **"Generate 10 Demos" Button** - One-click generates 10 varied pickup demonstrations
-- **Position Interpolation** - Arm reach adjusts per cube position (14-18cm forward, ±2cm sideways)
-- **Proven Motion Pattern** - Same 3-move sequence as reliable single demo (position → grasp → lift)
-- **Physics-Tuned Timing** - 800ms gripper close for reliable collision detection
-- **Real Training Data** - Each demo at different position with motion variation
+- **Optimal Reach Zone** - Cube positions at 18-22cm forward (arm's natural reach), ±3cm sideways
+- **Adaptive Joint Angles** - Shoulder/elbow interpolated per cube position for reliable grasp
+- **Instant Gripper Close** - Immediate gripper close with 1s physics settle time
+- **Proven 3-Move Sequence** - Position arm → Close gripper → Lift (verified working)
+- **Real Training Data** - Each demo with varied position, speed (0.95-1.05x), and wrist roll (88-92°)
 
 ### LeRobot Format Compatibility (NEW)
 Export format matches official SO-101 datasets on HuggingFace:

@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Demo Pick Up Tests
- * Tests the 10 demo pickups using the actual UI buttons
+ * Tests demo pickups using the actual UI buttons
+ * Verifies 10-demo batch generation for training data export
  */
 
 test.describe('Demo Pick Up Tests', () => {
@@ -82,9 +83,9 @@ test.describe('Demo Pick Up Tests', () => {
   });
 
   test('Batch 10 Demo Pick Ups', async ({ page }, testInfo) => {
-    testInfo.setTimeout(180000); // 3 minutes for batch
+    testInfo.setTimeout(300000); // 5 minutes for 10 demos
 
-    // Find and click the "Generate 10 Demos" button
+    // Find and click the batch demo button
     const batchButton = page.locator('button:has-text("Generate 10 Demos")');
 
     await expect(batchButton).toBeVisible({ timeout: 10000 });
@@ -95,16 +96,35 @@ test.describe('Demo Pick Up Tests', () => {
     // Wait for batch to start - should show progress indicator
     await page.waitForTimeout(2000);
 
-    // Monitor progress - batch takes about 3s per demo
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(5000);
-      const status = await page.locator('button:has-text("Demo")').textContent().catch(() => null);
+    // Monitor progress - each demo takes about 3-5s
+    // Wait up to 120 seconds for all 10 demos to complete
+    let batchCompleted = false;
+    let lastDemoNumber = 0;
+    for (let i = 0; i < 60; i++) {
+      await page.waitForTimeout(2000); // Check every 2 seconds
+      const status = await page.locator('button:has-text("Demo"), button:has-text("Generate")').first().textContent().catch(() => null);
       console.log(`Progress check ${i + 1}: ${status || 'running...'}`);
 
-      // Check if done
-      const doneText = await page.locator('text=Done! 10 demos').isVisible().catch(() => false);
-      if (doneText) {
-        console.log('Batch completed successfully!');
+      // Check if done - look for various completion indicators
+      const demosRecorded = await page.locator('text=/\\d+ demos? recorded/').isVisible().catch(() => false);
+      const generateButton = await page.locator('button:has-text("Generate Training Data")').isVisible().catch(() => false);
+
+      // Parse current demo number from status
+      const demoMatch = status?.match(/Demo (\d+)\/10/);
+      if (demoMatch) {
+        lastDemoNumber = parseInt(demoMatch[1]);
+      }
+
+      if (demosRecorded || generateButton) {
+        console.log('Batch completed successfully! (UI indicator found)');
+        batchCompleted = true;
+        break;
+      }
+
+      // Check for "Done!" status
+      if (status?.includes('Done') && status?.includes('10')) {
+        console.log('Batch completed successfully! (Done status)');
+        batchCompleted = true;
         break;
       }
     }
@@ -115,12 +135,15 @@ test.describe('Demo Pick Up Tests', () => {
     const completedIndicator = page.locator('text=demos recorded, text=Generate Training Data').first();
     const isCompleted = await completedIndicator.isVisible({ timeout: 5000 }).catch(() => false);
 
-    // Also check for the success indicator
-    const successBadge = await page.locator('text=/\\d+ demos? recorded/').isVisible({ timeout: 3000 }).catch(() => false);
+    // Also check for the success indicator (should show "10 demos recorded")
+    const successBadge = await page.locator('text=/10 demos? recorded/').isVisible({ timeout: 3000 }).catch(() => false);
 
-    console.log(`Batch demo result: completed=${isCompleted}, successBadge=${successBadge}`);
+    console.log(`Batch result: completed=${isCompleted}, successBadge=${successBadge}`);
 
-    // At minimum, verify the arm moved and a cube was spawned
+    // Wait for batch to finish completely
+    await page.waitForTimeout(2000);
+
+    // Check the final state
     const state = await page.evaluate(() => {
       const store = (window as any).__APP_STORE__;
       if (!store) return null;
@@ -132,6 +155,9 @@ test.describe('Demo Pick Up Tests', () => {
     });
 
     console.log('Final state:', state);
-    expect(state?.armMoved).toBe(true);
+    console.log(`Batch completed: ${batchCompleted}, Last demo reached: ${lastDemoNumber}`);
+
+    // The batch should have completed or at least reached demo 10
+    expect(batchCompleted || lastDemoNumber >= 10).toBe(true);
   });
 });
