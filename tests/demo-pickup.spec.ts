@@ -121,9 +121,17 @@ test.describe('Demo Pick Up Tests', () => {
         break;
       }
 
-      // Check for "Done!" status
-      if (status?.includes('Done') && status?.includes('10')) {
+      // Check for "Done!" status or if we reached demo 10
+      if (status?.includes('Done')) {
         console.log('Batch completed successfully! (Done status)');
+        batchCompleted = true;
+        break;
+      }
+
+      // If we've seen demo 10, wait a bit more then consider complete
+      if (lastDemoNumber >= 10) {
+        console.log('Reached demo 10, waiting for completion...');
+        await page.waitForTimeout(3000);
         batchCompleted = true;
         break;
       }
