@@ -49,8 +49,12 @@ import { createLogger } from '../../lib/logger';
 // Motion variation and recovery behaviors removed for reliable demos
 // (can be re-enabled once base pickup is more robust)
 import { randomizeVisualsForEpisode } from '../../stores/useVisualStore';
+import { captureFromCanvas } from '../../lib/cameraCapture';
 
 const log = createLogger('TrainFlow');
+
+// Number of demos to generate for training data
+const BATCH_COUNT = 10;
 
 type FlowStep = 'add-object' | 'record-demo' | 'generate' | 'upload' | 'done';
 
@@ -106,9 +110,24 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
+  // Abort controller for cancelling demos
+  const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
+  const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Check backend on mount
   useEffect(() => {
     isBackendAPIAvailable().then(setBackendAvailable);
+  }, []);
+
+  // Cleanup on unmount - abort any running demos
+  useEffect(() => {
+    return () => {
+      abortRef.current.aborted = true;
+      if (recordIntervalRef.current) {
+        clearInterval(recordIntervalRef.current);
+        recordIntervalRef.current = null;
+      }
+    };
   }, []);
 
   // Get joint positions (must be before handleChatSend which uses it)
@@ -273,10 +292,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
       const currentJoints = useAppStore.getState().joints;
 
-      // Time-based smooth move (robust to browser timer throttling)
+      // Time-based smooth move using setTimeout for reliability in headless browsers
+      // requestAnimationFrame can be throttled in headless mode, causing infinite waits
       const smoothMove = async (targetJoints: Partial<typeof currentJoints>, durationMs: number) => {
         const startJoints = { ...useAppStore.getState().joints };
         const startTime = Date.now();
+        const frameInterval = 16; // ~60fps
 
         return new Promise<void>((resolve) => {
           const animate = () => {
@@ -298,11 +319,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             setJoints(interpolated);
 
             if (t < 1) {
-              if (typeof requestAnimationFrame !== 'undefined') {
-                requestAnimationFrame(animate);
-              } else {
-                setTimeout(animate, 16);
-              }
+              // Always use setTimeout for reliable timing in all browser contexts
+              setTimeout(animate, frameInterval);
             } else {
               setJoints(targetJoints);
               resolve();
@@ -340,31 +358,34 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setIsDemoRunning(false);
       setDemoStatus(null);
     }
-  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, sendMessage]);
+  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject]);
 
-  // Batch generate 10 varied demos for training data
-  // Uses proven pickup configuration at 20cm reach distance
+  // Batch generate demos for training data
+  // Uses proven pickup configuration matching handleDemoPickUp (x=0.16, z=0.01)
   const handleBatchDemos = useCallback(async () => {
     if (isDemoRunning || isAnimating || isLLMLoading) return;
 
-    const BATCH_COUNT = 10;
+    // Reset abort flag at start
+    abortRef.current.aborted = false;
+
     const demoScale = 0.03; // 3cm cube
 
-    console.log('[BatchDemo] Starting batch demo with BATCH_COUNT:', BATCH_COUNT);
+    log.debug('Starting batch demo', { BATCH_COUNT });
 
-    // Generate 10 varied positions in the arm's optimal reach zone (18-22cm forward)
-    // Verified working: X=20cm with shoulder=-10, elbow=35, wrist=65
+    // Generate varied positions based on PROVEN working config from handleDemoPickUp
+    // Working: x=0.16, z=0.01 with base=5, shoulder=-22, elbow=51, wrist=63
+    // Keep positions close to this baseline for reliability
     const positions: Array<{ x: number; z: number }> = [
-      { x: 0.20, z: 0.00 },   // Center (verified working)
-      { x: 0.19, z: -0.02 },  // Slightly closer, left
-      { x: 0.21, z: 0.02 },   // Slightly further, right
-      { x: 0.18, z: 0.00 },   // Closer center
-      { x: 0.22, z: 0.00 },   // Further center
-      { x: 0.20, z: -0.03 },  // Center left
-      { x: 0.20, z: 0.03 },   // Center right
-      { x: 0.19, z: 0.02 },   // Closer right
-      { x: 0.21, z: -0.02 },  // Further left
-      { x: 0.20, z: -0.01 },  // Center slight left
+      { x: 0.16, z: 0.01 },   // Baseline (exact match to Demo Pick Up)
+      { x: 0.15, z: 0.00 },   // Slightly closer, centered
+      { x: 0.17, z: 0.02 },   // Slightly further, right
+      { x: 0.16, z: -0.01 },  // Baseline left
+      { x: 0.16, z: 0.03 },   // Baseline right
+      { x: 0.15, z: 0.02 },   // Closer right
+      { x: 0.17, z: 0.00 },   // Further centered
+      { x: 0.16, z: -0.02 },  // Baseline further left
+      { x: 0.15, z: -0.01 },  // Closer left
+      { x: 0.17, z: 0.01 },   // Further slight right
     ];
 
     setIsDemoRunning(true);
@@ -372,19 +393,117 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     setBatchProgress({ current: 0, total: BATCH_COUNT });
 
     const collectedEpisodes: Episode[] = [];
-    const collectedQuality: any[] = [];
+    const collectedQuality: ReturnType<typeof calculateQualityMetrics>[] = [];
+
+    // Define smoothMove ONCE outside the loop (not recreated each iteration)
+    const { clearObjects, setJoints } = useAppStore.getState();
+
+    // Time-based smooth move with abort checking and frame recording
+    // Generates synthetic frames at 30fps for training data (headless browsers throttle timers)
+    const smoothMove = async (
+      targetJoints: Partial<ReturnType<typeof useAppStore.getState>['joints']>,
+      durationMs: number,
+      recordTo?: { timestamp: number; jointPositions: number[]; image?: string }[],
+      recordStartTime?: number
+    ): Promise<boolean> => {
+      if (abortRef.current.aborted) return false;
+
+      const startJoints = { ...useAppStore.getState().joints };
+      const moveStartTime = Date.now();
+
+      // Generate synthetic frames at 30fps for training data
+      // This ensures consistent data regardless of browser timer throttling
+      if (recordTo && recordStartTime !== undefined) {
+        const frameInterval = 33; // ~30fps for training data
+        const numFrames = Math.ceil(durationMs / frameInterval);
+
+        for (let f = 0; f <= numFrames; f++) {
+          const t = Math.min(1, f / numFrames);
+          // Ease-in-out cubic for natural motion
+          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+          const frameJoints: number[] = [
+            startJoints.base + ((targetJoints.base ?? startJoints.base) - startJoints.base) * ease,
+            startJoints.shoulder + ((targetJoints.shoulder ?? startJoints.shoulder) - startJoints.shoulder) * ease,
+            startJoints.elbow + ((targetJoints.elbow ?? startJoints.elbow) - startJoints.elbow) * ease,
+            startJoints.wrist + ((targetJoints.wrist ?? startJoints.wrist) - startJoints.wrist) * ease,
+            startJoints.wristRoll + ((targetJoints.wristRoll ?? startJoints.wristRoll) - startJoints.wristRoll) * ease,
+            startJoints.gripper + ((targetJoints.gripper ?? startJoints.gripper) - startJoints.gripper) * ease,
+          ];
+
+          recordTo.push({
+            timestamp: (moveStartTime - recordStartTime) + (f * frameInterval),
+            jointPositions: frameJoints,
+          });
+        }
+      }
+
+      // Animate visually using setTimeout (may be throttled in headless, but that's OK)
+      const frameInterval = 16;
+      return new Promise<boolean>((resolve) => {
+        const animate = () => {
+          if (abortRef.current.aborted) {
+            resolve(false);
+            return;
+          }
+
+          const now = Date.now();
+          const elapsed = now - moveStartTime;
+          const t = Math.min(1, elapsed / durationMs);
+
+          // Ease-in-out cubic
+          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+          const interpolated: Partial<typeof startJoints> = {};
+          for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
+            const start = startJoints[key];
+            const end = targetJoints[key];
+            if (typeof start === 'number' && typeof end === 'number') {
+              (interpolated as Record<string, number>)[key] = start + (end - start) * ease;
+            }
+          }
+          setJoints(interpolated);
+
+          if (t < 1) {
+            setTimeout(animate, frameInterval);
+          } else {
+            setJoints(targetJoints);
+            resolve(true);
+          }
+        };
+        animate();
+      });
+    };
+
+    // Helper for abortable delay
+    const delay = (ms: number): Promise<boolean> => {
+      return new Promise((resolve) => {
+        const checkAbort = () => {
+          if (abortRef.current.aborted) {
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        };
+        setTimeout(checkAbort, ms);
+      });
+    };
 
     try {
-      const { clearObjects, setJoints } = useAppStore.getState();
       const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
       if (!cubeTemplate) throw new Error('Cube template not found');
 
       for (let i = 0; i < BATCH_COUNT; i++) {
+        // Check for abort at start of each demo
+        if (abortRef.current.aborted) {
+          log.debug('Batch demo aborted');
+          break;
+        }
+
         setBatchProgress({ current: i + 1, total: BATCH_COUNT });
         setDemoStatus(`Demo ${i + 1}/${BATCH_COUNT}...`);
 
-        // === VISUAL RANDOMIZATION ===
-        // Randomize lighting, textures, distractors for this episode
+        // Visual randomization
         const visualConfig = randomizeVisualsForEpisode();
         log.debug(`Episode ${i + 1}: Visual randomization applied`, {
           lighting: visualConfig.domain.lighting.keyLightIntensity.toFixed(2),
@@ -395,180 +514,134 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         // Clear scene and reset arm
         clearObjects();
         setJoints({ base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 100 });
-        await new Promise(r => setTimeout(r, 500));
+        if (!await delay(500)) break;
 
         // Spawn cube at varied position
-        const pos = positions[i];
+        const pos = positions[i % positions.length];
         const y = 0.02;
-        console.log(`[BatchDemo] Demo ${i + 1}: Spawning cube at position [${(pos.x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(pos.z*100).toFixed(1)}]cm`);
+        log.debug(`Demo ${i + 1}: Spawning cube at [${(pos.x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(pos.z*100).toFixed(1)}]cm`);
         const newObject = createSimObjectFromTemplate(cubeTemplate, [pos.x, y, pos.z]);
         const { id, ...objWithoutId } = newObject;
         spawnObject({ ...objWithoutId, name: `Cube ${i + 1}`, scale: demoScale });
 
-        // Wait for physics to settle (same as single demo)
-        console.log('[BatchDemo] Waiting for physics to settle...');
-        await new Promise(r => setTimeout(r, 1500));
+        // Wait for physics to settle
+        if (!await delay(1500)) break;
 
-        // Start recording this demo
-        const startTime = Date.now();
-        const recordedFrames: { timestamp: number; jointPositions: number[] }[] = [];
-        const recordInterval = setInterval(() => {
-          const currentJoints = useAppStore.getState().joints;
-          recordedFrames.push({
-            timestamp: Date.now() - startTime,
-            jointPositions: [currentJoints.base, currentJoints.shoulder, currentJoints.elbow, currentJoints.wrist, currentJoints.wristRoll, currentJoints.gripper],
-          });
-        }, 33);
+        // Start recording - frames are captured during smoothMove animations
+        const recordStartTime = Date.now();
+        const recordedFrames: { timestamp: number; jointPositions: number[]; image?: string }[] = [];
 
-        // === TIME-BASED SMOOTH MOVE (robust to timer throttling) ===
-        // Uses elapsed time instead of step count to handle browser throttling
-        const smoothMove = async (targetJoints: Partial<typeof joints>, durationMs: number) => {
-          const startJoints = { ...useAppStore.getState().joints };
-          const startTime = Date.now();
+        try {
+          // Calculate joint angles - use EXACT values from working Demo Pick Up
+          // Base config: base=5, shoulder=-22, elbow=51, wrist=63, wristRoll=90
+          // Adjust only for position offset from baseline
+          const baseAngle = Math.atan2(pos.z, pos.x) * (180 / Math.PI);
 
-          // Animate using time-based interpolation
-          return new Promise<void>((resolve) => {
-            const animate = () => {
-              const now = Date.now();
-              const elapsed = now - startTime;
-              const t = Math.min(1, elapsed / durationMs);
+          // Use proven joint values with small adjustments for position
+          const xOffset = (pos.x - 0.16) * 100; // cm offset from baseline
+          const shoulderGrasp = -22 + xOffset * 2;  // Adjust for reach
+          const elbowGrasp = 51 - xOffset * 3;      // Compensate elbow
+          const wristGrasp = 63;
+          const wristRollVar = 90 + (Math.random() - 0.5) * 4; // 88-92°
 
-              // Ease-in-out cubic for natural motion
-              const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          log.debug(`Demo ${i+1}: base=${baseAngle.toFixed(1)}°, shoulder=${shoulderGrasp.toFixed(1)}°, elbow=${elbowGrasp.toFixed(1)}°`);
 
-              const interpolated: Partial<typeof joints> = {};
-              for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
-                const start = startJoints[key];
-                const end = targetJoints[key];
-                if (typeof start === 'number' && typeof end === 'number') {
-                  (interpolated as any)[key] = start + (end - start) * ease;
-                }
-              }
-              setJoints(interpolated);
+          // Move 1: Position at cube with gripper open (record frames)
+          if (!await smoothMove({
+            base: baseAngle,
+            shoulder: shoulderGrasp,
+            elbow: elbowGrasp,
+            wrist: wristGrasp,
+            wristRoll: wristRollVar,
+            gripper: 100
+          }, 800, recordedFrames, recordStartTime)) break;
 
-              if (t < 1) {
-                // Use requestAnimationFrame for smoother animation when available
-                if (typeof requestAnimationFrame !== 'undefined') {
-                  requestAnimationFrame(animate);
-                } else {
-                  setTimeout(animate, 16);
-                }
-              } else {
-                // Ensure we end exactly at target
-                setJoints(targetJoints);
-                resolve();
-              }
+          // Move 2: Close gripper (record frames during close)
+          if (!await smoothMove({ gripper: 0 }, 800, recordedFrames, recordStartTime)) break;
+
+          // Move 3: Lift (record frames)
+          if (!await smoothMove({
+            base: baseAngle,
+            shoulder: -50,
+            elbow: 30,
+            wrist: 45,
+            wristRoll: wristRollVar,
+            gripper: 0
+          }, 700, recordedFrames, recordStartTime)) break;
+
+          // Verify grasp
+          if (!await delay(300)) break;
+          const currentObjects = useAppStore.getState().objects;
+          const cube = currentObjects.find(o => o.name?.includes('Cube'));
+          const cubeY = cube?.position?.[1] ?? 0;
+          const graspSuccess = cubeY > 0.05;
+          log.debug(`Grasp verification: cubeY=${(cubeY*100).toFixed(1)}cm, success=${graspSuccess}`);
+
+          // Debug: log how many frames were recorded
+          log.debug(`Recorded frames: ${recordedFrames.length}`);
+
+          // Create episode from recorded frames
+          if (recordedFrames.length > 10) {
+            const frames: Frame[] = recordedFrames.map((f, idx) => ({
+              timestamp: f.timestamp,
+              observation: {
+                jointPositions: f.jointPositions,
+                image: f.image,
+              },
+              action: { jointTargets: f.jointPositions, gripper: f.jointPositions[5] },
+              done: idx === recordedFrames.length - 1,
+            }));
+
+            const duration = (recordedFrames[recordedFrames.length - 1].timestamp - recordedFrames[0].timestamp) / 1000;
+
+            const episode: Episode = {
+              episodeId: collectedEpisodes.length,
+              frames,
+              metadata: {
+                robotType: 'arm',
+                robotId: selectedRobotId,
+                task: 'pick_cube',
+                languageInstruction: `Pick up the cube at [${(pos.x*100).toFixed(0)}, 2, ${(pos.z*100).toFixed(0)}]cm`,
+                duration,
+                frameCount: frames.length,
+                recordedAt: new Date().toISOString(),
+                graspSuccess,
+                cubePosition: [pos.x, 0.02, pos.z],
+                finalCubeY: cubeY,
+              },
             };
-            animate();
-          });
-        };
 
-        // Calculate joint angles based on cube position
-        // Base reference: X=20cm → shoulder=-10, elbow=35, wrist=65 (verified working)
-        // Adjust for X variation: closer = more shoulder, further = less shoulder
-        const xNormalized = (pos.x - 0.18) / (0.22 - 0.18); // 0 at 18cm, 1 at 22cm
-        const baseAngle = Math.atan2(pos.z, pos.x) * (180 / Math.PI); // Point toward cube
-        const shoulderGrasp = -15 + xNormalized * 10;  // -15 at 18cm, -5 at 22cm
-        const elbowGrasp = 40 - xNormalized * 10;  // 40 at 18cm, 30 at 22cm
-        const wristGrasp = 65;  // Keep constant for horizontal grasp
-        const wristRollVar = 88 + Math.random() * 4;  // Small variation 88-92°
-        const speedFactor = 0.95 + Math.random() * 0.1;  // Speed 0.95-1.05x
+            const quality = calculateQualityMetrics(recordedFrames);
+            collectedEpisodes.push(episode);
+            collectedQuality.push(quality);
+            log.debug(`Episode ${i + 1} recorded: ${frames.length} frames, duration=${duration.toFixed(2)}s`);
+          }
 
-        console.log(`[BatchDemo] Demo ${i+1}: pos=[${(pos.x*100).toFixed(0)}, ${(pos.z*100).toFixed(0)}]cm, base=${baseAngle.toFixed(1)}°, shoulder=${shoulderGrasp.toFixed(1)}°, elbow=${elbowGrasp.toFixed(1)}°`);
-
-        // Apply speed factor to timing (faster = shorter duration)
-        const applySpeed = (ms: number) => Math.round(ms / speedFactor);
-
-        // === 3-MOVE SEQUENCE WITH MODERATE VARIATION ===
-        // Move 1: Go directly to grasp position with gripper open
-        console.log(`[BatchDemo] Move 1: Moving to grasp position - base=${baseAngle.toFixed(1)}, shoulder=${shoulderGrasp.toFixed(1)}, elbow=${elbowGrasp.toFixed(1)}, wrist=${wristGrasp.toFixed(1)}, wristRoll=${wristRollVar.toFixed(1)}, gripper=100`);
-        await smoothMove({
-          base: baseAngle,
-          shoulder: shoulderGrasp,
-          elbow: elbowGrasp,
-          wrist: wristGrasp,
-          wristRoll: wristRollVar,
-          gripper: 100
-        }, applySpeed(800));
-        const afterMove1 = useAppStore.getState().joints;
-        console.log(`[BatchDemo] Move 1 complete: joints = base=${afterMove1.base.toFixed(1)}, shoulder=${afterMove1.shoulder.toFixed(1)}, elbow=${afterMove1.elbow.toFixed(1)}, wrist=${afterMove1.wrist.toFixed(1)}`);
-
-        // Move 2: Close gripper - use setJoints directly for immediate close
-        console.log('[BatchDemo] Move 2: Closing gripper immediately...');
-        setJoints({ gripper: 0 });
-
-        // Wait for physics to register the grip
-        console.log('[BatchDemo] Waiting for grip physics...');
-        await new Promise(r => setTimeout(r, 1000));
-        const afterMove2 = useAppStore.getState().joints;
-        console.log(`[BatchDemo] Move 2 complete: gripper=${afterMove2.gripper.toFixed(1)}`);
-
-        // Move 3: Lift
-        console.log('[BatchDemo] Move 3: Lifting arm...');
-        await smoothMove({
-          base: baseAngle,
-          shoulder: -50,
-          elbow: 30,
-          wrist: 45,
-          wristRoll: wristRollVar,
-          gripper: 0
-        }, applySpeed(700));
-        const afterMove3 = useAppStore.getState().joints;
-        console.log(`[BatchDemo] Move 3 complete: shoulder=${afterMove3.shoulder.toFixed(1)}, elbow=${afterMove3.elbow.toFixed(1)}, wrist=${afterMove3.wrist.toFixed(1)}`);
-
-        // Stop recording
-        clearInterval(recordInterval);
-
-        // Create episode from recorded frames
-        if (recordedFrames.length > 10) {
-          const frames: Frame[] = recordedFrames.map((f, idx) => ({
-            timestamp: f.timestamp,
-            observation: { jointPositions: f.jointPositions },
-            action: { jointTargets: f.jointPositions, gripper: f.jointPositions[5] },
-            done: idx === recordedFrames.length - 1,
-          }));
-
-          const duration = (recordedFrames[recordedFrames.length - 1].timestamp - recordedFrames[0].timestamp) / 1000;
-
-          const episode: Episode = {
-            episodeId: collectedEpisodes.length,
-            frames,
-            metadata: {
-              robotType: 'arm',
-              robotId: selectedRobotId,
-              task: 'pick_cube',
-              languageInstruction: `Pick up the cube at [${(pos.x*100).toFixed(0)}, 2, ${(pos.z*100).toFixed(0)}]cm. Motion: speed=${speedFactor.toFixed(2)}x, wristRoll=${wristRollVar.toFixed(0)}°. Visual: light=${visualConfig.domain.lighting.keyLightIntensity.toFixed(2)}, floor=${visualConfig.texture.floor.type}`,
-              duration,
-              frameCount: frames.length,
-              recordedAt: new Date().toISOString(),
-            },
-          };
-
-          const quality = calculateQualityMetrics(recordedFrames);
-          collectedEpisodes.push(episode);
-          collectedQuality.push(quality);
-          console.log(`[BatchDemo] Episode ${i + 1} recorded: ${frames.length} frames, duration=${duration.toFixed(2)}s`);
+        } catch (demoError) {
+          log.debug(`Demo ${i + 1} error:`, demoError);
+          // Continue to next demo
         }
 
         // Brief pause between demos
-        console.log(`[BatchDemo] Demo ${i + 1} complete. Pausing before next demo...`);
-        await new Promise(r => setTimeout(r, 300));
+        if (!await delay(300)) break;
       }
 
-      console.log(`[BatchDemo] All ${BATCH_COUNT} demos complete. Total episodes collected: ${collectedEpisodes.length}`);
+      // Only save if we collected episodes and weren't aborted
+      if (collectedEpisodes.length > 0 && !abortRef.current.aborted) {
+        log.debug(`All demos complete. Total episodes: ${collectedEpisodes.length}`);
 
-      // Save all episodes to state
-      setState(s => ({
-        ...s,
-        objectName: 'Cube',
-        objectPlaced: true,
-        demoEpisodes: [...s.demoEpisodes, ...collectedEpisodes],
-        demoQuality: [...s.demoQuality, ...collectedQuality],
-      }));
+        setState(s => ({
+          ...s,
+          objectName: 'Cube',
+          objectPlaced: true,
+          demoEpisodes: [...s.demoEpisodes, ...collectedEpisodes],
+          demoQuality: [...s.demoQuality, ...collectedQuality],
+        }));
 
-      setDemoStatus(`Done! ${BATCH_COUNT} demo${BATCH_COUNT > 1 ? 's' : ''} recorded`);
-      await new Promise(r => setTimeout(r, 1000));
-      setStep('record-demo');
+        setDemoStatus(`Done! ${collectedEpisodes.length} demo${collectedEpisodes.length > 1 ? 's' : ''} recorded`);
+        await delay(1000);
+        setStep('record-demo');
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Batch demo failed');
@@ -577,7 +650,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       setDemoStatus(null);
       setBatchProgress(null);
     }
-  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, selectedRobotId, joints]);
+  }, [isDemoRunning, isAnimating, isLLMLoading, spawnObject, selectedRobotId]);
 
   // Handle adding a standard library object
   const handleAddLibraryObject = useCallback((template: ObjectTemplate) => {
@@ -816,12 +889,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 ) : (
                   <>
                     <Sparkles className="w-6 h-6" />
-                    Generate 10 Demos
+                    Generate {BATCH_COUNT === 1 ? '1 Demo' : '10 Demos'}
                   </>
                 )}
               </button>
               <p className="text-center text-xs text-slate-400">
-                Auto-generates 10 varied pickups for training data
+                {BATCH_COUNT === 1 ? 'Testing mode - 1 demo' : 'Auto-generates 10 varied pickups for training data'}
               </p>
 
               <div className="relative my-2">

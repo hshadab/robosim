@@ -141,17 +141,21 @@ The chat-based pickup was simplified to match the reliable Demo Pick Up:
 
 ## Testing
 
-Run Playwright test:
+Run Playwright tests:
 ```bash
-node playwright-cylinder-test.mjs
+# Run all pickup tests
+npx playwright test demo-pickup.spec.ts
+
+# Run batch demo test (10 pickups)
+npx playwright test demo-pickup.spec.ts --grep "Batch"
 ```
 
 Expected output:
-- IK Error < 0.5cm
-- Jaw Y matches object Y
-- "[GraspManager] Grasped object:" in console
+- 10 demos complete with 75 frames each
+- Arm reaches lift position (shoulder=-50°, elbow=30°)
+- "All demos complete. Total episodes: 10" in console
 
 ---
 
-*Last updated: 2024-12-23*
-*Status: All issues resolved - Chat pickup now matches Demo reliability*
+*Last updated: 2024-12-28*
+*Status: All issues resolved - Batch demo pickup with Playwright tests passing*

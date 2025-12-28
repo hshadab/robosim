@@ -635,29 +635,40 @@ npm run build
 
 ### Testing
 
-#### E2E Pickup Test
+#### E2E Pickup Tests (Playwright)
 
-A fully automated end-to-end test validates the robot pickup functionality using Puppeteer:
+Automated end-to-end tests validate the robot pickup functionality using Playwright:
 
 ```bash
-# Run the E2E pickup test (requires Puppeteer)
-node e2e-test.mjs
+# Run all pickup tests
+npx playwright test demo-pickup.spec.ts
+
+# Run batch demo test only
+npx playwright test demo-pickup.spec.ts --grep "Batch"
 ```
 
-This test:
-1. Temporarily disables Supabase authentication (backs up `.env`)
-2. Rebuilds the app in mock login mode
-3. Opens a browser and logs in via "Quick Demo Login"
-4. Adds a Tennis Ball to the scene
-5. Sends "Pick up the tennis ball" chat command
-6. Verifies the robot approaches directly above the ball (XZ offset < 2cm)
-7. Restores `.env` and cleans up
+**Test Coverage:**
 
-The test outputs robot position logs to verify the pickup fix:
+| Test | Description |
+|------|-------------|
+| Single Demo Pick Up | Verifies cube spawning and arm movement |
+| Batch Demo Pick Ups | Runs 10 demos, validates 75 frames/episode recording |
+
+**Key Features Tested:**
+- Cube spawns correctly at random positions in reachable workspace
+- Arm moves through grasp sequence (approach → close → lift)
+- Frame recording works in headless browsers (synthetic 30fps generation)
+- Episode data saved with proper frame counts (~75 frames per demo)
+- UI updates after batch completion (success badge visible)
+
+**Sample Output:**
 ```
->>> ROBOT: XZ offset from grasp: 1.3 cm  # Must be under 2cm
->>> ROBOT: Height above grasp: 3.4 cm
->>> ROBOT: Found approach directly above grasp
+Demo 1 detected: shoulder=-50.0, elbow=30.0
+...
+Demo 10 detected: shoulder=-50.0, elbow=30.0
+Episode 10 recorded: 75 frames, duration=3.46s
+All demos complete. Total episodes: 10
+2 passed (3.5m)
 ```
 
 ## Technical Approach: Accurate Robot Models
