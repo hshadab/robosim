@@ -372,20 +372,19 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     log.debug('Starting batch demo', { BATCH_COUNT });
 
-    // Generate varied positions based on PROVEN working config from handleDemoPickUp
-    // Working: x=0.16, z=0.01 with base=5, shoulder=-22, elbow=51, wrist=63
-    // Keep positions close to this baseline for reliability
+    // Generate varied positions with x from 0.16-0.18 (tested reliable range)
+    // x=0.15 and closer causes overshooting, x=0.19+ may be out of reach
     const positions: Array<{ x: number; z: number }> = [
-      { x: 0.16, z: 0.01 },   // Baseline (exact match to Demo Pick Up)
-      { x: 0.15, z: 0.00 },   // Slightly closer, centered
-      { x: 0.17, z: 0.02 },   // Slightly further, right
-      { x: 0.16, z: -0.01 },  // Baseline left
-      { x: 0.16, z: 0.03 },   // Baseline right
-      { x: 0.15, z: 0.02 },   // Closer right
-      { x: 0.17, z: 0.00 },   // Further centered
-      { x: 0.16, z: -0.02 },  // Baseline further left
-      { x: 0.15, z: -0.01 },  // Closer left
-      { x: 0.17, z: 0.01 },   // Further slight right
+      { x: 0.16, z: 0.01 },   // Close center-right (matches handleDemoPickUp)
+      { x: 0.17, z: 0.00 },   // Mid center
+      { x: 0.18, z: 0.02 },   // Far right
+      { x: 0.16, z: -0.01 },  // Close slight left
+      { x: 0.17, z: 0.015 },  // Mid slight right
+      { x: 0.18, z: -0.005 }, // Far near center left
+      { x: 0.16, z: 0.005 },  // Close near center right
+      { x: 0.17, z: -0.015 }, // Mid left
+      { x: 0.18, z: 0.025 },  // Far further right
+      { x: 0.16, z: -0.02 },  // Close further left
     ];
 
     setIsDemoRunning(true);
@@ -438,41 +437,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         }
       }
 
-      // Animate visually using setTimeout (may be throttled in headless, but that's OK)
-      const frameInterval = 16;
-      return new Promise<boolean>((resolve) => {
-        const animate = () => {
-          if (abortRef.current.aborted) {
-            resolve(false);
-            return;
-          }
-
-          const now = Date.now();
-          const elapsed = now - moveStartTime;
-          const t = Math.min(1, elapsed / durationMs);
-
-          // Ease-in-out cubic
-          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-          const interpolated: Partial<typeof startJoints> = {};
-          for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
-            const start = startJoints[key];
-            const end = targetJoints[key];
-            if (typeof start === 'number' && typeof end === 'number') {
-              (interpolated as Record<string, number>)[key] = start + (end - start) * ease;
-            }
-          }
-          setJoints(interpolated);
-
-          if (t < 1) {
-            setTimeout(animate, frameInterval);
-          } else {
-            setJoints(targetJoints);
-            resolve(true);
-          }
-        };
-        animate();
-      });
+      // Skip animation loop in batch mode - just set final position immediately
+      // and wait a fixed time for physics. Visual animation is nice but not required
+      // for training data generation, and it gets throttled heavily in headless browsers.
+      setJoints(targetJoints);
+      await new Promise(resolve => setTimeout(resolve, Math.min(durationMs, 100)));
+      return !abortRef.current.aborted;
     };
 
     // Helper for abortable delay
@@ -531,6 +501,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         const recordStartTime = Date.now();
         const recordedFrames: { timestamp: number; jointPositions: number[]; image?: string }[] = [];
 
+        // Get canvas for this demo (query fresh each time to ensure it's available)
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+
+        // Capture initial scene image (cube in place, arm at home)
+        let initialImage: string | undefined;
+        if (canvas) {
+          const captured = captureFromCanvas(canvas, 'overhead');
+          if (captured && captured.imageData.length > 100) {
+            initialImage = captured.imageData;
+          }
+        }
+
         try {
           // Calculate joint angles - use EXACT values from working Demo Pick Up
           // Base config: base=5, shoulder=-22, elbow=51, wrist=63, wristRoll=90
@@ -556,8 +538,44 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             gripper: 100
           }, 800, recordedFrames, recordStartTime)) break;
 
-          // Move 2: Close gripper (record frames during close)
-          if (!await smoothMove({ gripper: 0 }, 800, recordedFrames, recordStartTime)) break;
+          // Move 2: Close gripper smoothly over 1 second
+          // Record synthetic frames for training data (30fps, smooth linear close)
+          const gripperCloseStart = Date.now();
+          const gripperCloseDuration = 1000; // 1 second
+          const gripperFrameCount = Math.ceil(gripperCloseDuration / 33);
+          for (let f = 0; f <= gripperFrameCount; f++) {
+            const t = f / gripperFrameCount;
+            const gripperValue = 100 * (1 - t); // Linear 100 -> 0
+
+            recordedFrames.push({
+              timestamp: (gripperCloseStart - recordStartTime) + (f * 33),
+              jointPositions: [baseAngle, shoulderGrasp, elbowGrasp, wristGrasp, wristRollVar, gripperValue],
+            });
+          }
+
+          // Close gripper - simplified for batch mode (no visual animation needed)
+          // Just set to closed and wait for physics
+          setJoints({
+            base: baseAngle,
+            shoulder: shoulderGrasp,
+            elbow: elbowGrasp,
+            wrist: wristGrasp,
+            wristRoll: wristRollVar,
+            gripper: 0
+          });
+
+          // Wait for physics to register grasp (300ms minimum)
+          await new Promise(resolve => setTimeout(resolve, 300));
+          if (abortRef.current.aborted) break;
+
+          // Capture grasp image (gripper closed on object)
+          let graspImage: string | undefined;
+          if (canvas) {
+            const captured = captureFromCanvas(canvas, 'overhead');
+            if (captured && captured.imageData.length > 100) {
+              graspImage = captured.imageData;
+            }
+          }
 
           // Move 3: Lift (record frames)
           if (!await smoothMove({
@@ -571,6 +589,16 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
           // Verify grasp
           if (!await delay(300)) break;
+
+          // Capture final lift image
+          let liftImage: string | undefined;
+          if (canvas) {
+            const captured = captureFromCanvas(canvas, 'overhead');
+            if (captured && captured.imageData.length > 100) {
+              liftImage = captured.imageData;
+            }
+          }
+
           const currentObjects = useAppStore.getState().objects;
           const cube = currentObjects.find(o => o.name?.includes('Cube'));
           const cubeY = cube?.position?.[1] ?? 0;
@@ -578,19 +606,30 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           log.debug(`Grasp verification: cubeY=${(cubeY*100).toFixed(1)}cm, success=${graspSuccess}`);
 
           // Debug: log how many frames were recorded
-          log.debug(`Recorded frames: ${recordedFrames.length}`);
+          const imageCount = [initialImage, graspImage, liftImage].filter(Boolean).length;
+          log.debug(`Recorded frames: ${recordedFrames.length}, key images: ${imageCount}`);
 
-          // Create episode from recorded frames
+          // Create episode from recorded frames with key images attached
           if (recordedFrames.length > 10) {
-            const frames: Frame[] = recordedFrames.map((f, idx) => ({
-              timestamp: f.timestamp,
-              observation: {
-                jointPositions: f.jointPositions,
-                image: f.image,
-              },
-              action: { jointTargets: f.jointPositions, gripper: f.jointPositions[5] },
-              done: idx === recordedFrames.length - 1,
-            }));
+            // Attach key images to specific frames
+            const midFrameIdx = Math.floor(recordedFrames.length / 2);
+            const frames: Frame[] = recordedFrames.map((f, idx) => {
+              // Attach images at key moments: start, middle (grasp), end (lift)
+              let frameImage: string | undefined;
+              if (idx === 0) frameImage = initialImage;
+              else if (idx === midFrameIdx) frameImage = graspImage;
+              else if (idx === recordedFrames.length - 1) frameImage = liftImage;
+
+              return {
+                timestamp: f.timestamp,
+                observation: {
+                  jointPositions: f.jointPositions,
+                  image: frameImage,
+                },
+                action: { jointTargets: f.jointPositions, gripper: f.jointPositions[5] },
+                done: idx === recordedFrames.length - 1,
+              };
+            });
 
             const duration = (recordedFrames[recordedFrames.length - 1].timestamp - recordedFrames[0].timestamp) / 1000;
 

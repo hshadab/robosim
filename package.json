@@ -10,8 +10,13 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:unit": "vitest run src/test/batchDemo.test.ts src/test/demoPickup.test.ts",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:smoke": "playwright test smoke.spec.ts",
+    "test:e2e:full": "playwright test demo-pickup.spec.ts",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "npm run test:unit && npm run test:e2e:smoke"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.1",

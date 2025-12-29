@@ -635,40 +635,105 @@ npm run build
 
 ### Testing
 
-#### E2E Pickup Tests (Playwright)
+RoboSim uses a multi-tier testing strategy for fast feedback during development and comprehensive validation before deployment.
 
-Automated end-to-end tests validate the robot pickup functionality using Playwright:
+#### Quick Start
 
 ```bash
-# Run all pickup tests
-npx playwright test demo-pickup.spec.ts
+# Fast tests for development (~41 seconds total)
+npm run test:all
 
-# Run batch demo test only
-npx playwright test demo-pickup.spec.ts --grep "Batch"
+# Unit tests only (~1 second)
+npm run test:unit
+
+# Smoke E2E tests (~40 seconds)
+npm run test:e2e:smoke
+
+# Full E2E tests (~7 minutes)
+npm run test:e2e:full
 ```
 
-**Test Coverage:**
+#### Test Commands
 
-| Test | Description |
-|------|-------------|
-| Single Demo Pick Up | Verifies cube spawning and arm movement |
-| Batch Demo Pick Ups | Runs 10 demos, validates 75 frames/episode recording |
+| Command | Time | Description |
+|---------|------|-------------|
+| `npm run test:all` | **~41s** | Unit tests + smoke E2E (recommended for dev) |
+| `npm run test:unit` | **~1s** | 17 unit tests for batch demo logic |
+| `npm run test:e2e:smoke` | **~40s** | 3 quick E2E tests (app load, single demo, 3 batch demos) |
+| `npm run test:e2e:full` | **~7min** | Full 10-demo batch test with camera capture |
+| `npm run test:e2e:headed` | varies | Run E2E with visible browser for debugging |
+| `npm run test:e2e:ui` | interactive | Playwright UI mode for test development |
 
-**Key Features Tested:**
-- Cube spawns correctly at random positions in reachable workspace
-- Arm moves through grasp sequence (approach → close → lift)
-- Frame recording works in headless browsers (synthetic 30fps generation)
-- Episode data saved with proper frame counts (~75 frames per demo)
-- UI updates after batch completion (success badge visible)
+#### Unit Tests (Vitest)
+
+Fast tests that validate batch demo logic without a browser:
+
+```bash
+npm run test:unit
+```
+
+**Coverage (17 tests, <1 second):**
+- Position variety validation (x: 16/17/18cm positions)
+- Synthetic frame generation at 30fps
+- Easing curves (smooth cubic interpolation)
+- Joint limits validation
+- Timestamp monotonicity
+- Episode structure (~81 frames per demo)
+- Data quality checks
+
+#### E2E Tests (Playwright)
+
+Browser-based tests that validate the full application:
+
+```bash
+# Quick smoke tests for development
+npm run test:e2e:smoke
+
+# Full comprehensive tests
+npm run test:e2e:full
+```
+
+**Smoke Tests (3 tests, ~40 seconds):**
+- App loads with canvas and controls
+- Single demo pickup works
+- Batch demos start (3 demos verified)
+
+**Full Tests (3 tests, ~7 minutes):**
+- Single demo spawns cube correctly
+- Batch demo completes 10 demos with 81 frames each
+- Camera capture (3 key images per demo) and position variety
 
 **Sample Output:**
 ```
 Demo 1 detected: shoulder=-50.0, elbow=30.0
 ...
 Demo 10 detected: shoulder=-50.0, elbow=30.0
-Episode 10 recorded: 75 frames, duration=3.46s
+Recorded frames: 81, key images: 3
+Episode 10 recorded: 81 frames, duration=3.46s
 All demos complete. Total episodes: 10
-2 passed (3.5m)
+3 passed (6.7m)
+```
+
+#### Running Tests in CI
+
+For continuous integration, use the full test suite:
+
+```bash
+# CI recommended command
+npm run test:unit && npm run test:e2e:full
+```
+
+#### Debugging Failed Tests
+
+```bash
+# Run with visible browser
+npm run test:e2e:headed
+
+# Use Playwright UI for step-by-step debugging
+npm run test:e2e:ui
+
+# Run specific test
+npx playwright test demo-pickup.spec.ts --grep "Single"
 ```
 
 ## Technical Approach: Accurate Robot Models

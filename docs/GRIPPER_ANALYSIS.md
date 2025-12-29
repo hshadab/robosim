@@ -141,21 +141,49 @@ The chat-based pickup was simplified to match the reliable Demo Pick Up:
 
 ## Testing
 
-Run Playwright tests:
-```bash
-# Run all pickup tests
-npx playwright test demo-pickup.spec.ts
+### Quick Tests (Recommended for Development)
 
-# Run batch demo test (10 pickups)
-npx playwright test demo-pickup.spec.ts --grep "Batch"
+```bash
+# Fast combined tests (~41 seconds)
+npm run test:all
+
+# Unit tests only (~1 second)
+npm run test:unit
 ```
 
-Expected output:
-- 10 demos complete with 75 frames each
-- Arm reaches lift position (shoulder=-50°, elbow=30°)
-- "All demos complete. Total episodes: 10" in console
+### Full E2E Tests
+
+```bash
+# Smoke tests (~40 seconds)
+npm run test:e2e:smoke
+
+# Full 10-demo batch test (~7 minutes)
+npm run test:e2e:full
+
+# Run with visible browser for debugging
+npm run test:e2e:headed
+```
+
+### Test Coverage
+
+| Test Type | Tests | Time | What's Tested |
+|-----------|-------|------|---------------|
+| Unit | 17 | ~1s | Position variety, frame generation, data quality |
+| Smoke E2E | 3 | ~40s | App load, single demo, 3 batch demos |
+| Full E2E | 3 | ~7min | 10 demos, camera capture, position variety |
+
+### Expected Output (Full Test)
+
+```
+Demo 1 detected: shoulder=-50.0, elbow=30.0
+...
+Demo 10 detected: shoulder=-50.0, elbow=30.0
+Recorded frames: 81, key images: 3
+All demos complete. Total episodes: 10
+3 passed (6.7m)
+```
 
 ---
 
-*Last updated: 2024-12-28*
-*Status: All issues resolved - Batch demo pickup with Playwright tests passing*
+*Last updated: 2024-12-29*
+*Status: All issues resolved - Multi-tier testing with unit tests, smoke tests, and full E2E*
