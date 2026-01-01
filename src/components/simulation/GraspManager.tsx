@@ -68,13 +68,8 @@ interface GraspState {
 }
 
 export const GraspManager: React.FC = () => {
-  // Get state from store
-  const objects = useAppStore((state) => state.objects);
+  // Get actions from store (stable references)
   const updateObject = useAppStore((state) => state.updateObject);
-  // Use actualJoints for physics - this reflects motor dynamics
-  const joints = useAppStore((state) => state.actualJoints);
-  const gripperWorldPosition = useAppStore((state) => state.gripperWorldPosition);
-  const gripperWorldQuaternion = useAppStore((state) => state.gripperWorldQuaternion);
   const setGripperMinValue = useAppStore((state) => state.setGripperMinValue);
   const setJoints = useAppStore((state) => state.setJoints);
 
@@ -92,9 +87,17 @@ export const GraspManager: React.FC = () => {
   const newPosition = useRef(new THREE.Vector3());
 
   // Track previous gripper state to detect close/open transitions
-  const prevGripperValue = useRef(joints.gripper);
+  const prevGripperValue = useRef(0);
 
   useFrame(() => {
+    // CRITICAL: Read state directly from store to avoid one-frame delay
+    // React subscriptions update on next render, but we need current values NOW
+    const state = useAppStore.getState();
+    const objects = state.objects;
+    const joints = state.actualJoints;
+    const gripperWorldPosition = state.gripperWorldPosition;
+    const gripperWorldQuaternion = state.gripperWorldQuaternion;
+
     const currentGripper = joints.gripper;
     const isClosed = currentGripper <= GRIPPER_CLOSED_THRESHOLD;
     const isOpen = currentGripper >= GRIPPER_OPEN_THRESHOLD;
