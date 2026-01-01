@@ -56,6 +56,53 @@ const log = createLogger('TrainFlow');
 // Number of demos to generate for training data
 const BATCH_COUNT = 5;
 
+/**
+ * Catmull-Rom spline interpolation for smooth motion through waypoints
+ * Maintains velocity continuity across waypoints for natural robot motion
+ */
+function catmullRomInterpolate(
+  p0: number, p1: number, p2: number, p3: number, t: number
+): number {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return 0.5 * (
+    (2 * p1) +
+    (-p0 + p2) * t +
+    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+  );
+}
+
+/**
+ * Interpolate joint positions using Catmull-Rom splines
+ * waypoints: array of joint position arrays [base, shoulder, elbow, wrist, wristRoll, gripper]
+ * t: global parameter 0-1 across entire trajectory
+ */
+function interpolateWaypoints(
+  waypoints: number[][],
+  t: number
+): number[] {
+  if (waypoints.length < 2) return waypoints[0] || [0, 0, 0, 0, 0, 100];
+
+  const numSegments = waypoints.length - 1;
+  const segmentT = t * numSegments;
+  const segmentIndex = Math.min(Math.floor(segmentT), numSegments - 1);
+  const localT = segmentT - segmentIndex;
+
+  // Get the 4 control points for Catmull-Rom (extend endpoints)
+  const p0 = waypoints[Math.max(0, segmentIndex - 1)];
+  const p1 = waypoints[segmentIndex];
+  const p2 = waypoints[Math.min(waypoints.length - 1, segmentIndex + 1)];
+  const p3 = waypoints[Math.min(waypoints.length - 1, segmentIndex + 2)];
+
+  // Interpolate each joint
+  const result: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    result.push(catmullRomInterpolate(p0[i], p1[i], p2[i], p3[i], localT));
+  }
+  return result;
+}
+
 type FlowStep = 'add-object' | 'record-demo' | 'generate' | 'upload' | 'done';
 
 interface MinimalTrainFlowProps {
@@ -615,6 +662,178 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       });
     };
 
+    /**
+     * Execute a sequence of waypoints as a single continuous trajectory
+     * Uses Catmull-Rom splines for velocity-preserving interpolation
+     * Special handling for gripper: holds during approach, closes at grasp point
+     */
+    const smoothMoveSequence = async (
+      waypoints: Array<{ base: number; shoulder: number; elbow: number; wrist: number; wristRoll: number; gripper: number }>,
+      totalDurationMs: number,
+      graspWaypointIndex: number, // Index where gripper should close (usually 2 for 4-step sequence)
+      graspDwellMs: number, // Extra time to dwell at grasp position for physics
+      recordTo: { timestamp: number; jointPositions: number[]; image?: string }[],
+      recordStartTime: number,
+      label: string,
+      augmentConfig?: AugmentationConfig
+    ): Promise<boolean> => {
+      if (abortRef.current.aborted) return false;
+
+      // Convert waypoints to arrays for interpolation
+      const waypointArrays = waypoints.map(w => [w.base, w.shoulder, w.elbow, w.wrist, w.wristRoll, w.gripper]);
+
+      // Split trajectory into phases:
+      // Phase 1: Start to grasp position (gripper open)
+      // Phase 2: Dwell at grasp + close gripper
+      // Phase 3: Grasp to end (gripper closed)
+      const phase1Duration = (graspWaypointIndex / (waypoints.length - 1)) * totalDurationMs;
+      const phase3Duration = ((waypoints.length - 1 - graspWaypointIndex) / (waypoints.length - 1)) * totalDurationMs;
+      const totalTime = phase1Duration + graspDwellMs + phase3Duration;
+
+      const startTime = Date.now();
+      let lastImageCapture = 0;
+      const IMAGE_CAPTURE_INTERVAL = 100;
+      const capturedImagesMap: Map<number, string> = new Map();
+
+      console.log(`[BatchDemo] smoothMoveSequence(${label}) START - total=${totalTime.toFixed(0)}ms (motion=${totalDurationMs}ms + dwell=${graspDwellMs}ms)`);
+
+      // Generate synthetic frames at 30fps
+      const recordInterval = 33;
+      const numFrames = Math.ceil(totalTime / recordInterval);
+      for (let f = 0; f <= numFrames; f++) {
+        const t = f / numFrames;
+        const elapsed = t * totalTime;
+
+        let frameJoints: number[];
+        if (elapsed <= phase1Duration) {
+          // Phase 1: Moving to grasp position (gripper stays open)
+          const phase1T = phase1Duration > 0 ? elapsed / phase1Duration : 1;
+          const trajectoryT = phase1T * (graspWaypointIndex / (waypoints.length - 1));
+          frameJoints = interpolateWaypoints(waypointArrays, trajectoryT);
+          frameJoints[5] = waypoints[0].gripper; // Keep gripper open
+        } else if (elapsed <= phase1Duration + graspDwellMs) {
+          // Phase 2: Dwell at grasp position, close gripper
+          const dwellT = (elapsed - phase1Duration) / graspDwellMs;
+          const graspPos = waypointArrays[graspWaypointIndex];
+          frameJoints = [...graspPos];
+          // Interpolate gripper from open to closed
+          const openGripper = waypoints[graspWaypointIndex - 1]?.gripper ?? 100;
+          const closedGripper = waypoints[graspWaypointIndex].gripper;
+          frameJoints[5] = openGripper + (closedGripper - openGripper) * dwellT;
+        } else {
+          // Phase 3: Lifting (gripper closed)
+          const phase3T = phase3Duration > 0 ? (elapsed - phase1Duration - graspDwellMs) / phase3Duration : 1;
+          const startT = graspWaypointIndex / (waypoints.length - 1);
+          const trajectoryT = startT + phase3T * (1 - startT);
+          frameJoints = interpolateWaypoints(waypointArrays, trajectoryT);
+          frameJoints[5] = waypoints[graspWaypointIndex].gripper; // Keep gripper closed
+        }
+
+        recordTo.push({
+          timestamp: recordStartTime > 0 ? (startTime - recordStartTime) + (f * recordInterval) : f * recordInterval,
+          jointPositions: frameJoints,
+        });
+      }
+
+      // Animate visually
+      return new Promise<boolean>((resolve) => {
+        let rafId: number | null = null;
+
+        const animate = () => {
+          if (abortRef.current.aborted) {
+            if (rafId) cancelAnimationFrame(rafId);
+            resolve(false);
+            return;
+          }
+
+          const now = Date.now();
+          const elapsed = now - startTime;
+          const t = Math.min(1, elapsed / totalTime);
+
+          let currentJoints: number[];
+          if (elapsed <= phase1Duration) {
+            // Phase 1: Moving to grasp
+            const phase1T = phase1Duration > 0 ? elapsed / phase1Duration : 1;
+            const trajectoryT = phase1T * (graspWaypointIndex / (waypoints.length - 1));
+            currentJoints = interpolateWaypoints(waypointArrays, trajectoryT);
+            currentJoints[5] = waypoints[0].gripper;
+          } else if (elapsed <= phase1Duration + graspDwellMs) {
+            // Phase 2: Dwell + close gripper
+            const dwellT = (elapsed - phase1Duration) / graspDwellMs;
+            const graspPos = waypointArrays[graspWaypointIndex];
+            currentJoints = [...graspPos];
+            const openGripper = waypoints[graspWaypointIndex - 1]?.gripper ?? 100;
+            const closedGripper = waypoints[graspWaypointIndex].gripper;
+            currentJoints[5] = openGripper + (closedGripper - openGripper) * dwellT;
+          } else {
+            // Phase 3: Lifting
+            const phase3T = phase3Duration > 0 ? (elapsed - phase1Duration - graspDwellMs) / phase3Duration : 1;
+            const startT = graspWaypointIndex / (waypoints.length - 1);
+            const trajectoryT = startT + phase3T * (1 - startT);
+            currentJoints = interpolateWaypoints(waypointArrays, trajectoryT);
+            currentJoints[5] = waypoints[graspWaypointIndex].gripper;
+          }
+
+          setJoints({
+            base: currentJoints[0],
+            shoulder: currentJoints[1],
+            elbow: currentJoints[2],
+            wrist: currentJoints[3],
+            wristRoll: currentJoints[4],
+            gripper: currentJoints[5],
+          });
+
+          // Capture images at 10Hz
+          const timeSinceLastCapture = now - lastImageCapture;
+          if (timeSinceLastCapture >= IMAGE_CAPTURE_INTERVAL || lastImageCapture === 0) {
+            const demoCanvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+            if (demoCanvas) {
+              const captured = captureFromCanvas(demoCanvas, 'overhead');
+              if (captured && captured.imageData.length > 100) {
+                const relativeTimestamp = now - recordStartTime;
+                if (augmentConfig) {
+                  applyAugmentations(captured.imageData, augmentConfig).then(augmented => {
+                    capturedImagesMap.set(relativeTimestamp, augmented);
+                  }).catch(() => {
+                    capturedImagesMap.set(relativeTimestamp, captured.imageData);
+                  });
+                } else {
+                  capturedImagesMap.set(relativeTimestamp, captured.imageData);
+                }
+              }
+            }
+            lastImageCapture = now;
+          }
+
+          if (t < 1) {
+            rafId = requestAnimationFrame(animate);
+          } else {
+            // Attach images to nearest frames
+            for (const [imgTimestamp, imgData] of capturedImagesMap) {
+              let closestIdx = 0;
+              let closestDiff = Infinity;
+              for (let i = 0; i < recordTo.length; i++) {
+                const diff = Math.abs(recordTo[i].timestamp - imgTimestamp);
+                if (diff < closestDiff) {
+                  closestDiff = diff;
+                  closestIdx = i;
+                }
+              }
+              if (closestDiff < 50 && !recordTo[closestIdx].image) {
+                recordTo[closestIdx].image = imgData;
+              }
+            }
+
+            const actualElapsed = Date.now() - startTime;
+            console.log(`[BatchDemo] smoothMoveSequence(${label}) DONE - actual=${actualElapsed}ms (expected ${totalTime.toFixed(0)}ms), captured ${capturedImagesMap.size} images`);
+            resolve(true);
+          }
+        };
+
+        rafId = requestAnimationFrame(animate);
+      });
+    };
+
     try {
       const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
       if (!cubeTemplate) throw new Error('Cube template not found');
@@ -731,41 +950,41 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             ? llmResponse.joints
             : [llmResponse.joints];
 
-          console.log(`[BatchDemo] Demo ${i+1} - Executing ${jointSequence.length} motion steps from LLM`);
+          console.log(`[BatchDemo] Demo ${i+1} - Executing ${jointSequence.length} waypoints as continuous trajectory`);
 
-          // Execute each step in the LLM-generated sequence
-          let graspImage: string | undefined;
-          for (let stepIdx = 0; stepIdx < jointSequence.length; stepIdx++) {
-            const step = jointSequence[stepIdx];
-            const isGripperStep = step.gripper !== undefined && step.gripper < 50;
-            const stepLabel = `Demo${i+1}-Step${stepIdx+1}`;
+          // Find the grasp waypoint (where gripper closes)
+          let graspWaypointIndex = jointSequence.findIndex(step => step.gripper !== undefined && step.gripper < 50);
+          if (graspWaypointIndex < 0) graspWaypointIndex = Math.floor(jointSequence.length / 2); // Default to middle
 
-            console.log(`[BatchDemo] Demo ${i+1} - Step ${stepIdx+1}/${jointSequence.length}:`, step);
+          // Convert to full waypoints with all joint values
+          const homeJoints = { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 90, gripper: 100 };
+          const waypoints = jointSequence.map(step => ({
+            base: step.base ?? homeJoints.base,
+            shoulder: step.shoulder ?? homeJoints.shoulder,
+            elbow: step.elbow ?? homeJoints.elbow,
+            wrist: step.wrist ?? homeJoints.wrist,
+            wristRoll: step.wristRoll ?? homeJoints.wristRoll,
+            gripper: step.gripper ?? homeJoints.gripper,
+          }));
 
-            // Animate to this step's joint positions
-            // Gripper close: 800ms, Lift (last step): 1000ms for smooth object following, Other: 700ms
-            const isLiftStep = stepIdx === jointSequence.length - 1 && !isGripperStep;
-            const duration = isGripperStep ? 800 : isLiftStep ? 1000 : 700;
-            // Enable image capture at 10Hz during animation for LeRobot training
-            // Apply domain randomization (noise, blur, lighting) for sim-to-real transfer
-            if (!await smoothMove(step as Partial<typeof currentJoints>, duration, recordedFrames, recordStartTime, stepLabel, true, episodeAugment)) break;
+          // Execute as single continuous trajectory
+          // Total motion duration ~2.5s, with 500ms dwell at grasp for physics detection
+          const motionDuration = 2500; // Total motion time (excluding dwell)
+          const graspDwell = 500; // Dwell time at grasp for physics
+          if (!await smoothMoveSequence(
+            waypoints,
+            motionDuration,
+            graspWaypointIndex,
+            graspDwell,
+            recordedFrames,
+            recordStartTime,
+            `Demo${i+1}`,
+            episodeAugment
+          )) break;
 
-            // Brief pause between steps for physics to sync object position
-            const pauseTime = isGripperStep ? 400 : isLiftStep ? 200 : 150;
-            if (!await delay(pauseTime)) break;
-
-            // Capture grasp image when gripper closes
-            if (isGripperStep && demoCanvas && !graspImage) {
-              const captured = captureFromCanvas(demoCanvas, 'overhead');
-              if (captured && captured.imageData.length > 100) {
-                graspImage = captured.imageData;
-              }
-            }
-          }
-
-          // Verify grasp after sequence
-          console.log(`[BatchDemo] Demo ${i+1} - Pause 300ms to verify grasp`);
-          if (!await delay(300)) break;
+          // Brief pause to verify grasp (reduced from 300ms)
+          console.log(`[BatchDemo] Demo ${i+1} - Pause 150ms to verify grasp`);
+          if (!await delay(150)) break;
 
           // Capture final lift image
           let liftImage: string | undefined;
