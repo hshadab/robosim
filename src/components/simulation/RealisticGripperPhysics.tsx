@@ -97,7 +97,8 @@ export const RealisticGripperPhysics: React.FC<RealisticGripperPhysicsProps> = (
   };
 
   useFrame(() => {
-    const currentJoints = useAppStore.getState().joints;
+    // Use actualJoints for physics - reflects motor dynamics
+    const currentJoints = useAppStore.getState().actualJoints;
     const currentGripperPos = useAppStore.getState().gripperWorldPosition;
     const currentGripperQuat = useAppStore.getState().gripperWorldQuaternion;
 

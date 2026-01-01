@@ -71,7 +71,8 @@ export const GraspManager: React.FC = () => {
   // Get state from store
   const objects = useAppStore((state) => state.objects);
   const updateObject = useAppStore((state) => state.updateObject);
-  const joints = useAppStore((state) => state.joints);
+  // Use actualJoints for physics - this reflects motor dynamics
+  const joints = useAppStore((state) => state.actualJoints);
   const gripperWorldPosition = useAppStore((state) => state.gripperWorldPosition);
   const gripperWorldQuaternion = useAppStore((state) => state.gripperWorldQuaternion);
   const setGripperMinValue = useAppStore((state) => state.setGripperMinValue);

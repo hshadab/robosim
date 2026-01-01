@@ -5,147 +5,180 @@ Export realistic SO-101 data to the LeRobot community on HuggingFace for sim-to-
 
 ---
 
-## Priority 1: Fix Rendering Issues
+## Completed Improvements (January 2025)
 
-### 1.1 Rapier Deprecation Warning (Cosmetic)
-- **Status**: Known wasm-bindgen issue, does NOT affect functionality
-- **Source**: `@dimforge/rapier3d-compat` WASM initialization
-- **Fix**: Suppress console warning OR wait for upstream fix in Rapier
-- **Reference**: [GitHub Issue #811](https://github.com/dimforge/rapier/issues/811)
+### Camera Intrinsics Export
+- **Status**: COMPLETED
+- **Files**: `src/types/index.ts`, `src/lib/lerobotExporter.ts`
+- **Features**:
+  - Added `CameraIntrinsics` interface with fx, fy, cx, cy, distortion coefficients
+  - Auto-computes intrinsics from FOV and resolution using pinhole camera model
+  - SO-101 camera presets (`SO-101-default`, `SO-101-overhead`, `SO-101-side`)
+  - Exported in `info.json` under `simToReal.cameraIntrinsics`
 
-### 1.2 Rendering Not Working
-- **Possible causes**:
-  1. WebGL context loss (Intel Arc GPU) - ✅ Already has recovery code
-  2. Canvas not mounting in container
-  3. Three.js/R3F initialization timing
-  4. Physics suspension blocking render
-- **Diagnostic steps**:
-  1. Check browser console for actual errors (not warnings)
-  2. Verify WebGL support: `canvas.getContext('webgl2')`
-  3. Check if `<Canvas>` component mounts (`onCreated` callback)
-  4. Test with physics disabled
+### Joint Velocity Estimation
+- **Status**: COMPLETED
+- **Files**: `src/lib/lerobotExporter.ts`, `src/lib/parquetWriter.ts`
+- **Features**:
+  - Added `observation.velocity` field (6-DOF joint velocities in rad/s)
+  - Computes velocities from position deltas when not recorded
+  - Included in Parquet schema and feature definitions
+  - Statistics (min/max/mean/std) computed and exported in `stats.json`
 
-### 1.3 Intel Arc GPU Compatibility
-- **Current fix**: StrictMode disabled in `main.tsx:19-21`
-- **Enhancement**: Add WebGL capability detection on startup
+### Multi-Camera Export
+- **Status**: COMPLETED
+- **Files**: `src/lib/lerobotExporter.ts`
+- **Features**:
+  - Added `LeRobotCameraView` type: `cam_high`, `cam_wrist`, `cam_left`, `cam_right`
+  - `MultiCameraVideoBlobs` interface for multiple simultaneous camera views
+  - Automatic feature registration per camera in `info.json`
+  - Per-camera video directories: `videos/observation.images.<view>/`
+  - Updated README generator with multi-camera documentation
+  - Backwards compatible (legacy `videoBlobs` still works)
+
+### Motor Dynamics Simulation
+- **Status**: COMPLETED
+- **Files**: `src/stores/useAppStore.ts`, `src/components/simulation/SO101Arm3D.tsx`
+- **Features**:
+  - Added `MotorDynamicsConfig` with velocity/acceleration limits per joint
+  - Separated `joints` (target) from `actualJoints` (after motor dynamics)
+  - P-controller with velocity/acceleration limiting
+  - Configurable latency simulation
+  - Default SO-101 servo specs (STS3215 motor characteristics)
+  - Disabled by default for backwards compatibility
+  - Enable with: `useAppStore.getState().setMotorDynamics({ enabled: true })`
+
+### Action Calibration Integration
+- **Status**: COMPLETED (was already implemented)
+- **Files**: `src/lib/actionCalibration.ts`, `src/lib/lerobotExporter.ts`
+- **Features**:
+  - Per-joint offset, scale, direction correction
+  - PWM pulse width mapping for real servos
+  - Auto-calibration from data points
+  - Minimum-jerk trajectory generation
+  - Fully integrated into LeRobot export metadata
 
 ---
 
-## Priority 2: SO-101 Data Quality
+## Previously Implemented Features
 
-### 2.1 Joint Calibration ✅ (Already Implemented)
-- Degrees → Radians conversion in `lerobotExporter.ts:210-222`
+### Joint Calibration
+- Degrees → Radians conversion in `lerobotExporter.ts`
 - Gripper mapping: 0-100% → 0-1.0
 
-### 2.2 Recording Rate ✅ (Already Implemented)
+### Recording Rate
 - 30Hz control rate (LeRobot standard)
 - 10Hz image capture during animation
-- See `MinimalTrainFlow.tsx:484` - synthetic frames at 30fps
 
-### 2.3 Improvements Needed
-| Feature | Current | Target | File |
-|---------|---------|--------|------|
-| Camera intrinsics | None | Export FOV/resolution | `lerobotExporter.ts` |
-| Joint velocity | Not recorded | Add velocity estimation | `datasetExporter.ts` |
-| Gripper force | Not recorded | Estimate from collision | `GraspManager.tsx` |
-
----
-
-## Priority 3: LeRobot Export Enhancements
-
-### 3.1 Export Pipeline ✅ (Already Robust)
-- **Parquet**: Real Parquet files via `parquet-wasm` (`parquetWriter.ts`)
+### LeRobot Export Pipeline
+- **Parquet**: Real Parquet files via `parquet-wasm`
 - **MP4 Video**: Via ffmpeg worker
 - **Metadata**: Full LeRobot v3.0 schema
 - **Quality Gates**: Frame count, success rate, motion smoothness
 
-### 3.2 Sim-to-Real Metadata ✅ (Already Implemented)
-Located in `lerobotExporter.ts:49-72`:
-```typescript
-interface SimToRealMetadata {
-  cameraConfig?: SimCameraConfig;
-  physicsIdentification?: PhysicsIdentification;
-  actionCalibration?: ActionCalibrationConfig;
-  augmentation?: {...};
-  domainRandomization?: {...};
-}
-```
+### Sim-to-Real Metadata
+- Camera configuration export
+- Physics identification export
+- Domain randomization settings
 
-### 3.3 Image Augmentation ✅ (Already Implemented)
+### Image Augmentation
 - Gaussian noise: 0-10 sigma per episode
 - Motion blur: 0-3px
 - Brightness/contrast variation
-- See `cameraCapture.ts` - `applyAugmentations()`
 
-### 3.4 Enhancements Needed
-| Feature | Priority | Implementation |
-|---------|----------|----------------|
-| Multi-camera export | Medium | Add wrist_cam view option |
-| Depth maps | Low | Export depth buffer |
-| Segmentation masks | Low | Object-level masks |
+### HuggingFace Integration
+- Direct upload via `huggingfaceUpload.ts`
+- Token validation
+- Dataset card generation
+- Policy browser for LeRobot policies
 
----
-
-## Priority 4: HuggingFace Integration ✅
-
-### 4.1 Upload Pipeline (Already Implemented)
-- **Direct upload**: `huggingfaceUpload.ts` - `uploadToHuggingFace()`
-- **Backend API**: `uploadViaBackendAPI()` for Parquet conversion
-- **Token validation**: `validateHFToken()`
-
-### 4.2 Dataset Card ✅
-- Auto-generated README.md with YAML front matter
-- Tags: `lerobot`, `sim-to-real`, `imitation-learning`, `robot-manipulation`
-- Usage instructions included
-
-### 4.3 Policy Browser ✅
-- `huggingfaceHub.ts` - Search and download LeRobot policies
-- Filter by robot type (SO-101)
-- ONNX/SafeTensors support
-
----
-
-## Priority 5: Google Colab Training ✅
-
-### 5.1 Notebook (Already Exists)
-- `notebooks/train_so101_colab.ipynb`
+### Google Colab Training
+- Pre-configured notebook: `notebooks/train_so101_colab.ipynb`
 - Free T4 GPU training (~2 hours)
-- ACT policy training for manipulation
-
-### 5.2 Link in UI ✅
-- "Train on Google Colab" button in `MinimalTrainFlow.tsx:1462-1475`
-- Dataset ID copy-paste workflow
+- ACT policy training
 
 ---
 
-## Implementation Checklist
+## Usage Examples
 
-### Immediate Fixes
-- [ ] Suppress Rapier deprecation warning
-- [ ] Add WebGL diagnostic on startup
-- [ ] Verify canvas mount in SimulationViewport
+### Enable Motor Dynamics for Training Data
+```typescript
+import { useAppStore } from './stores/useAppStore';
 
-### Short-term (This Week)
-- [ ] Add camera intrinsics to export metadata
-- [ ] Estimate joint velocities from position delta
-- [ ] Add wrist camera view option
+// Enable realistic servo simulation
+useAppStore.getState().setMotorDynamics({
+  enabled: true,
+  velocityLimits: {
+    base: 120,      // deg/s
+    shoulder: 90,
+    elbow: 90,
+    wrist: 120,
+    wristRoll: 150,
+    gripper: 180,
+  },
+  accelerationLimits: {
+    base: 500,      // deg/s²
+    shoulder: 400,
+    elbow: 400,
+    wrist: 600,
+    wristRoll: 800,
+    gripper: 1000,
+  },
+  latencyMs: 20,    // 20ms command latency
+});
+```
 
-### Medium-term
-- [ ] Physics system identification export
-- [ ] Action calibration wizard
-- [ ] Multi-episode batch recording UI
+### Export with Multi-Camera Videos
+```typescript
+import { exportLeRobotDataset } from './lib/lerobotExporter';
+
+await exportLeRobotDataset(episodes, {
+  datasetName: 'my-so101-dataset',
+  robotId: 'so-101',
+  fps: 30,
+  multiCameraVideoBlobs: {
+    cam_high: overheadVideos,    // Blob[] for each episode
+    cam_wrist: wristVideos,      // Optional wrist camera
+  },
+  simToReal: {
+    cameraConfig: SO101_CAMERA_PRESETS['SO-101-default'],
+    // cameraIntrinsics auto-computed from config
+  },
+});
+```
+
+### Read Joint Velocities from Export
+```python
+import pandas as pd
+
+# Load exported episode
+df = pd.read_parquet('data/chunk-000/episode_000000.parquet')
+
+# Velocities are in rad/s for joints 0-4, normalized for gripper
+velocities = df['observation.velocity'].tolist()
+```
 
 ---
 
 ## Files Reference
 
-| Feature | Primary File | Lines |
-|---------|--------------|-------|
-| 3D Rendering | `RobotArm3D.tsx` | 325-480 |
-| Physics | `PhysicsObjects.tsx` | All |
-| LeRobot Export | `lerobotExporter.ts` | All |
-| HF Upload | `huggingfaceUpload.ts` | All |
-| Train Flow | `MinimalTrainFlow.tsx` | All |
-| Colab Notebook | `notebooks/train_so101_colab.ipynb` | All |
-| Quality Gates | `qualityGates.ts` | All |
-| Image Augment | `cameraCapture.ts` | `applyAugmentations` |
+| Feature | Primary File | Description |
+|---------|--------------|-------------|
+| Motor Dynamics | `src/stores/useAppStore.ts` | Velocity/acceleration limits, P-controller |
+| Camera Intrinsics | `src/types/index.ts` | CameraIntrinsics interface, SO101 presets |
+| Joint Velocity | `src/lib/lerobotExporter.ts` | Velocity estimation from position delta |
+| Multi-Camera | `src/lib/lerobotExporter.ts` | Multi-view video export |
+| Action Calibration | `src/lib/actionCalibration.ts` | Sim-to-real servo mapping |
+| Parquet Writer | `src/lib/parquetWriter.ts` | LeRobot data format |
+| LeRobot Export | `src/lib/lerobotExporter.ts` | Main export pipeline |
+
+---
+
+## Remaining Ideas (Future Work)
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| Depth maps export | Low | Export depth buffer alongside RGB |
+| Segmentation masks | Low | Object-level masks for training |
+| Real-time physics viz | Medium | Show motor dynamics visually |
+| Calibration wizard UI | Medium | GUI for servo calibration |

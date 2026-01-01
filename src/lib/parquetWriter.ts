@@ -13,9 +13,11 @@
 
 /**
  * LeRobot episode data structure
+ * Includes observation.velocity for sim-to-real transfer
  */
 export interface ParquetEpisodeData {
   'observation.state': number[][];
+  'observation.velocity'?: number[][];  // Optional for backwards compatibility
   'action': number[][];
   'episode_index': number[];
   'frame_index': number[];
@@ -37,19 +39,27 @@ export interface ArrowSchema {
 
 /**
  * Create Arrow schema for LeRobot data
+ * Includes velocity field for sim-to-real transfer
  */
-export function createArrowSchema(numJoints = 6): ArrowSchema {
-  return {
-    fields: [
-      { name: 'observation.state', type: 'FixedSizeList<Float32>', listSize: numJoints },
-      { name: 'action', type: 'FixedSizeList<Float32>', listSize: numJoints },
-      { name: 'episode_index', type: 'Int64' },
-      { name: 'frame_index', type: 'Int64' },
-      { name: 'timestamp', type: 'Float32' },
-      { name: 'next.done', type: 'Bool' },
-      { name: 'task_index', type: 'Int64' },
-    ]
-  };
+export function createArrowSchema(numJoints = 6, includeVelocity = true): ArrowSchema {
+  const fields = [
+    { name: 'observation.state', type: 'FixedSizeList<Float32>', listSize: numJoints },
+  ];
+
+  if (includeVelocity) {
+    fields.push({ name: 'observation.velocity', type: 'FixedSizeList<Float32>', listSize: numJoints });
+  }
+
+  fields.push(
+    { name: 'action', type: 'FixedSizeList<Float32>', listSize: numJoints },
+    { name: 'episode_index', type: 'Int64' },
+    { name: 'frame_index', type: 'Int64' },
+    { name: 'timestamp', type: 'Float32' },
+    { name: 'next.done', type: 'Bool' },
+    { name: 'task_index', type: 'Int64' },
+  );
+
+  return { fields };
 }
 
 /**
@@ -63,6 +73,7 @@ export async function writeParquetFile(data: ParquetEpisodeData): Promise<Uint8A
 /**
  * Write episode data as JSON with LeRobot-compatible schema
  * The output follows columnar format matching Parquet structure
+ * Includes velocity data for sim-to-real transfer
  */
 export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Uint8Array> {
   const numRows = data['episode_index'].length;
@@ -71,25 +82,34 @@ export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Ui
     throw new Error('No data to write');
   }
 
+  const hasVelocity = data['observation.velocity'] && data['observation.velocity'].length > 0;
+
   // Create columnar data structure matching LeRobot schema
+  const columns: Record<string, unknown> = {
+    'observation.state': data['observation.state'],
+    'action': data['action'],
+    'episode_index': data['episode_index'],
+    'frame_index': data['frame_index'],
+    'timestamp': data['timestamp'],
+    'next.done': data['next.done'],
+    'task_index': data['task_index'],
+  };
+
+  // Include velocity if available
+  if (hasVelocity) {
+    columns['observation.velocity'] = data['observation.velocity'];
+  }
+
   const output = {
     _meta: {
       format: 'robosim-lerobot-json',
       lerobot_version: '3.0',
       num_rows: numRows,
-      schema: createArrowSchema(data['observation.state'][0]?.length || 6),
+      schema: createArrowSchema(data['observation.state'][0]?.length || 6, hasVelocity),
       created_at: new Date().toISOString(),
       note: 'Convert to Parquet using: python convert_to_parquet.py',
     },
-    columns: {
-      'observation.state': data['observation.state'],
-      'action': data['action'],
-      'episode_index': data['episode_index'],
-      'frame_index': data['frame_index'],
-      'timestamp': data['timestamp'],
-      'next.done': data['next.done'],
-      'task_index': data['task_index'],
-    }
+    columns,
   };
 
   const json = JSON.stringify(output);
@@ -98,6 +118,7 @@ export async function writeParquetFilePure(data: ParquetEpisodeData): Promise<Ui
 
 /**
  * Generate Python conversion script to include in export
+ * Handles observation.velocity for sim-to-real transfer
  */
 export function generateConversionScript(): string {
   return `#!/usr/bin/env python3
@@ -109,6 +130,8 @@ Usage:
 
 This script converts all .parquet files (which are actually JSON) in the
 data/chunk-000/ directory to true Apache Parquet format.
+
+Supports observation.velocity for sim-to-real transfer.
 
 Requirements:
     pip install pandas pyarrow
@@ -134,15 +157,23 @@ def convert_episode_file(json_path: Path) -> None:
     columns = data['columns']
 
     # Create DataFrame with proper types
-    df = pd.DataFrame({
+    df_data = {
         'observation.state': columns['observation.state'],
-        'action': columns['action'],
         'episode_index': pd.array(columns['episode_index'], dtype='int64'),
         'frame_index': pd.array(columns['frame_index'], dtype='int64'),
         'timestamp': pd.array(columns['timestamp'], dtype='float32'),
         'next.done': columns['next.done'],
         'task_index': pd.array(columns['task_index'], dtype='int64'),
-    })
+    }
+
+    # Include velocity if present (for sim-to-real transfer)
+    if 'observation.velocity' in columns:
+        df_data['observation.velocity'] = columns['observation.velocity']
+
+    # Add action last to maintain column order
+    df_data['action'] = columns['action']
+
+    df = pd.DataFrame(df_data)
 
     # Write as Parquet
     output_path = json_path  # Overwrite with same name
@@ -229,6 +260,7 @@ export function episodesToParquetFormat(
 
 /**
  * Validate Parquet data structure
+ * Validates observation.velocity if present
  */
 export function validateParquetData(data: ParquetEpisodeData): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -236,7 +268,7 @@ export function validateParquetData(data: ParquetEpisodeData): { valid: boolean;
   const numRows = data['episode_index'].length;
 
   // Check all arrays have same length
-  const lengths = {
+  const lengths: Record<string, number> = {
     'observation.state': data['observation.state'].length,
     'action': data['action'].length,
     'episode_index': data['episode_index'].length,
@@ -245,6 +277,11 @@ export function validateParquetData(data: ParquetEpisodeData): { valid: boolean;
     'next.done': data['next.done'].length,
     'task_index': data['task_index'].length,
   };
+
+  // Include velocity in validation if present
+  if (data['observation.velocity']) {
+    lengths['observation.velocity'] = data['observation.velocity'].length;
+  }
 
   for (const [key, len] of Object.entries(lengths)) {
     if (len !== numRows) {
@@ -259,6 +296,21 @@ export function validateParquetData(data: ParquetEpisodeData): { valid: boolean;
       errors.push(`observation.state[${i}] has ${obs.length} elements, expected ${firstObsLen}`);
     }
   });
+
+  // Check observation.velocity dimensions if present
+  if (data['observation.velocity']) {
+    const firstVelLen = data['observation.velocity'][0]?.length;
+    data['observation.velocity'].forEach((vel, i) => {
+      if (vel.length !== firstVelLen) {
+        errors.push(`observation.velocity[${i}] has ${vel.length} elements, expected ${firstVelLen}`);
+      }
+    });
+
+    // Velocity should have same dimension as state
+    if (firstVelLen !== firstObsLen) {
+      errors.push(`observation.velocity dimension (${firstVelLen}) doesn't match observation.state (${firstObsLen})`);
+    }
+  }
 
   // Check action dimensions
   const firstActLen = data['action'][0]?.length;

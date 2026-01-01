@@ -34,12 +34,48 @@ import { preventSelfCollision } from '../lib/selfCollision';
 import { generateSecureId } from '../lib/crypto';
 import { CONSOLE_CONFIG } from '../lib/config';
 
+/**
+ * Motor dynamics configuration for realistic servo simulation
+ * Velocity limits in degrees/second, acceleration in degrees/second²
+ */
+export interface MotorDynamicsConfig {
+  enabled: boolean;
+  velocityLimits: JointState;      // Max velocity per joint (deg/s)
+  accelerationLimits: JointState;  // Max acceleration per joint (deg/s²)
+  latencyMs: number;               // Command latency (ms)
+}
+
+// Default SO-101 motor dynamics based on STS3215 servo specs
+const DEFAULT_MOTOR_DYNAMICS: MotorDynamicsConfig = {
+  enabled: false,  // Disabled by default for backwards compatibility
+  velocityLimits: {
+    base: 120,      // Base rotation (slower for stability)
+    shoulder: 90,   // Shoulder lift (slowest - heavy load)
+    elbow: 90,      // Elbow flex
+    wrist: 120,     // Wrist flex
+    wristRoll: 150, // Wrist roll
+    gripper: 180,   // Gripper (fastest)
+  },
+  accelerationLimits: {
+    base: 500,
+    shoulder: 400,
+    elbow: 400,
+    wrist: 600,
+    wristRoll: 800,
+    gripper: 1000,
+  },
+  latencyMs: 0,
+};
+
 interface AppState {
   // Robot State
   selectedRobotId: string;
   selectedRobot: RobotProfile | null;
   activeRobotType: ActiveRobotType;
-  joints: JointState;
+  joints: JointState;              // Target joints (what user commands)
+  actualJoints: JointState;        // Actual joints (after motor dynamics)
+  jointVelocities: JointState;     // Current joint velocities (deg/s)
+  motorDynamics: MotorDynamicsConfig; // Motor simulation config
   wheeledRobot: WheeledRobotState;
   drone: DroneState;
   humanoid: HumanoidState;
@@ -107,6 +143,10 @@ interface AppState {
   setShowGripperDebug: (show: boolean) => void;
   resetToDefaults: () => void;
 
+  // Motor Dynamics Actions
+  setMotorDynamics: (config: Partial<MotorDynamicsConfig>) => void;
+  updateActualJoints: (deltaTime: number) => void;  // Called each frame
+
   // Environment Actions
   setEnvironment: (envId: EnvironmentType) => void;
   spawnObject: (obj: Omit<SimObject, 'id'>) => void;
@@ -134,7 +174,10 @@ const getDefaultState = () => {
     selectedRobotId: DEFAULT_ROBOT_ID,
     selectedRobot: robot,
     activeRobotType: 'arm' as ActiveRobotType,
-    joints: robot.defaultPosition,
+    joints: robot.defaultPosition,                    // Target joints (what user commands)
+    actualJoints: robot.defaultPosition,              // Actual joints (after motor dynamics)
+    jointVelocities: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 0 } as JointState,
+    motorDynamics: { ...DEFAULT_MOTOR_DYNAMICS },     // Motor simulation config
     gripperWorldPosition: [0, 0.15, 0] as [number, number, number], // Default gripper position
     gripperWorldQuaternion: [0, 0, 0, 1] as [number, number, number, number], // Identity quaternion
     gripperMinValue: null as number | null, // Minimum gripper value when holding object
@@ -442,6 +485,73 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowGripperDebug: (show: boolean) => set({ showGripperDebug: show }),
 
   resetToDefaults: () => set(getDefaultState()),
+
+  // Motor Dynamics Actions
+  setMotorDynamics: (config: Partial<MotorDynamicsConfig>) => {
+    set((state) => ({
+      motorDynamics: { ...state.motorDynamics, ...config },
+    }));
+  },
+
+  /**
+   * Update actual joints by applying motor dynamics (velocity/acceleration limits)
+   * Called each animation frame with delta time in seconds
+   * When motor dynamics is disabled, actual joints immediately match target joints
+   */
+  updateActualJoints: (deltaTime: number) => {
+    const state = get();
+    const { joints: target, actualJoints: actual, jointVelocities, motorDynamics } = state;
+
+    // If motor dynamics disabled, snap to target immediately
+    if (!motorDynamics.enabled) {
+      if (actual !== target) {
+        set({
+          actualJoints: { ...target },
+          jointVelocities: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 0 },
+        });
+      }
+      return;
+    }
+
+    // Apply motor dynamics with velocity and acceleration limits
+    const newActual: JointState = { ...actual };
+    const newVelocities: JointState = { ...jointVelocities };
+    const jointKeys: (keyof JointState)[] = ['base', 'shoulder', 'elbow', 'wrist', 'wristRoll', 'gripper'];
+
+    for (const key of jointKeys) {
+      const error = target[key] - actual[key];
+      const maxVel = motorDynamics.velocityLimits[key];
+      const maxAccel = motorDynamics.accelerationLimits[key];
+      const currentVel = jointVelocities[key];
+
+      // Calculate desired velocity (P-controller with velocity limit)
+      // Use proportional gain of 5 for responsive but smooth tracking
+      const kP = 5.0;
+      let desiredVel = error * kP;
+      desiredVel = Math.max(-maxVel, Math.min(maxVel, desiredVel));
+
+      // Apply acceleration limit
+      const velChange = desiredVel - currentVel;
+      const maxVelChange = maxAccel * deltaTime;
+      const limitedVelChange = Math.max(-maxVelChange, Math.min(maxVelChange, velChange));
+      const newVel = currentVel + limitedVelChange;
+
+      // Update position
+      newActual[key] = actual[key] + newVel * deltaTime;
+      newVelocities[key] = newVel;
+
+      // Clamp to target if very close (prevents oscillation)
+      if (Math.abs(newActual[key] - target[key]) < 0.1 && Math.abs(newVel) < 1) {
+        newActual[key] = target[key];
+        newVelocities[key] = 0;
+      }
+    }
+
+    set({
+      actualJoints: newActual,
+      jointVelocities: newVelocities,
+    });
+  },
 
   // Environment Actions
   setEnvironment: (envId: EnvironmentType) => {

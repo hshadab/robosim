@@ -6,7 +6,32 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 ## Recent Updates (January 2025)
 
-### Enhanced LeRobot Export (NEW)
+### Enhanced Sim-to-Real Export (NEW)
+Major improvements for realistic data export to LeRobot/HuggingFace:
+
+**Motor Dynamics Simulation**
+- **Velocity/Acceleration Limits** - Per-joint limits matching STS3215 servo specs
+- **P-Controller Response** - Realistic tracking with configurable gain
+- **Target vs Actual Joints** - Separation for motor lag simulation
+- **Latency Simulation** - Configurable command latency (0-50ms)
+- Enable with: `useAppStore.getState().setMotorDynamics({ enabled: true })`
+
+**Joint Velocity Estimation**
+- **Velocity Export** - `observation.velocity` field (6-DOF in rad/s)
+- **Computed from Delta** - Auto-computed from position changes when not recorded
+- **Statistics Export** - Min/max/mean/std in `stats.json`
+
+**Multi-Camera Export**
+- **LeRobot Camera Views** - `cam_high`, `cam_wrist`, `cam_left`, `cam_right`
+- **Per-Camera Directories** - `videos/observation.images.<view>/`
+- **Auto Feature Registration** - Each camera registered in `info.json`
+
+**Camera Intrinsics**
+- **Pinhole Model** - Auto-computed fx, fy, cx, cy from FOV and resolution
+- **Distortion Coefficients** - k1, k2, p1, p2, k3 for lens calibration
+- **SO-101 Presets** - Default, overhead, side camera configurations
+
+### Enhanced LeRobot Export
 Major improvements to make exported datasets more realistic for sim-to-real transfer:
 
 **Data Format Improvements**
@@ -556,6 +581,10 @@ RoboSim implements several features to ensure training data transfers well to re
 | Mass | Fixed | Randomized ±40% | Varies ✓ |
 | Motor latency | None | 0-50ms | 10-30ms ✓ |
 | Motor jitter | None | ±0.02 rad | Present ✓ |
+| Motor dynamics | Instant | P-controller | P-controller ✓ |
+| Velocity export | None | rad/s per joint | rad/s ✓ |
+| Camera intrinsics | None | Pinhole model | Calibrated ✓ |
+| Multi-camera | Single | 4 views | Multi-view ✓ |
 
 Training data generated with these improvements will transfer better to real SO-101 hardware because the simulated trajectories match what the real servos can actually achieve, and domain randomization ensures policies are robust to real-world variations.
 

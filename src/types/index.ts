@@ -409,14 +409,31 @@ export interface RobotCameraConfig {
 }
 
 /**
+ * Camera Intrinsics Matrix for sim-to-real transfer
+ * Standard pinhole camera model: K = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
+ */
+export interface CameraIntrinsics {
+  fx: number;                            // Focal length x (pixels)
+  fy: number;                            // Focal length y (pixels)
+  cx: number;                            // Principal point x (pixels)
+  cy: number;                            // Principal point y (pixels)
+  width: number;                         // Image width (pixels)
+  height: number;                        // Image height (pixels)
+  distortion?: [number, number, number, number, number]; // [k1, k2, p1, p2, k3] radial/tangential
+}
+
+/**
  * Simulation Camera Configuration for Sim-to-Real Transfer
  * Matches real SO-101 camera setup for accurate data capture
  */
 export interface SimCameraConfig {
   // Intrinsics
-  fov: number;                           // Field of view in degrees
+  fov: number;                           // Field of view in degrees (vertical)
   resolution: [number, number];          // [width, height] in pixels
   aspectRatio: number;                   // width/height
+
+  // Camera matrix (computed from FOV and resolution)
+  intrinsics?: CameraIntrinsics;         // Full intrinsics matrix for calibration
 
   // Extrinsics
   position: [number, number, number];    // Camera position in world coords
@@ -428,6 +445,31 @@ export interface SimCameraConfig {
 
   // Preset identifier
   preset?: 'SO-101-default' | 'SO-101-overhead' | 'SO-101-side' | 'custom';
+}
+
+/**
+ * Compute camera intrinsics from FOV and resolution
+ * Uses pinhole camera model with centered principal point
+ */
+export function computeCameraIntrinsics(
+  fovDegrees: number,
+  width: number,
+  height: number
+): CameraIntrinsics {
+  // Convert vertical FOV to focal length
+  const fovRadians = (fovDegrees * Math.PI) / 180;
+  const fy = height / (2 * Math.tan(fovRadians / 2));
+  const fx = fy; // Assuming square pixels
+
+  return {
+    fx,
+    fy,
+    cx: width / 2,
+    cy: height / 2,
+    width,
+    height,
+    distortion: [0, 0, 0, 0, 0], // No distortion in simulation
+  };
 }
 
 /**

@@ -138,8 +138,12 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
   useFrame((_, delta) => {
     if (!robotRef.current) return;
 
-    // Read latest joint values directly from store (not props!) to avoid 1-frame lag
-    const currentJoints = useAppStore.getState().joints;
+    // Update motor dynamics simulation first
+    // This applies velocity/acceleration limits when motor dynamics is enabled
+    useAppStore.getState().updateActualJoints(delta);
+
+    // Read actual joint values (after motor dynamics) for rendering
+    const currentJoints = useAppStore.getState().actualJoints;
     const robotInstance = robotRef.current as ReturnType<typeof URDFLoader.prototype.parse>;
 
     // Convert degrees to radians and apply to joints
