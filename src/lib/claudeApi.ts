@@ -45,26 +45,34 @@ export interface ClaudeResponse {
 }
 
 const CLAUDE_RESPONSE_FORMAT = `
-Respond with a JSON object in this exact format:
+RESPONSE FORMAT - You MUST respond with valid JSON:
 {
-  "action": "move" | "sequence" | "code" | "explain" | "query",
-  "description": "Human-readable explanation of what you're doing",
-  "code": "Optional: Arduino/JavaScript code for this action",
-  "joints": { "base": 0, "shoulder": 0, "elbow": 0, "wrist": 0, "wristRoll": 0, "gripper": 50 },
-  "duration": 1000,
-  "clarifyingQuestion": "Optional: Ask user for more info if needed"
+  "action": "sequence",
+  "description": "Brief explanation of the action",
+  "joints": [
+    { "base": 0, "shoulder": -50, "elbow": 30, "wrist": 45, "wristRoll": 90, "gripper": 100 },
+    { "base": 0, "shoulder": -22, "elbow": 51, "wrist": 63, "wristRoll": 90, "gripper": 100 },
+    { "base": 0, "shoulder": -22, "elbow": 51, "wrist": 63, "wristRoll": 90, "gripper": 0, "_gripperOnly": true },
+    { "base": 0, "shoulder": -50, "elbow": 30, "wrist": 45, "wristRoll": 90, "gripper": 0 }
+  ],
+  "duration": 700
 }
 
-For arm robots, use joints. For wheeled robots, use wheeledAction with leftWheelSpeed, rightWheelSpeed.
-For drones, use droneAction with throttle, position, rotation, armed, flightMode.
-For humanoids, use humanoidAction with joint names like leftKnee, rightShoulderPitch, etc.
+CRITICAL 4-STEP PICKUP SEQUENCE (PROVEN TO WORK):
+1. APPROACH from above: shoulder=-50, elbow=30, wrist=45, gripper=100 (open)
+2. DESCEND to grasp: shoulder=-22, elbow=51, wrist=63, gripper=100 (still open)
+3. CLOSE gripper: same position, gripper=0, "_gripperOnly": true
+4. LIFT: shoulder=-50, elbow=30, wrist=45, gripper=0 (closed)
 
-IMPORTANT CAPABILITIES:
-- You can see the robot's CURRENT STATE including joint positions, sensor readings, and recent events
-- You can understand spatial relationships ("move to the left", "go higher", "closer to the object")
-- You can reference the robot's current position ("from here", "continue", "go back")
-- You can provide feedback about what you observe in the robot's state
-- If the user's request is unclear, use action="query" with clarifyingQuestion to ask for more details
+BASE ANGLE CALCULATION - MUST calculate from object position:
+- base = atan2(z_cm, x_cm) * 180 / PI (in degrees)
+- Object at [17, 2, 0]cm → base = 0°
+- Object at [17, 2, 1]cm → base = 3.4°
+- Object at [17, 2, -1]cm → base = -3.4°
+- Object at [18, 2, 1]cm → base = 3.2°
+- Object at [18, 2, -1]cm → base = -3.2°
+
+CRITICAL: Negative z = negative base angle! wristRoll=90 for cubes (vertical fingers).
 `;
 
 export interface FullRobotState {
@@ -165,12 +173,18 @@ export interface ConversationMessage {
   content: string;
 }
 
+export interface CallClaudeAPIOptions {
+  /** Force real API call even for manipulation commands (for training data generation) */
+  forceRealAPI?: boolean;
+}
+
 export async function callClaudeAPI(
   message: string,
   robotType: ActiveRobotType,
   fullState: FullRobotState,
   apiKey?: string,
-  conversationHistory: ConversationMessage[] = []
+  conversationHistory: ConversationMessage[] = [],
+  options: CallClaudeAPIOptions = {}
 ): Promise<ClaudeResponse> {
   // Get current state based on robot type for demo mode
   const currentState = robotType === 'arm' ? fullState.joints :
@@ -178,26 +192,31 @@ export async function callClaudeAPI(
                        robotType === 'drone' ? fullState.drone :
                        fullState.humanoid;
 
-  // For arm manipulation commands (pick, grab, stack, place), always use local IK-based handlers
-  // This ensures precise inverse kinematics calculations regardless of API key presence
-  const lowerMessage = message.toLowerCase();
-  const isManipulationCommand = robotType === 'arm' && (
-    lowerMessage.includes('pick') ||
-    lowerMessage.includes('grab') ||
-    lowerMessage.includes('stack') ||
-    lowerMessage.includes('place') ||
-    lowerMessage.includes('put down') ||
-    lowerMessage.includes('drop') ||
-    (lowerMessage.includes('move to') && fullState.objects && fullState.objects.length > 0)
-  );
+  // For arm manipulation commands (pick, grab, stack, place), use local IK-based handlers
+  // UNLESS forceRealAPI is true (for training data generation with real LLM responses)
+  if (!options.forceRealAPI) {
+    const lowerMessage = message.toLowerCase();
+    const isManipulationCommand = robotType === 'arm' && (
+      lowerMessage.includes('pick') ||
+      lowerMessage.includes('grab') ||
+      lowerMessage.includes('stack') ||
+      lowerMessage.includes('place') ||
+      lowerMessage.includes('put down') ||
+      lowerMessage.includes('drop') ||
+      (lowerMessage.includes('move to') && fullState.objects && fullState.objects.length > 0)
+    );
 
-  if (isManipulationCommand) {
-    log.debug('Using local IK handlers for manipulation command', { message });
-    return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
+    if (isManipulationCommand) {
+      log.debug('Using local IK handlers for manipulation command', { message });
+      return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
+    }
   }
 
   // If no API key, use the demo mode with simulated responses
   if (!apiKey) {
+    if (options.forceRealAPI) {
+      throw new Error('Claude API key required for LLM-driven training data generation');
+    }
     return simulateClaudeResponse(message, robotType, currentState, conversationHistory, fullState.objects);
   }
 
@@ -1878,17 +1897,31 @@ function simulateHumanoidResponse(message: string, _state: HumanoidState): Claud
 let storedApiKey: string | null = null;
 
 /**
+ * Validate and clean Claude API key
+ */
+function cleanApiKey(key: string | null): string | null {
+  if (!key) return null;
+  // Trim whitespace and newlines
+  const cleaned = key.trim().replace(/[\r\n]/g, '');
+  if (!cleaned) return null;
+  // Log prefix for debugging (never log full key)
+  const prefix = cleaned.substring(0, 12);
+  log.debug(`API key prefix: ${prefix}...`);
+  return cleaned;
+}
+
+/**
  * Set Claude API key
  * Note: For security, API keys are only stored in memory by default.
  * Enable localStorage storage only for development convenience.
  */
 export function setClaudeApiKey(key: string | null, persistToStorage = false) {
-  storedApiKey = key;
+  storedApiKey = cleanApiKey(key);
   if (persistToStorage) {
-    if (key) {
+    if (storedApiKey) {
       // Warn about security implications
       log.warn('Storing API key in localStorage. This is insecure for production use.');
-      localStorage.setItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY, key);
+      localStorage.setItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY, storedApiKey);
     } else {
       localStorage.removeItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
     }
@@ -1901,7 +1934,12 @@ export function setClaudeApiKey(key: string | null, persistToStorage = false) {
 export function getClaudeApiKey(): string | null {
   if (storedApiKey) return storedApiKey;
   // Check localStorage as fallback (for development convenience)
-  storedApiKey = localStorage.getItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
+  const stored = localStorage.getItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
+  storedApiKey = cleanApiKey(stored);
+  // Update storage with cleaned version if needed
+  if (stored && storedApiKey && stored !== storedApiKey) {
+    localStorage.setItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY, storedApiKey);
+  }
   return storedApiKey;
 }
 

@@ -128,32 +128,67 @@ export class MediaPipeVision {
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
       );
 
-      // Initialize hand landmarker
-      this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-          delegate: 'GPU',
-        },
-        runningMode: this.config.runningMode,
-        numHands: this.config.numHands,
-        minHandDetectionConfidence: this.config.minHandDetectionConfidence,
-        minHandPresenceConfidence: this.config.minHandPresenceConfidence,
-        minTrackingConfidence: this.config.minTrackingConfidence,
-      });
+      // Initialize hand landmarker - try GPU first, fall back to CPU
+      try {
+        this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            delegate: 'GPU',
+          },
+          runningMode: this.config.runningMode,
+          numHands: this.config.numHands,
+          minHandDetectionConfidence: this.config.minHandDetectionConfidence,
+          minHandPresenceConfidence: this.config.minHandPresenceConfidence,
+          minTrackingConfidence: this.config.minTrackingConfidence,
+        });
+        console.log('[MediaPipe] Hand landmarker initialized with GPU');
+      } catch (gpuError) {
+        console.warn('[MediaPipe] GPU delegate failed, falling back to CPU:', gpuError);
+        this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            delegate: 'CPU',
+          },
+          runningMode: this.config.runningMode,
+          numHands: this.config.numHands,
+          minHandDetectionConfidence: this.config.minHandDetectionConfidence,
+          minHandPresenceConfidence: this.config.minHandPresenceConfidence,
+          minTrackingConfidence: this.config.minTrackingConfidence,
+        });
+        console.log('[MediaPipe] Hand landmarker initialized with CPU fallback');
+      }
 
-      // Initialize pose landmarker
-      this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU',
-        },
-        runningMode: this.config.runningMode,
-        minPoseDetectionConfidence: this.config.minPoseDetectionConfidence,
-        minPosePresenceConfidence: this.config.minPosePresenceConfidence,
-        minTrackingConfidence: this.config.minTrackingConfidence,
-      });
+      // Initialize pose landmarker - try GPU first, fall back to CPU
+      try {
+        this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+            delegate: 'GPU',
+          },
+          runningMode: this.config.runningMode,
+          minPoseDetectionConfidence: this.config.minPoseDetectionConfidence,
+          minPosePresenceConfidence: this.config.minPosePresenceConfidence,
+          minTrackingConfidence: this.config.minTrackingConfidence,
+        });
+        console.log('[MediaPipe] Pose landmarker initialized with GPU');
+      } catch (gpuError) {
+        console.warn('[MediaPipe] Pose GPU delegate failed, falling back to CPU:', gpuError);
+        this.poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+            delegate: 'CPU',
+          },
+          runningMode: this.config.runningMode,
+          minPoseDetectionConfidence: this.config.minPoseDetectionConfidence,
+          minPosePresenceConfidence: this.config.minPosePresenceConfidence,
+          minTrackingConfidence: this.config.minTrackingConfidence,
+        });
+        console.log('[MediaPipe] Pose landmarker initialized with CPU fallback');
+      }
 
       this.isInitialized = true;
     } catch (error) {

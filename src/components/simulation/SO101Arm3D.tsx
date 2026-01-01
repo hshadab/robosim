@@ -134,7 +134,8 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
   // Update joint positions
   // CRITICAL: Read directly from store to avoid React prop timing issues
   // Props only update on re-render, but useFrame runs every animation frame
-  useFrame(() => {
+  // Priority -1 ensures arm updates BEFORE GraspManager reads gripper position
+  useFrame((_, delta) => {
     if (!robotRef.current) return;
 
     // Read latest joint values directly from store (not props!) to avoid 1-frame lag
@@ -207,7 +208,7 @@ const URDFRobot: React.FC<SO101ArmProps> = ({ joints }) => {
         gripperWorldQuat.current.w,
       ]);
     }
-  });
+  }, -1); // Priority -1: run BEFORE GraspManager
 
   return (
     <group ref={groupRef}>

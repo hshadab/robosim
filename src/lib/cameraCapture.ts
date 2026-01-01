@@ -177,6 +177,147 @@ export function captureFromCanvas(
 }
 
 /**
+ * Domain randomization settings for sim-to-real transfer
+ */
+export interface AugmentationConfig {
+  /** Gaussian noise sigma (0-50, typical: 5-15) */
+  noiseSigma?: number;
+  /** Motion blur strength (0-10 pixels) */
+  motionBlurStrength?: number;
+  /** Brightness variation (-50 to 50) */
+  brightnessVariation?: number;
+  /** Contrast variation (0.7 to 1.3) */
+  contrastVariation?: number;
+}
+
+/**
+ * Apply domain randomization augmentations to an image for sim-to-real transfer
+ * Simulates real camera imperfections: noise, motion blur, lighting variations
+ */
+export async function applyAugmentations(
+  base64: string,
+  config: AugmentationConfig = {}
+): Promise<string> {
+  const {
+    noiseSigma = 0,
+    motionBlurStrength = 0,
+    brightnessVariation = 0,
+    contrastVariation = 1.0,
+  } = config;
+
+  // If no augmentations needed, return original
+  if (noiseSigma === 0 && motionBlurStrength === 0 &&
+      brightnessVariation === 0 && contrastVariation === 1.0) {
+    return base64;
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Draw original image
+      ctx.drawImage(img, 0, 0);
+
+      // Apply contrast and brightness
+      if (brightnessVariation !== 0 || contrastVariation !== 1.0) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          // Apply contrast (centered at 128)
+          data[i] = Math.min(255, Math.max(0, (data[i] - 128) * contrastVariation + 128 + brightnessVariation));
+          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * contrastVariation + 128 + brightnessVariation));
+          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * contrastVariation + 128 + brightnessVariation));
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Apply Gaussian noise (simulates sensor noise)
+      if (noiseSigma > 0) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          // Box-Muller transform for Gaussian noise
+          const u1 = Math.random();
+          const u2 = Math.random();
+          const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          const noise = z0 * noiseSigma;
+
+          data[i] = Math.min(255, Math.max(0, data[i] + noise));
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Apply motion blur (simulates camera/arm movement)
+      if (motionBlurStrength > 0) {
+        // Simple horizontal motion blur using multiple offset renders
+        const blurCanvas = document.createElement('canvas');
+        blurCanvas.width = canvas.width;
+        blurCanvas.height = canvas.height;
+        const blurCtx = blurCanvas.getContext('2d');
+        if (blurCtx) {
+          const samples = 5;
+          blurCtx.globalAlpha = 1 / samples;
+          for (let s = 0; s < samples; s++) {
+            const offset = (s - (samples - 1) / 2) * (motionBlurStrength / samples);
+            blurCtx.drawImage(canvas, offset, 0);
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(blurCanvas, 0, 0);
+        }
+      }
+
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('Failed to load image for augmentation'));
+    img.src = base64;
+  });
+}
+
+/**
+ * Generate random augmentation config for domain randomization
+ * Call once per episode for consistent augmentation within episode
+ */
+export function randomAugmentationConfig(): AugmentationConfig {
+  return {
+    noiseSigma: Math.random() * 10, // 0-10 sigma
+    motionBlurStrength: Math.random() * 3, // 0-3 pixels
+    brightnessVariation: (Math.random() - 0.5) * 30, // -15 to +15
+    contrastVariation: 0.9 + Math.random() * 0.2, // 0.9 to 1.1
+  };
+}
+
+/**
+ * Capture frame with optional augmentation for sim-to-real training
+ */
+export function captureAugmentedFrame(
+  canvas: HTMLCanvasElement,
+  cameraPosition: 'gripper' | 'base' | 'overhead' = 'overhead',
+  augmentConfig?: AugmentationConfig
+): Promise<CapturedFrame | null> {
+  const frame = captureFromCanvas(canvas, cameraPosition);
+  if (!frame) return Promise.resolve(null);
+
+  if (!augmentConfig) {
+    return Promise.resolve(frame);
+  }
+
+  return applyAugmentations(frame.imageData, augmentConfig).then(augmentedData => ({
+    ...frame,
+    imageData: augmentedData,
+  }));
+}
+
+/**
  * Resize and compress an image for efficient storage
  */
 export function compressImage(

@@ -4,9 +4,29 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 > **WebGPU Powered** - Uses the next-generation WebGPU API for faster rendering with automatic WebGL fallback for older browsers.
 
-## Recent Updates (December 2024)
+## Recent Updates (January 2025)
 
-### Production-Ready Sim-to-Real Transfer (NEW)
+### Enhanced LeRobot Export (NEW)
+Major improvements to make exported datasets more realistic for sim-to-real transfer:
+
+**Data Format Improvements**
+- **Joint Units in Radians** - All joint angles now exported in radians (LeRobot standard), gripper normalized 0-1
+- **30Hz Recording Rate** - Matches LeRobot standard control rate (was 60fps)
+- **10Hz Camera Capture** - Images captured during motion at 10Hz, synced to nearest frames
+
+**Image Domain Randomization**
+- **Gaussian Noise** - Random sensor noise (0-10 sigma per episode)
+- **Motion Blur** - Simulates camera/arm movement (0-3px)
+- **Brightness Variation** - ±15 brightness adjustment per episode
+- **Contrast Variation** - 0.9-1.1x contrast scaling
+
+**HuggingFace Dataset Card**
+- **YAML Front Matter** - Proper metadata for Hub discovery (license, tags, size)
+- **Training Commands** - ACT and Diffusion policy commands included
+- **Sim-to-Real Tips** - Camera calibration, action scaling, gripper mapping
+- **Citation Info** - BibTeX for proper attribution
+
+### Production-Ready Sim-to-Real Transfer
 Complete pipeline for generating transfer-ready synthetic training data:
 
 **Visual Domain Randomization**
