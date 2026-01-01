@@ -54,7 +54,7 @@ import { captureFromCanvas, randomAugmentationConfig, applyAugmentations, type A
 const log = createLogger('TrainFlow');
 
 // Number of demos to generate for training data
-const BATCH_COUNT = 5;
+const BATCH_COUNT = 10;
 
 /**
  * Catmull-Rom spline interpolation for smooth motion through waypoints
@@ -475,19 +475,25 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       "grasp the cube",
     ];
 
-    // Generate varied positions with x from 0.17-0.18 (tested reliable range)
-    // x=0.16 causes grasp failures, x=0.19+ may be out of reach
+    // Generate varied positions with x from 0.16-0.20 (expanded range for training variety)
+    // Z range ±3cm for wider lateral coverage
+    // Positions distributed across the expanded workspace
     const positions: Array<{ x: number; z: number }> = [
-      { x: 0.17, z: 0.00 },   // Mid center
-      { x: 0.18, z: 0.01 },   // Far slight right
-      { x: 0.17, z: 0.015 },  // Mid slight right
-      { x: 0.18, z: -0.01 },  // Far slight left
-      { x: 0.17, z: -0.01 },  // Mid slight left
-      { x: 0.18, z: 0.02 },   // Far right
-      { x: 0.17, z: 0.02 },   // Mid right
-      { x: 0.18, z: -0.02 },  // Far left
-      { x: 0.17, z: -0.015 }, // Mid left
-      { x: 0.18, z: 0.00 },   // Far center
+      { x: 0.16, z: 0.00 },   // Near center
+      { x: 0.17, z: 0.02 },   // Mid-near right
+      { x: 0.18, z: -0.02 },  // Mid left
+      { x: 0.19, z: 0.01 },   // Mid-far slight right
+      { x: 0.20, z: 0.00 },   // Far center
+      { x: 0.16, z: -0.03 },  // Near far left
+      { x: 0.17, z: 0.03 },   // Mid-near far right
+      { x: 0.18, z: 0.00 },   // Mid center
+      { x: 0.19, z: -0.02 },  // Mid-far left
+      { x: 0.20, z: 0.02 },   // Far right
+      { x: 0.16, z: 0.015 },  // Near slight right
+      { x: 0.17, z: -0.015 }, // Mid-near slight left
+      { x: 0.18, z: 0.025 },  // Mid right
+      { x: 0.19, z: -0.01 },  // Mid-far slight left
+      { x: 0.20, z: -0.025 }, // Far left
     ];
 
     setIsDemoRunning(true);
