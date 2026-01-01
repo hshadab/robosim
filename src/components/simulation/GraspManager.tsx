@@ -333,7 +333,7 @@ export const GraspManager: React.FC = () => {
     }
 
     prevGripperValue.current = currentGripper;
-  }, 1); // Priority 1: run AFTER arm updates gripper position (priority -1)
+  }); // Removed priority 1 - it caused rendering to break on Intel Arc GPU
 
   return null; // This is a logic-only component
 };
