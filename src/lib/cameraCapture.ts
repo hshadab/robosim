@@ -217,7 +217,8 @@ export async function applyAugmentations(
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
+      // Use willReadFrequently for better performance with multiple getImageData calls
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) {
         reject(new Error('Could not get canvas context'));
         return;
@@ -226,33 +227,40 @@ export async function applyAugmentations(
       // Draw original image
       ctx.drawImage(img, 0, 0);
 
-      // Apply contrast and brightness
-      if (brightnessVariation !== 0 || contrastVariation !== 1.0) {
+      // Get imageData once and apply all pixel-level augmentations
+      const needsPixelOps = brightnessVariation !== 0 || contrastVariation !== 1.0 || noiseSigma > 0;
+      if (needsPixelOps) {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          // Apply contrast (centered at 128)
-          data[i] = Math.min(255, Math.max(0, (data[i] - 128) * contrastVariation + 128 + brightnessVariation));
-          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * contrastVariation + 128 + brightnessVariation));
-          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * contrastVariation + 128 + brightnessVariation));
-        }
-        ctx.putImageData(imageData, 0, 0);
-      }
 
-      // Apply Gaussian noise (simulates sensor noise)
-      if (noiseSigma > 0) {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
         for (let i = 0; i < data.length; i += 4) {
-          // Box-Muller transform for Gaussian noise
-          const u1 = Math.random();
-          const u2 = Math.random();
-          const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-          const noise = z0 * noiseSigma;
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
 
-          data[i] = Math.min(255, Math.max(0, data[i] + noise));
-          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
-          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+          // Apply contrast and brightness
+          if (brightnessVariation !== 0 || contrastVariation !== 1.0) {
+            r = (r - 128) * contrastVariation + 128 + brightnessVariation;
+            g = (g - 128) * contrastVariation + 128 + brightnessVariation;
+            b = (b - 128) * contrastVariation + 128 + brightnessVariation;
+          }
+
+          // Apply Gaussian noise (simulates sensor noise)
+          if (noiseSigma > 0) {
+            // Box-Muller transform for Gaussian noise
+            const u1 = Math.random();
+            const u2 = Math.random();
+            const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+            const noise = z0 * noiseSigma;
+            r += noise;
+            g += noise;
+            b += noise;
+          }
+
+          // Clamp values
+          data[i] = Math.min(255, Math.max(0, r));
+          data[i + 1] = Math.min(255, Math.max(0, g));
+          data[i + 2] = Math.min(255, Math.max(0, b));
         }
         ctx.putImageData(imageData, 0, 0);
       }
