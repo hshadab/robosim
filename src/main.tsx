@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
@@ -17,10 +16,10 @@ envValidation.warnings.forEach(warning => {
   log.warn(warning);
 });
 
+// StrictMode disabled - causes double-mounting which crashes Intel Arc GPU WebGL
+// The GPU can't handle two WebGL contexts being created simultaneously
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary name="RoboSim App">
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
+  <ErrorBoundary name="RoboSim App">
+    <App />
+  </ErrorBoundary>,
 )
