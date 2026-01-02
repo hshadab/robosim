@@ -435,7 +435,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     // Check usage limits
     const tier = useAuthStore.getState().getTier();
-    const { canRunDemos, getDemosRemaining, incrementDemos, resetIfNewDay } = useUsageStore.getState();
+    const { canRunDemos, getDemosRemaining, resetIfNewDay } = useUsageStore.getState();
     resetIfNewDay(); // Reset counter if new day
 
     if (!canRunDemos(tier)) {
@@ -543,156 +543,8 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     const collectedEpisodes: Episode[] = [];
     const collectedQuality: ReturnType<typeof calculateQualityMetrics>[] = [];
 
-    // Define smoothMove ONCE outside the loop (not recreated each iteration)
+    // Get store methods for animation
     const { clearObjects, setJoints } = useAppStore.getState();
-
-    // Time-based smooth move with abort checking and frame recording
-    // Animates visually AND generates synthetic frames at 30fps for training data
-    // Also captures images at 10Hz during visual animation for LeRobot training
-    // Optional image augmentation (noise, blur, lighting) for sim-to-real transfer
-    const smoothMove = async (
-      targetJoints: Partial<ReturnType<typeof useAppStore.getState>['joints']>,
-      durationMs: number,
-      recordTo?: { timestamp: number; jointPositions: number[]; image?: string }[],
-      recordStartTime?: number,
-      moveLabel?: string,
-      captureImages?: boolean, // Enable image capture at 10Hz during animation
-      augmentConfig?: AugmentationConfig // Domain randomization config for sim-to-real
-    ): Promise<boolean> => {
-      if (abortRef.current.aborted) {
-        console.log(`[BatchDemo] smoothMove(${moveLabel}) - ABORTED`);
-        return false;
-      }
-
-      const startJoints = { ...useAppStore.getState().joints };
-      const moveStartTime = Date.now();
-      const frameInterval = 50; // 20fps - reduces setTimeout overhead in headed browsers
-
-      console.log(`[BatchDemo] smoothMove(${moveLabel}) START - duration=${durationMs}ms, gripper=${targetJoints.gripper ?? 'unchanged'}`);
-
-      // Generate synthetic frames at 30fps to match LeRobot standard
-      // This ensures consistent data regardless of browser timer throttling
-      if (recordTo && recordStartTime !== undefined) {
-        const recordInterval = 33; // ~30fps - LeRobot standard control rate
-        const numFrames = Math.ceil(durationMs / recordInterval);
-
-        for (let f = 0; f <= numFrames; f++) {
-          const t = Math.min(1, f / numFrames);
-          // Ease-in-out cubic for natural motion
-          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-          const frameJoints: number[] = [
-            startJoints.base + ((targetJoints.base ?? startJoints.base) - startJoints.base) * ease,
-            startJoints.shoulder + ((targetJoints.shoulder ?? startJoints.shoulder) - startJoints.shoulder) * ease,
-            startJoints.elbow + ((targetJoints.elbow ?? startJoints.elbow) - startJoints.elbow) * ease,
-            startJoints.wrist + ((targetJoints.wrist ?? startJoints.wrist) - startJoints.wrist) * ease,
-            startJoints.wristRoll + ((targetJoints.wristRoll ?? startJoints.wristRoll) - startJoints.wristRoll) * ease,
-            startJoints.gripper + ((targetJoints.gripper ?? startJoints.gripper) - startJoints.gripper) * ease,
-          ];
-
-          recordTo.push({
-            timestamp: (moveStartTime - recordStartTime) + (f * recordInterval),
-            jointPositions: frameJoints,
-          });
-        }
-      }
-
-      // Animate visually using requestAnimationFrame for smooth rendering
-      // Captures images at 10Hz during animation for LeRobot training data
-      return new Promise<boolean>((resolve) => {
-        let rafId: number | null = null;
-        let lastImageCapture = 0;
-        const IMAGE_CAPTURE_INTERVAL = 100; // 10Hz image capture during animation
-        const capturedImagesMap: Map<number, string> = new Map(); // timestamp -> image
-
-        const animate = () => {
-          if (abortRef.current.aborted) {
-            if (rafId) cancelAnimationFrame(rafId);
-            resolve(false);
-            return;
-          }
-
-          const now = Date.now();
-          const elapsed = now - moveStartTime;
-          const t = Math.min(1, elapsed / durationMs);
-
-          // Ease-in-out cubic for natural motion
-          const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-          const interpolated: Partial<typeof startJoints> = {};
-          for (const key of Object.keys(targetJoints) as (keyof typeof targetJoints)[]) {
-            const start = startJoints[key];
-            const end = targetJoints[key];
-            if (typeof start === 'number' && typeof end === 'number') {
-              interpolated[key] = start + (end - start) * ease;
-            }
-          }
-          setJoints(interpolated);
-
-          // Capture images at 10Hz during animation if enabled
-          // Apply domain randomization augmentation for sim-to-real transfer
-          if (captureImages && recordTo && recordStartTime !== undefined) {
-            const timeSinceLastCapture = now - lastImageCapture;
-            if (timeSinceLastCapture >= IMAGE_CAPTURE_INTERVAL || lastImageCapture === 0) {
-              const demoCanvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-              if (demoCanvas) {
-                const captured = captureFromCanvas(demoCanvas, 'overhead');
-                if (captured && captured.imageData.length > 100) {
-                  // Store with relative timestamp from recording start
-                  const relativeTimestamp = now - recordStartTime;
-                  // Apply augmentation if config provided (async, but we don't wait)
-                  if (augmentConfig) {
-                    applyAugmentations(captured.imageData, augmentConfig).then(augmented => {
-                      capturedImagesMap.set(relativeTimestamp, augmented);
-                    }).catch(() => {
-                      // Fall back to original on augmentation failure
-                      capturedImagesMap.set(relativeTimestamp, captured.imageData);
-                    });
-                  } else {
-                    capturedImagesMap.set(relativeTimestamp, captured.imageData);
-                  }
-                }
-              }
-              lastImageCapture = now;
-            }
-          }
-
-          if (t < 1) {
-            // Use requestAnimationFrame for smooth visual updates
-            rafId = requestAnimationFrame(animate);
-          } else {
-            setJoints(targetJoints);
-
-            // Attach captured images to nearest frames in recordTo
-            if (captureImages && recordTo && capturedImagesMap.size > 0) {
-              for (const [imgTimestamp, imgData] of capturedImagesMap) {
-                // Find the frame with closest timestamp
-                let closestIdx = 0;
-                let closestDiff = Infinity;
-                for (let i = 0; i < recordTo.length; i++) {
-                  const diff = Math.abs(recordTo[i].timestamp - imgTimestamp);
-                  if (diff < closestDiff) {
-                    closestDiff = diff;
-                    closestIdx = i;
-                  }
-                }
-                // Only attach if within 50ms of frame timestamp
-                if (closestDiff < 50 && !recordTo[closestIdx].image) {
-                  recordTo[closestIdx].image = imgData;
-                }
-              }
-            }
-
-            const actualElapsed = Date.now() - moveStartTime;
-            console.log(`[BatchDemo] smoothMove(${moveLabel}) DONE - actual=${actualElapsed}ms (expected ${durationMs}ms), captured ${capturedImagesMap.size} images`);
-            resolve(true);
-          }
-        };
-
-        // Start animation
-        rafId = requestAnimationFrame(animate);
-      });
-    };
 
     // Helper for abortable delay
     const delay = (ms: number): Promise<boolean> => {
@@ -980,10 +832,38 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           const currentObjects = useAppStore.getState().objects;
           const fullState: FullRobotState = {
             joints: currentJoints,
-            wheeledRobot: { leftWheelSpeed: 0, rightWheelSpeed: 0 },
-            drone: { throttle: 0, position: [0, 0, 0], rotation: [0, 0, 0], armed: false, flightMode: 'stabilize' },
-            humanoid: {},
-            sensors: { distance: 0, light: 0, temperature: 20 },
+            wheeledRobot: {
+              leftWheelSpeed: 0,
+              rightWheelSpeed: 0,
+              position: { x: 0, y: 0, z: 0 },
+              heading: 0,
+              velocity: 0,
+              angularVelocity: 0,
+              servoHead: 0,
+            },
+            drone: {
+              throttle: 0,
+              position: { x: 0, y: 0, z: 0 },
+              rotation: { x: 0, y: 0, z: 0 },
+              velocity: { x: 0, y: 0, z: 0 },
+              armed: false,
+              flightMode: 'stabilize',
+              motorsRPM: [0, 0, 0, 0],
+            },
+            humanoid: {
+              position: { x: 0, y: 0, z: 0 },
+              rotation: { x: 0, y: 0, z: 0 },
+              leftHipPitch: 0, leftHipRoll: 0, leftHipYaw: 0,
+              leftKnee: 0, leftAnklePitch: 0, leftAnkleRoll: 0,
+              rightHipPitch: 0, rightHipRoll: 0, rightHipYaw: 0,
+              rightKnee: 0, rightAnklePitch: 0, rightAnkleRoll: 0,
+              leftShoulderPitch: 0, leftShoulderRoll: 0, leftShoulderYaw: 0,
+              leftElbow: 0, leftWrist: 0,
+              rightShoulderPitch: 0, rightShoulderRoll: 0, rightShoulderYaw: 0,
+              rightElbow: 0, rightWrist: 0,
+              isWalking: false, walkPhase: 0, balance: { x: 0, z: 0 },
+            },
+            sensors: {},
             isAnimating: false,
             objects: currentObjects,
           };
@@ -1106,14 +986,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               metadata: {
                 robotType: 'arm',
                 robotId: selectedRobotId,
-                task: 'pick_cube',
-                languageInstruction: `Pick up the cube at [${(pos.x*100).toFixed(0)}, 2, ${(pos.z*100).toFixed(0)}]cm`,
+                task: 'pick_object',
+                languageInstruction: `Pick up the ${objectName} at [${(pos.x*100).toFixed(0)}, 2, ${(pos.z*100).toFixed(0)}]cm`,
                 duration,
                 frameCount: frames.length,
                 recordedAt: new Date().toISOString(),
-                graspSuccess,
-                cubePosition: [pos.x, 0.02, pos.z],
-                finalCubeY: cubeY,
+                success: graspSuccess,
               },
             };
 
@@ -1140,7 +1018,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       if (collectedEpisodes.length > 0 && !abortRef.current.aborted) {
         console.log(`[BatchDemo] ========== ALL DEMOS COMPLETE ==========`);
         console.log(`[BatchDemo] Total episodes collected: ${collectedEpisodes.length}/${BATCH_COUNT}`);
-        const successCount = collectedEpisodes.filter(e => e.metadata.graspSuccess).length;
+        const successCount = collectedEpisodes.filter(e => e.metadata.success).length;
         console.log(`[BatchDemo] Successful grasps: ${successCount}/${collectedEpisodes.length}`);
 
         // Increment usage counter (1 demo run = 1 usage, regardless of episode count)

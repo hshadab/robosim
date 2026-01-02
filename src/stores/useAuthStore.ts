@@ -340,7 +340,7 @@ export const useAuthStore = create<AuthState>()(
           hasState: !!rehydratedState,
           isAuthenticated: rehydratedState?.isAuthenticated,
           userId: rehydratedState?.user?.id,
-          error: error?.message,
+          error: error instanceof Error ? error.message : String(error),
         });
 
         // Check if we have mock auth (test mode) - if so, skip Supabase

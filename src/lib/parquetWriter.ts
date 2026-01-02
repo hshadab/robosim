@@ -42,7 +42,7 @@ export interface ArrowSchema {
  * Includes velocity field for sim-to-real transfer
  */
 export function createArrowSchema(numJoints = 6, includeVelocity = true): ArrowSchema {
-  const fields = [
+  const fields: ArrowSchema['fields'] = [
     { name: 'observation.state', type: 'FixedSizeList<Float32>', listSize: numJoints },
   ];
 
@@ -50,14 +50,12 @@ export function createArrowSchema(numJoints = 6, includeVelocity = true): ArrowS
     fields.push({ name: 'observation.velocity', type: 'FixedSizeList<Float32>', listSize: numJoints });
   }
 
-  fields.push(
-    { name: 'action', type: 'FixedSizeList<Float32>', listSize: numJoints },
-    { name: 'episode_index', type: 'Int64' },
-    { name: 'frame_index', type: 'Int64' },
-    { name: 'timestamp', type: 'Float32' },
-    { name: 'next.done', type: 'Bool' },
-    { name: 'task_index', type: 'Int64' },
-  );
+  fields.push({ name: 'action', type: 'FixedSizeList<Float32>', listSize: numJoints });
+  fields.push({ name: 'episode_index', type: 'Int64' });
+  fields.push({ name: 'frame_index', type: 'Int64' });
+  fields.push({ name: 'timestamp', type: 'Float32' });
+  fields.push({ name: 'next.done', type: 'Bool' });
+  fields.push({ name: 'task_index', type: 'Int64' });
 
   return { fields };
 }
