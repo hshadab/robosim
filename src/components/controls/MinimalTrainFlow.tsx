@@ -25,6 +25,7 @@ import type { Episode, Frame } from '../../lib/datasetExporter';
 import { generateTrainableObject as generateFalObject } from '../../lib/falImageTo3D';
 import { useLLMChat } from '../../hooks/useLLMChat';
 import { getClaudeApiKey, setClaudeApiKey, callClaudeAPI, type FullRobotState, type ClaudeResponse } from '../../lib/claudeApi';
+import type { JointState } from '../../types';
 import { getFalApiKey, setFalApiKey, getHfToken, setHfToken } from '../../lib/apiKeys';
 import { getOptimalPlacement } from '../../lib/workspacePlacement';
 import {
@@ -53,6 +54,7 @@ import { captureFromCanvas, randomAugmentationConfig, applyAugmentations, type A
 import { useUsageStore } from '../../stores/useUsageStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { TIER_LIMITS } from '../../lib/supabase';
+import { TARGET_ZONES, generatePlaceSequence, type TargetZone } from '../../lib/placeExamples';
 
 const log = createLogger('TrainFlow');
 
@@ -177,6 +179,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Upgrade prompt
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
+  // LLM prompt debug display
+  const [currentLLMPrompt, setCurrentLLMPrompt] = useState<string | null>(null);
+  const [currentLLMResponse, setCurrentLLMResponse] = useState<string | null>(null);
+  const [showPromptDebug, setShowPromptDebug] = useState(false);
+  const [demoResults, setDemoResults] = useState<Array<{ demo: number; prompt: string; response: string; success: boolean }>>([]);
 
   // Abort controller for cancelling demos
   const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
@@ -510,8 +518,15 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     console.log('[BatchDemo] Claude API key found ✓');
 
     // Varied natural language prompts for realistic training data
-    // Prompt generator based on task type
-    const getObjectPrompt = (type: string, color: string, task: string, secondObj?: { type: string; color: string }): string => {
+    // Prompt generator based on task type - includes coordinates for place task
+    const getObjectPrompt = (
+      type: string,
+      color: string,
+      task: string,
+      objectPos: { x: number; z: number },
+      secondObj?: { type: string; color: string },
+      targetZone?: TargetZone
+    ): string => {
       if (task === 'pickup') {
         const templates = [
           `pick up the ${color} ${type}`,
@@ -528,13 +543,16 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           `place the ${color} ${type} on the ${secondObj.color} ${secondObj.type}`,
         ];
         return templates[Math.floor(Math.random() * templates.length)];
-      } else if (task === 'place') {
-        const sides = ['left', 'right', 'center'];
-        const side = sides[Math.floor(Math.random() * sides.length)];
+      } else if (task === 'place' && targetZone) {
+        // Include specific coordinates for place task - this helps LLM accuracy significantly
+        const srcX = (objectPos.x * 100).toFixed(0);
+        const srcZ = (objectPos.z * 100).toFixed(0);
+        const tgtX = (targetZone.position[0] * 100).toFixed(0);
+        const tgtZ = (targetZone.position[2] * 100).toFixed(0);
         const templates = [
-          `place the ${color} ${type} on the ${side}`,
-          `put the ${type} on the ${side} side`,
-          `move the ${type} to the ${side}`,
+          `pick up the ${color} ${type} at [${srcX}, 2, ${srcZ}]cm and place it at the ${targetZone.id} zone [${tgtX}, 2, ${tgtZ}]cm`,
+          `move the ${color} ${type} from [${srcX}, 2, ${srcZ}]cm to ${targetZone.description} at [${tgtX}, 2, ${tgtZ}]cm`,
+          `grab the ${type} and put it on the ${targetZone.id} at position [${tgtX}, 2, ${tgtZ}]cm`,
         ];
         return templates[Math.floor(Math.random() * templates.length)];
       }
@@ -565,6 +583,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     setIsDemoRunning(true);
     setError(null);
     setBatchProgress({ current: 0, total: BATCH_COUNT });
+    setDemoResults([]); // Clear previous demo results
+    setCurrentLLMPrompt(null);
+    setCurrentLLMResponse(null);
 
     const collectedEpisodes: Episode[] = [];
     const collectedQuality: ReturnType<typeof calculateQualityMetrics>[] = [];
@@ -810,9 +831,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         if (!await delay(500)) break;
 
         // Select random object type for variety
-        // For stack task, only use cubes (balls roll, cylinders are tricky)
+        // For stack and place tasks, only use cubes (balls roll, cylinders are tricky to place)
         const cubesOnly = objectTemplates.filter(o => o.type === 'cube');
-        const templatePool = taskType === 'stack' ? cubesOnly : objectTemplates;
+        const templatePool = (taskType === 'stack' || taskType === 'place') ? cubesOnly : objectTemplates;
+
+        // For place task, select a target zone
+        const zoneKeys = Object.keys(TARGET_ZONES) as Array<'left' | 'center' | 'right'>;
+        const selectedZone = TARGET_ZONES[zoneKeys[i % zoneKeys.length]];
 
         const objChoice = templatePool[i % templatePool.length];
         const objectTemplate = objChoice.template;
@@ -869,8 +894,14 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
         try {
           // Select a varied natural language prompt for this demo based on task type
-          const prompt = getObjectPrompt(objectType, objectColor, taskType, secondObj);
+          const prompt = getObjectPrompt(objectType, objectColor, taskType, pos, secondObj, selectedZone);
           console.log(`[BatchDemo] Demo ${i+1} - Task: ${taskType}, LLM Prompt: "${prompt}"`);
+          if (taskType === 'place') {
+            console.log(`[BatchDemo] Demo ${i+1} - Target zone: ${selectedZone.id} at [${(selectedZone.position[0]*100).toFixed(0)}, ${(selectedZone.position[1]*100).toFixed(0)}, ${(selectedZone.position[2]*100).toFixed(0)}]cm`);
+          }
+
+          // Update UI with current prompt for debugging
+          setCurrentLLMPrompt(prompt);
 
           // Build full robot state for LLM context
           const currentJoints = useAppStore.getState().joints;
@@ -913,36 +944,53 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             objects: currentObjects,
           };
 
-          // Call Claude API with forceRealAPI to get LLM-generated motion
-          console.log(`[BatchDemo] Demo ${i+1} - Calling Claude API...`);
-          const llmStartTime = Date.now();
-          let llmResponse: ClaudeResponse;
-          try {
-            llmResponse = await callClaudeAPI(
-              prompt,
-              'arm',
-              fullState,
-              claudeApiKey,
-              [], // No conversation history needed
-              { forceRealAPI: true }
-            );
-          } catch (apiError) {
-            console.error(`[BatchDemo] Demo ${i+1} - API Error:`, apiError);
-            throw apiError;
-          }
-          const llmDuration = Date.now() - llmStartTime;
-          console.log(`[BatchDemo] Demo ${i+1} - LLM Response in ${llmDuration}ms:`, llmResponse.action, llmResponse.description);
+          // For place task, use template-based sequences for reliability
+          // LLM can be used for pickup but place needs precise target positioning
+          let jointSequence: Partial<JointState>[];
+          let llmResponseDesc = '';
 
-          // Extract joint sequence from LLM response
-          if (!llmResponse.joints) {
-            console.error(`[BatchDemo] Demo ${i+1} - No joints in LLM response`);
-            throw new Error('LLM did not return joint commands');
-          }
+          if (taskType === 'place') {
+            // Use template-based place sequence (more reliable than LLM)
+            console.log(`[BatchDemo] Demo ${i+1} - Using TEMPLATE-based place (LLM-free for reliability)`);
+            const objPosArray: [number, number, number] = [pos.x, y, pos.z];
+            jointSequence = generatePlaceSequence(objPosArray, selectedZone.id, objectType as 'cube' | 'cylinder');
+            llmResponseDesc = `Template: Pick from [${(pos.x*100).toFixed(0)}, ${(pos.z*100).toFixed(0)}]cm, place at ${selectedZone.id}`;
+            setCurrentLLMResponse(`[Template-Based] ${llmResponseDesc}`);
+            console.log(`[BatchDemo] Demo ${i+1} - Generated ${jointSequence.length} template waypoints`);
+          } else {
+            // Call Claude API for pickup/stack tasks
+            console.log(`[BatchDemo] Demo ${i+1} - Calling Claude API...`);
+            const llmStartTime = Date.now();
+            let llmResponse: ClaudeResponse;
+            try {
+              llmResponse = await callClaudeAPI(
+                prompt,
+                'arm',
+                fullState,
+                claudeApiKey,
+                [], // No conversation history needed
+                { forceRealAPI: true }
+              );
+            } catch (apiError) {
+              console.error(`[BatchDemo] Demo ${i+1} - API Error:`, apiError);
+              throw apiError;
+            }
+            const llmDuration = Date.now() - llmStartTime;
+            llmResponseDesc = llmResponse.description || 'No description';
+            console.log(`[BatchDemo] Demo ${i+1} - LLM Response in ${llmDuration}ms:`, llmResponse.action, llmResponseDesc);
+            setCurrentLLMResponse(`[LLM] ${llmResponseDesc}`);
 
-          // Handle both single joint object and sequence array
-          const jointSequence = Array.isArray(llmResponse.joints)
-            ? llmResponse.joints
-            : [llmResponse.joints];
+            // Extract joint sequence from LLM response
+            if (!llmResponse.joints) {
+              console.error(`[BatchDemo] Demo ${i+1} - No joints in LLM response`);
+              throw new Error('LLM did not return joint commands');
+            }
+
+            // Handle both single joint object and sequence array
+            jointSequence = Array.isArray(llmResponse.joints)
+              ? llmResponse.joints
+              : [llmResponse.joints];
+          }
 
           console.log(`[BatchDemo] Demo ${i+1} - Executing ${jointSequence.length} waypoints as continuous trajectory`);
 
@@ -995,6 +1043,14 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           const objY = targetObj?.position?.[1] ?? 0;
           const graspSuccess = objY > 0.05;
           console.log(`[BatchDemo] Demo ${i+1} - GRASP CHECK: ${objectName} Y=${(objY*100).toFixed(1)}cm, success=${graspSuccess ? 'YES ✓' : 'NO ✗'}`);
+
+          // Track result for debug panel
+          setDemoResults(prev => [...prev, {
+            demo: i + 1,
+            prompt,
+            response: llmResponseDesc,
+            success: graspSuccess,
+          }]);
 
           // Count images attached during smoothMove animation (at 10Hz)
           const framesWithImages = recordedFrames.filter(f => f.image).length;
@@ -1315,9 +1371,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         // Choose between options
         if (objectMode === 'choose') {
           const taskDescriptions = {
-            pickup: 'Approach → Grasp → Lift',
-            stack: 'Pick A → Place on B',
-            place: 'Pick → Move to target → Release',
+            pickup: 'LLM-driven: Approach → Grasp → Lift',
+            stack: 'LLM-driven: Pick A → Place on B',
+            place: 'Template: Pick → Move to zone → Release (cubes only)',
           };
 
           return (
@@ -1367,6 +1423,70 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               <p className="text-center text-xs text-slate-400">
                 Uses proven motion templates • Varied positions & speeds
               </p>
+
+              {/* Prompt Debug Panel - shows during demo */}
+              {(isDemoRunning || demoResults.length > 0) && (
+                <div className="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700 text-xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-slate-400 font-medium">Demo Progress</span>
+                    <button
+                      onClick={() => setShowPromptDebug(!showPromptDebug)}
+                      className="text-slate-500 hover:text-white transition"
+                    >
+                      {showPromptDebug ? 'Hide Details' : 'Show Details'}
+                    </button>
+                  </div>
+
+                  {/* Current prompt being executed */}
+                  {currentLLMPrompt && (
+                    <div className="mb-2">
+                      <div className="text-slate-500">Prompt:</div>
+                      <div className="text-blue-400 font-mono text-[10px] break-all">{currentLLMPrompt}</div>
+                    </div>
+                  )}
+
+                  {/* Current response */}
+                  {currentLLMResponse && (
+                    <div className="mb-2">
+                      <div className="text-slate-500">Response:</div>
+                      <div className="text-green-400 font-mono text-[10px] break-all">{currentLLMResponse}</div>
+                    </div>
+                  )}
+
+                  {/* Results summary */}
+                  {demoResults.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-700">
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <span>Results:</span>
+                        <span className="text-green-400">{demoResults.filter(r => r.success).length} passed</span>
+                        <span className="text-slate-600">/</span>
+                        <span className="text-red-400">{demoResults.filter(r => !r.success).length} failed</span>
+                        <span className="text-slate-600">/</span>
+                        <span>{demoResults.length} total</span>
+                      </div>
+
+                      {/* Detailed results (toggle) */}
+                      {showPromptDebug && (
+                        <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                          {demoResults.map((result, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-1 rounded text-[10px] ${result.success ? 'bg-green-900/30' : 'bg-red-900/30'}`}
+                            >
+                              <div className="flex items-center gap-1">
+                                <span className={result.success ? 'text-green-400' : 'text-red-400'}>
+                                  Demo {result.demo}: {result.success ? 'OK' : 'FAIL'}
+                                </span>
+                              </div>
+                              <div className="text-slate-500 truncate">{result.prompt}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
