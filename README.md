@@ -1,10 +1,41 @@
-# RoboSim - Interactive Robotics Simulation Platform
+# RoboSim - Train Robot AI in Your Browser
 
-A web-based 3D robotics simulation platform built with React, Three.js (WebGPU), and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
+**Generate 50 training episodes in 5 minutes instead of 5 hours of manual teleoperation.**
+
+RoboSim is a web-based robotics simulation for the **SO-101 robot arm**. Generate synthetic training data, train policies on Google Colab, and deploy to real hardware.
 
 **Live Demo:** [robosim.onrender.com](https://robosim.onrender.com)
 
-> **WebGPU Powered** - Uses the next-generation WebGPU API for faster rendering with automatic WebGL fallback for older browsers.
+## Why RoboSim?
+
+Training real robots is slow and expensive:
+- Physical robot costs $300-2000
+- Manual demonstrations take hours
+- Trial and error risks breaking hardware
+
+RoboSim lets you:
+- ✅ Start training **before hardware arrives**
+- ✅ Generate **unlimited varied demos** automatically
+- ✅ Train on **free Google Colab GPU**
+- ✅ Transfer policies to **real SO-101** (sim-to-real)
+
+## Who Is This For?
+
+| Audience | Use Case |
+|----------|----------|
+| **Hobbyists/Makers** | Train AI for your SO-101 before assembly |
+| **Robotics Students** | Learn imitation learning without lab access |
+| **Researchers** | Generate synthetic data to bootstrap training |
+| **Startups** | Prototype pick-and-place behaviors quickly |
+| **Educators** | Teach robotics/ML without physical robots |
+
+## Applications
+
+- 📦 **Warehouse automation** - Pick, sort, place items
+- 🔧 **Desktop manufacturing** - Small assembly tasks
+- 🍽️ **Food service** - Prep, plating, sorting
+- 🏠 **Home assistants** - Fetch objects, organize
+- 🔍 **Quality inspection** - Pick up, examine, sort
 
 ## Pricing
 
