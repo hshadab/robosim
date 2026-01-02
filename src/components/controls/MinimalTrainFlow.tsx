@@ -1806,8 +1806,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
             <div className="space-y-3">
               <button
                 onClick={() => {
-                  // TODO: Stripe checkout
-                  window.open('https://buy.stripe.com/YOUR_STRIPE_LINK', '_blank');
+                  window.open('https://buy.stripe.com/cNibJ0fTA5D5cdZdXgbEA00', '_blank');
                 }}
                 className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white font-semibold transition"
               >
