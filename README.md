@@ -20,6 +20,29 @@ A web-based 3D robotics simulation platform built with React, Three.js (WebGPU),
 
 [Upgrade to Pro](https://buy.stripe.com/cNibJ0fTA5D5cdZdXgbEA00)
 
+## Hybrid Control Architecture
+
+RoboSim uses a **hybrid approach** for robot control, optimizing for both reliability and flexibility:
+
+| Mode | Method | Best For |
+|------|--------|----------|
+| **Batch Demos** | Template-based | Training data generation |
+| **Chat Control** | AI-planned (LLM) | Exploration & testing |
+
+### Template-Based Demos (Reliable)
+When you click "Generate 10 Demos", RoboSim uses **proven motion templates**:
+- Pre-defined waypoint sequences for Pickup, Stack, and Place tasks
+- Parameterized variations (position, speed, approach angle)
+- Consistent, high-quality training data
+
+### AI-Planned Chat (Flexible)
+When you type in the chat box, an **LLM interprets your intent**:
+- Natural language understanding ("stack the blue cube on red")
+- Dynamic motion planning based on scene state
+- Great for experimentation, but results may vary
+
+This hybrid approach ensures training data is reliable while still allowing natural language control for exploration.
+
 ## Recent Updates (January 2025)
 
 ### Enhanced Sim-to-Real Export (NEW)

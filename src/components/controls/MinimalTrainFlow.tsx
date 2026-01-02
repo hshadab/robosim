@@ -160,6 +160,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
+  // Task type for batch demos
+  type TaskType = 'pickup' | 'stack' | 'place';
+  const [selectedTask, setSelectedTask] = useState<TaskType>('pickup');
+
   // Upgrade prompt
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
@@ -427,11 +431,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
   // Batch generate demos for training data
   // Uses proven pickup configuration matching handleDemoPickUp (x=0.16, z=0.01)
-  const handleBatchDemos = useCallback(async () => {
+  const handleBatchDemos = useCallback(async (taskType: 'pickup' | 'stack' | 'place' = 'pickup') => {
     if (isDemoRunning || isAnimating || isLLMLoading) {
       console.log('[BatchDemo] Blocked - already running:', { isDemoRunning, isAnimating, isLLMLoading });
       return;
     }
+
+    console.log(`[BatchDemo] Task type: ${taskType}`);
 
     // Check usage limits
     const tier = useAuthStore.getState().getTier();
@@ -493,26 +499,35 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     console.log('[BatchDemo] Claude API key found ✓');
 
     // Varied natural language prompts for realistic training data
-    // These simulate how users would actually talk to the robot
-    // Generic prompts work for any object type
-    const genericPrompts = [
-      "pick up the object",
-      "grab that object",
-      "pick up the thing on the table",
-      "grasp the object in front of you",
-      "grab what you see",
-    ];
-
-    // Object-specific prompt generators
-    const getObjectPrompt = (type: string, color: string): string => {
-      const templates = [
-        `pick up the ${color} ${type}`,
-        `grab the ${color} ${type}`,
-        `grasp the ${type}`,
-        `pick up that ${type}`,
-        `grab the ${type} on the table`,
-      ];
-      return templates[Math.floor(Math.random() * templates.length)];
+    // Prompt generator based on task type
+    const getObjectPrompt = (type: string, color: string, task: string, secondObj?: { type: string; color: string }): string => {
+      if (task === 'pickup') {
+        const templates = [
+          `pick up the ${color} ${type}`,
+          `grab the ${color} ${type}`,
+          `grasp the ${type}`,
+          `pick up that ${type}`,
+          `grab the ${type} on the table`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else if (task === 'stack' && secondObj) {
+        const templates = [
+          `stack the ${color} ${type} on the ${secondObj.color} ${secondObj.type}`,
+          `put the ${type} on top of the ${secondObj.type}`,
+          `place the ${color} ${type} on the ${secondObj.color} ${secondObj.type}`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else if (task === 'place') {
+        const sides = ['left', 'right', 'center'];
+        const side = sides[Math.floor(Math.random() * sides.length)];
+        const templates = [
+          `place the ${color} ${type} on the ${side}`,
+          `put the ${type} on the ${side} side`,
+          `move the ${type} to the ${side}`,
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      }
+      return `pick up the ${color} ${type}`;
     };
 
     // Generate varied positions with x from 0.16-0.195 (tested reliable range)
@@ -790,7 +805,15 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         const objectColor = objChoice.color;
         const objectName = `${objectColor.charAt(0).toUpperCase() + objectColor.slice(1)} ${objectType.charAt(0).toUpperCase() + objectType.slice(1)}`;
 
-        // Spawn object at varied position
+        // For stack task, we need a second object
+        let secondObj: { type: string; color: string; template: ObjectTemplate } | undefined;
+        if (taskType === 'stack') {
+          // Pick a different object for the base
+          const baseChoice = objectTemplates[(i + 3) % objectTemplates.length];
+          secondObj = { type: baseChoice.type, color: baseChoice.color, template: baseChoice.template };
+        }
+
+        // Spawn object(s) at varied positions
         const pos = positions[i % positions.length];
         // Y position depends on object type (balls and cylinders need different heights)
         const y = objectType === 'cylinder' ? 0.03 : 0.02;
@@ -798,6 +821,16 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         const newObject = createSimObjectFromTemplate(objectTemplate, [pos.x, y, pos.z]);
         const { id, ...objWithoutId } = newObject;
         spawnObject({ ...objWithoutId, name: `${objectName} ${i + 1}`, scale: demoScale });
+
+        // For stack task, spawn a second object (the base) nearby
+        if (taskType === 'stack' && secondObj) {
+          const baseY = secondObj.type === 'cylinder' ? 0.03 : 0.02;
+          const basePos = { x: pos.x + 0.04, z: pos.z }; // 4cm to the right
+          console.log(`[BatchDemo] Demo ${i+1} - Spawning base ${secondObj.color} ${secondObj.type} at [${(basePos.x*100).toFixed(1)}, ${(baseY*100).toFixed(1)}, ${(basePos.z*100).toFixed(1)}]cm`);
+          const baseObject = createSimObjectFromTemplate(secondObj.template, [basePos.x, baseY, basePos.z]);
+          const { id: baseId, ...baseWithoutId } = baseObject;
+          spawnObject({ ...baseWithoutId, name: `Base ${secondObj.color} ${secondObj.type} ${i + 1}`, scale: demoScale });
+        }
 
         // Wait for physics to settle
         console.log(`[BatchDemo] Demo ${i+1} - Waiting 1500ms for physics to settle`);
@@ -820,12 +853,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         }
 
         try {
-          // Select a varied natural language prompt for this demo
-          // Mix of object-specific and generic prompts for variety
-          const prompt = Math.random() > 0.3
-            ? getObjectPrompt(objectType, objectColor)
-            : genericPrompts[Math.floor(Math.random() * genericPrompts.length)];
-          console.log(`[BatchDemo] Demo ${i+1} - LLM Prompt: "${prompt}"`);
+          // Select a varied natural language prompt for this demo based on task type
+          const prompt = getObjectPrompt(objectType, objectColor, taskType, secondObj);
+          console.log(`[BatchDemo] Demo ${i+1} - Task: ${taskType}, LLM Prompt: "${prompt}"`);
 
           // Build full robot state for LLM context
           const currentJoints = useAppStore.getState().joints;
@@ -1269,11 +1299,41 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       case 'add-object':
         // Choose between options
         if (objectMode === 'choose') {
+          const taskDescriptions = {
+            pickup: 'Approach → Grasp → Lift',
+            stack: 'Pick A → Place on B',
+            place: 'Pick → Move to target → Release',
+          };
+
           return (
             <div className="space-y-3">
+              {/* Task Type Selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Task Type</span>
+                  <span className="text-xs text-slate-500">Template-based for reliable data</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-800 rounded-lg">
+                  {(['pickup', 'stack', 'place'] as const).map((task) => (
+                    <button
+                      key={task}
+                      onClick={() => setSelectedTask(task)}
+                      className={`py-2 px-3 rounded-md text-sm font-medium transition ${
+                        selectedTask === task
+                          ? 'bg-purple-600 text-white'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                      }`}
+                    >
+                      {task.charAt(0).toUpperCase() + task.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-center text-xs text-slate-500">{taskDescriptions[selectedTask]}</p>
+              </div>
+
               {/* Batch Demo Button - Generate 10 varied demos */}
               <button
-                onClick={handleBatchDemos}
+                onClick={() => handleBatchDemos(selectedTask)}
                 disabled={isDemoRunning || isAnimating || isLLMLoading}
                 className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-slate-600 disabled:to-slate-700 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 flex items-center justify-center gap-3 ring-2 ring-purple-400/50 ring-offset-2 ring-offset-slate-900"
               >
@@ -1285,12 +1345,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 ) : (
                   <>
                     <Sparkles className="w-6 h-6" />
-                    Generate {BATCH_COUNT} Demo{BATCH_COUNT > 1 ? 's' : ''}
+                    Generate {BATCH_COUNT} {selectedTask.charAt(0).toUpperCase() + selectedTask.slice(1)} Demos
                   </>
                 )}
               </button>
               <p className="text-center text-xs text-slate-400">
-                Auto-generates {BATCH_COUNT} varied pickups for training data
+                Uses proven motion templates • Varied positions & speeds
               </p>
 
               <div className="relative my-3">
@@ -1298,7 +1358,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                   <div className="w-full border-t border-slate-700"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-slate-900 px-2 text-slate-500">or chat with the robot</span>
+                  <span className="bg-slate-900 px-2 text-slate-500">or chat with AI</span>
                 </div>
               </div>
 
@@ -1326,9 +1386,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                     )}
                   </button>
                 </div>
+                <p className="text-center text-xs text-slate-500">
+                  AI-planned motion • Flexible but experimental
+                </p>
                 {/* Quick prompts */}
                 <div className="flex flex-wrap gap-1 justify-center">
-                  {['pick up the cube', 'grab the ball', 'move to the cylinder'].map((prompt) => (
+                  {['pick up the cube', 'stack blue on red', 'place it on the left'].map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => setChatInput(prompt)}
