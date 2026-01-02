@@ -2,7 +2,23 @@
 
 A web-based 3D robotics simulation platform built with React, Three.js (WebGPU), and Rapier physics. Designed for the **SO-101 robot arm** with AI-powered control, synthetic data generation, and direct HuggingFace integration.
 
+**Live Demo:** [robosim.onrender.com](https://robosim.onrender.com)
+
 > **WebGPU Powered** - Uses the next-generation WebGPU API for faster rendering with automatic WebGL fallback for older browsers.
+
+## Pricing
+
+| Feature | Free | Pro ($10/mo) |
+|---------|------|--------------|
+| Batch demos per day | 5 | Unlimited |
+| Episodes per month | 50 | Unlimited |
+| Object types | Cubes | Cubes, Balls, Cylinders |
+| HuggingFace upload | - | Yes |
+| AI chat control | - | Yes |
+| Image-to-3D | - | Yes |
+| Export formats | JSON | JSON, Parquet, LeRobot |
+
+[Upgrade to Pro](https://buy.stripe.com/cNibJ0fTA5D5cdZdXgbEA00)
 
 ## Recent Updates (January 2025)
 
@@ -1177,6 +1193,41 @@ pip install -e ".[feetech]"  # For STS3215 servo support
 lerobot-find-port             # Discover serial port
 lerobot-calibrate             # Calibrate arm positions
 ```
+
+## Deployment
+
+### Hosted Version
+
+The app is hosted on Render:
+- **Frontend:** [robosim.onrender.com](https://robosim.onrender.com)
+- **API:** [robosim-api.onrender.com](https://robosim-api.onrender.com)
+
+### Self-Hosting
+
+To deploy your own instance:
+
+1. **Frontend (Static Site)**
+   ```bash
+   npm run build
+   # Deploy the `dist/` folder to any static host
+   ```
+
+2. **API (Python)**
+   ```bash
+   cd api
+   pip install -r requirements.txt
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
+3. **Environment Variables (API)**
+   - `STRIPE_SECRET_KEY` - Stripe API key for payments
+   - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+   - `SUPABASE_URL` - Supabase project URL
+   - `SUPABASE_SERVICE_KEY` - Supabase service role key
+
+4. **Environment Variables (Frontend)**
+   - `VITE_SUPABASE_URL` - Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` - Supabase anon/public key
 
 ## Contributing
 
