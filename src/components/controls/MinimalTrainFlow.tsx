@@ -1851,7 +1851,13 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     <div className="h-full flex flex-col bg-slate-900">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-800">
-        <h1 className="text-lg font-semibold text-white">Train Robot</h1>
+        <button
+          onClick={() => setShowWelcome(true)}
+          className="text-lg font-semibold text-white hover:text-purple-400 transition"
+          title="About RoboSim"
+        >
+          🤖 RoboSim
+        </button>
         <div className="flex items-center gap-2">
           <a
             href="https://buy.stripe.com/cNibJ0fTA5D5cdZdXgbEA00"
