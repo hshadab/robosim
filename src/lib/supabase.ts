@@ -208,8 +208,9 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 // Tier limits
 export const TIER_LIMITS = {
   free: {
-    episodes_per_month: 10,
-    max_episode_length: 100, // frames
+    demos_per_day: 5,           // 5 batch demo runs per day
+    episodes_per_month: 50,     // 50 episodes total per month
+    max_episode_length: 100,    // frames
     export_formats: ['json'],
     robots: ['so-101'],
     api_calls_per_day: 50,
@@ -226,12 +227,13 @@ export const TIER_LIMITS = {
     },
   },
   pro: {
-    episodes_per_month: 500,
+    demos_per_day: -1,          // Unlimited demos
+    episodes_per_month: -1,     // Unlimited episodes
     max_episode_length: 1000,
     export_formats: ['json', 'parquet', 'lerobot'],
     robots: ['so-101', 'elegoo-smart-car-v4', 'mini-quadcopter'],
-    api_calls_per_day: 1000,
-    storage_mb: 5000,
+    api_calls_per_day: -1,      // Unlimited API calls
+    storage_mb: 10000,
     features: {
       basic_simulation: true,
       dataset_export: true,
@@ -244,11 +246,12 @@ export const TIER_LIMITS = {
     },
   },
   team: {
-    episodes_per_month: 5000,
+    demos_per_day: -1,          // Unlimited
+    episodes_per_month: -1,     // Unlimited
     max_episode_length: 5000,
     export_formats: ['json', 'parquet', 'lerobot', 'ros'],
     robots: ['so-101', 'elegoo-smart-car-v4', 'mini-quadcopter', 'berkeley-humanoid-lite'],
-    api_calls_per_day: 10000,
+    api_calls_per_day: -1,
     storage_mb: 50000,
     features: {
       basic_simulation: true,
@@ -262,7 +265,8 @@ export const TIER_LIMITS = {
     },
   },
   enterprise: {
-    episodes_per_month: -1, // unlimited
+    demos_per_day: -1,          // Unlimited
+    episodes_per_month: -1,     // Unlimited
     max_episode_length: -1,
     export_formats: ['json', 'parquet', 'lerobot', 'ros', 'custom'],
     robots: ['all'],

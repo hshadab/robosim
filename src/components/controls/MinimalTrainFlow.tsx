@@ -50,6 +50,9 @@ import { createLogger } from '../../lib/logger';
 // (can be re-enabled once base pickup is more robust)
 import { randomizeVisualsForEpisode } from '../../stores/useVisualStore';
 import { captureFromCanvas, randomAugmentationConfig, applyAugmentations, type AugmentationConfig } from '../../lib/cameraCapture';
+import { useUsageStore } from '../../stores/useUsageStore';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { TIER_LIMITS } from '../../lib/supabase';
 
 const log = createLogger('TrainFlow');
 
@@ -156,6 +159,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [demoStatus, setDemoStatus] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Upgrade prompt
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   // Abort controller for cancelling demos
   const abortRef = useRef<{ aborted: boolean }>({ aborted: false });
@@ -415,6 +421,19 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       return;
     }
 
+    // Check usage limits
+    const tier = useAuthStore.getState().getTier();
+    const { canRunDemos, getDemosRemaining, incrementDemos, resetIfNewDay } = useUsageStore.getState();
+    resetIfNewDay(); // Reset counter if new day
+
+    if (!canRunDemos(tier)) {
+      const remaining = getDemosRemaining(tier);
+      console.log(`[BatchDemo] Usage limit reached - ${remaining} demos remaining today`);
+      setError(`Daily limit reached (${TIER_LIMITS[tier].demos_per_day} demos/day). Upgrade to Pro for unlimited demos.`);
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     // Reset abort flag at start
     abortRef.current.aborted = false;
 
@@ -422,6 +441,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     console.log(`[BatchDemo] ========== STARTING ${BATCH_COUNT} DEMOS ==========`);
     console.log('[BatchDemo] Cube scale:', demoScale, '(3cm)');
+    console.log(`[BatchDemo] Tier: ${tier}, Demos remaining: ${getDemosRemaining(tier)}`);
 
     // Check WebGL context health before starting - wait for recovery if needed
     const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
@@ -1110,6 +1130,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         console.log(`[BatchDemo] Total episodes collected: ${collectedEpisodes.length}/${BATCH_COUNT}`);
         const successCount = collectedEpisodes.filter(e => e.metadata.graspSuccess).length;
         console.log(`[BatchDemo] Successful grasps: ${successCount}/${collectedEpisodes.length}`);
+
+        // Increment usage counter (1 demo run = 1 usage, regardless of episode count)
+        useUsageStore.getState().incrementDemos(1);
+        const remaining = useUsageStore.getState().getDemosRemaining(useAuthStore.getState().getTier());
+        console.log(`[BatchDemo] Usage incremented. Demos remaining today: ${remaining}`);
 
         setState(s => ({
           ...s,
@@ -1800,6 +1825,69 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
         {renderStep()}
       </div>
+
+      {/* Upgrade Prompt Modal */}
+      {showUpgradePrompt && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-700">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Rocket className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Upgrade to Pro</h2>
+              <p className="text-slate-400">
+                You've reached your daily demo limit. Upgrade for unlimited demos and more features.
+              </p>
+            </div>
+
+            <div className="bg-slate-900/50 rounded-xl p-4 mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white font-semibold">Pro Plan</span>
+                <span className="text-2xl font-bold text-white">$10<span className="text-sm text-slate-400">/mo</span></span>
+              </div>
+              <ul className="space-y-2 text-sm text-slate-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  Unlimited demo runs
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  HuggingFace upload
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  LeRobot export format
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  AI chat with robot
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  // TODO: Stripe checkout
+                  window.open('https://buy.stripe.com/YOUR_STRIPE_LINK', '_blank');
+                }}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white font-semibold transition"
+              >
+                Upgrade Now
+              </button>
+              <button
+                onClick={() => {
+                  setShowUpgradePrompt(false);
+                  setError(null);
+                }}
+                className="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 transition"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
