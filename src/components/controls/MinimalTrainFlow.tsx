@@ -810,17 +810,21 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         if (!await delay(500)) break;
 
         // Select random object type for variety
-        const objChoice = objectTemplates[i % objectTemplates.length];
+        // For stack task, only use cubes (balls roll, cylinders are tricky)
+        const cubesOnly = objectTemplates.filter(o => o.type === 'cube');
+        const templatePool = taskType === 'stack' ? cubesOnly : objectTemplates;
+
+        const objChoice = templatePool[i % templatePool.length];
         const objectTemplate = objChoice.template;
         const objectType = objChoice.type;
         const objectColor = objChoice.color;
         const objectName = `${objectColor.charAt(0).toUpperCase() + objectColor.slice(1)} ${objectType.charAt(0).toUpperCase() + objectType.slice(1)}`;
 
-        // For stack task, we need a second object
+        // For stack task, we need a second cube (different color)
         let secondObj: { type: string; color: string; template: ObjectTemplate } | undefined;
         if (taskType === 'stack') {
-          // Pick a different object for the base
-          const baseChoice = objectTemplates[(i + 3) % objectTemplates.length];
+          // Pick a different colored cube for the base
+          const baseChoice = cubesOnly[(i + 2) % cubesOnly.length]; // Offset to get different color
           secondObj = { type: baseChoice.type, color: baseChoice.color, template: baseChoice.template };
         }
 
@@ -833,14 +837,14 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         const { id, ...objWithoutId } = newObject;
         spawnObject({ ...objWithoutId, name: `${objectName} ${i + 1}`, scale: demoScale });
 
-        // For stack task, spawn a second object (the base) nearby
+        // For stack task, spawn a second cube (the base) nearby
         if (taskType === 'stack' && secondObj) {
-          const baseY = secondObj.type === 'cylinder' ? 0.03 : 0.02;
+          const baseY = 0.02; // Cubes only
           const basePos = { x: pos.x + 0.04, z: pos.z }; // 4cm to the right
-          console.log(`[BatchDemo] Demo ${i+1} - Spawning base ${secondObj.color} ${secondObj.type} at [${(basePos.x*100).toFixed(1)}, ${(baseY*100).toFixed(1)}, ${(basePos.z*100).toFixed(1)}]cm`);
+          console.log(`[BatchDemo] Demo ${i+1} - Spawning base ${secondObj.color} cube at [${(basePos.x*100).toFixed(1)}, ${(baseY*100).toFixed(1)}, ${(basePos.z*100).toFixed(1)}]cm`);
           const baseObject = createSimObjectFromTemplate(secondObj.template, [basePos.x, baseY, basePos.z]);
           const { id: baseId, ...baseWithoutId } = baseObject;
-          spawnObject({ ...baseWithoutId, name: `Base ${secondObj.color} ${secondObj.type} ${i + 1}`, scale: demoScale });
+          spawnObject({ ...baseWithoutId, name: `Base ${secondObj.color} Cube ${i + 1}`, scale: demoScale });
         }
 
         // Wait for physics to settle
