@@ -4,6 +4,7 @@ RoboSim API - Parquet Conversion & HuggingFace Upload
 Handles:
 1. Converting LeRobot episode JSON to Parquet format
 2. Uploading datasets to HuggingFace Hub
+3. Stripe webhook for Pro subscriptions
 """
 
 import io
@@ -13,12 +14,28 @@ import os
 from typing import Optional
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pyarrow as pa
 import pyarrow.parquet as pq
 from huggingface_hub import HfApi, create_repo
+import stripe
+from supabase import create_client, Client
+
+# Stripe configuration
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+# Supabase configuration
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")  # Service role key for admin access
+
+def get_supabase() -> Optional[Client]:
+    """Get Supabase client if configured"""
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    return None
 
 app = FastAPI(
     title="RoboSim API",
@@ -372,6 +389,78 @@ async def convert_to_parquet(episodes: list[Episode]):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request, stripe_signature: str = Header(None, alias="Stripe-Signature")):
+    """
+    Handle Stripe webhook events for subscription management.
+
+    Events handled:
+    - checkout.session.completed: Upgrade user to Pro tier
+    - customer.subscription.deleted: Downgrade user to Free tier
+    """
+    payload = await request.body()
+
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Stripe webhook secret not configured")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, stripe_signature, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+    except stripe.error.SignatureVerificationError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid signature: {e}")
+
+    # Handle the event
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        customer_email = session.get("customer_email") or session.get("customer_details", {}).get("email")
+
+        if customer_email:
+            # Update user tier in Supabase
+            supabase = get_supabase()
+            if supabase:
+                try:
+                    # Find user by email and update their tier
+                    result = supabase.table("user_profiles").update({
+                        "tier": "pro",
+                        "tier_expires_at": None,  # Subscription doesn't expire (handled by Stripe)
+                    }).eq("email", customer_email).execute()
+
+                    print(f"[Stripe] Upgraded {customer_email} to Pro tier")
+                except Exception as e:
+                    print(f"[Stripe] Failed to update user tier: {e}")
+            else:
+                print(f"[Stripe] Supabase not configured, cannot update tier for {customer_email}")
+
+    elif event["type"] == "customer.subscription.deleted":
+        subscription = event["data"]["object"]
+        customer_id = subscription.get("customer")
+
+        if customer_id:
+            # Get customer email from Stripe
+            try:
+                customer = stripe.Customer.retrieve(customer_id)
+                customer_email = customer.get("email")
+
+                if customer_email:
+                    supabase = get_supabase()
+                    if supabase:
+                        try:
+                            result = supabase.table("user_profiles").update({
+                                "tier": "free",
+                            }).eq("email", customer_email).execute()
+
+                            print(f"[Stripe] Downgraded {customer_email} to Free tier")
+                        except Exception as e:
+                            print(f"[Stripe] Failed to downgrade user tier: {e}")
+            except Exception as e:
+                print(f"[Stripe] Failed to get customer: {e}")
+
+    return {"received": True}
 
 
 if __name__ == "__main__":
