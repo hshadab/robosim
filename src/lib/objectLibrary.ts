@@ -98,6 +98,78 @@ export const PRIMITIVE_OBJECTS: ObjectTemplate[] = [
     mass: 0.03,
     friction: 0.8,
   },
+  // ===========================================
+  // LEROBOT TRAINING BALLS - Spherical objects
+  // ===========================================
+  {
+    id: 'lerobot-ball-red',
+    name: 'Red Ball',
+    category: 'lerobot',
+    description: '2.5cm radius - spherical training',
+    type: 'ball',
+    scale: 0.025,
+    color: '#e74c3c',
+    mass: 0.02,
+    friction: 0.6,
+  },
+  {
+    id: 'lerobot-ball-blue',
+    name: 'Blue Ball',
+    category: 'lerobot',
+    description: '2.5cm radius - spherical training',
+    type: 'ball',
+    scale: 0.025,
+    color: '#3498db',
+    mass: 0.02,
+    friction: 0.6,
+  },
+  {
+    id: 'lerobot-ball-green',
+    name: 'Green Ball',
+    category: 'lerobot',
+    description: '2.5cm radius - spherical training',
+    type: 'ball',
+    scale: 0.025,
+    color: '#2ecc71',
+    mass: 0.02,
+    friction: 0.6,
+  },
+  // ===========================================
+  // LEROBOT TRAINING CYLINDERS - Cylindrical objects
+  // ===========================================
+  {
+    id: 'lerobot-cylinder-yellow',
+    name: 'Yellow Cylinder',
+    category: 'lerobot',
+    description: '2cm diameter - cylindrical training',
+    type: 'cylinder',
+    scale: 0.01,  // radius=1cm, height=6cm
+    color: '#f1c40f',
+    mass: 0.03,
+    friction: 0.7,
+  },
+  {
+    id: 'lerobot-cylinder-purple',
+    name: 'Purple Cylinder',
+    category: 'lerobot',
+    description: '2cm diameter - cylindrical training',
+    type: 'cylinder',
+    scale: 0.01,
+    color: '#9b59b6',
+    mass: 0.03,
+    friction: 0.7,
+  },
+  {
+    id: 'lerobot-cylinder-orange',
+    name: 'Orange Cylinder',
+    category: 'lerobot',
+    description: '2cm diameter - cylindrical training',
+    type: 'cylinder',
+    scale: 0.01,
+    color: '#e67e22',
+    mass: 0.03,
+    friction: 0.7,
+  },
 ];
 
 /**

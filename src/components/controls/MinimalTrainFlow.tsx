@@ -462,18 +462,26 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
     // Varied natural language prompts for realistic training data
     // These simulate how users would actually talk to the robot
-    const pickupPrompts = [
-      "pick up the cube",
-      "grab the red cube",
-      "pick up that block",
-      "grab the object in front of you",
-      "pick up the cube on the table",
-      "grasp the red block",
+    // Generic prompts work for any object type
+    const genericPrompts = [
       "pick up the object",
-      "grab that cube",
-      "pick up the block",
-      "grasp the cube",
+      "grab that object",
+      "pick up the thing on the table",
+      "grasp the object in front of you",
+      "grab what you see",
     ];
+
+    // Object-specific prompt generators
+    const getObjectPrompt = (type: string, color: string): string => {
+      const templates = [
+        `pick up the ${color} ${type}`,
+        `grab the ${color} ${type}`,
+        `grasp the ${type}`,
+        `pick up that ${type}`,
+        `grab the ${type} on the table`,
+      ];
+      return templates[Math.floor(Math.random() * templates.length)];
+    };
 
     // Generate varied positions with x from 0.16-0.195 (tested reliable range)
     // Z range ±3cm for wider lateral coverage
@@ -841,8 +849,20 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     };
 
     try {
-      const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
-      if (!cubeTemplate) throw new Error('Cube template not found');
+      // Object templates for variety - cubes, balls, cylinders
+      const objectTemplates = [
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red')!, type: 'cube', color: 'red' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-blue')!, type: 'cube', color: 'blue' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-green')!, type: 'cube', color: 'green' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-ball-red')!, type: 'ball', color: 'red' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-ball-blue')!, type: 'ball', color: 'blue' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-ball-green')!, type: 'ball', color: 'green' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cylinder-yellow')!, type: 'cylinder', color: 'yellow' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cylinder-purple')!, type: 'cylinder', color: 'purple' },
+        { template: PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cylinder-orange')!, type: 'cylinder', color: 'orange' },
+      ].filter(o => o.template); // Filter out any missing templates
+
+      if (objectTemplates.length === 0) throw new Error('No object templates found');
 
       for (let i = 0; i < BATCH_COUNT; i++) {
         // Check for abort at start of each demo
@@ -879,13 +899,21 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         setJoints({ base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 100 });
         if (!await delay(500)) break;
 
-        // Spawn cube at varied position
+        // Select random object type for variety
+        const objChoice = objectTemplates[i % objectTemplates.length];
+        const objectTemplate = objChoice.template;
+        const objectType = objChoice.type;
+        const objectColor = objChoice.color;
+        const objectName = `${objectColor.charAt(0).toUpperCase() + objectColor.slice(1)} ${objectType.charAt(0).toUpperCase() + objectType.slice(1)}`;
+
+        // Spawn object at varied position
         const pos = positions[i % positions.length];
-        const y = 0.02;
-        console.log(`[BatchDemo] Demo ${i+1} - Spawning cube at [${(pos.x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(pos.z*100).toFixed(1)}]cm`);
-        const newObject = createSimObjectFromTemplate(cubeTemplate, [pos.x, y, pos.z]);
+        // Y position depends on object type (balls and cylinders need different heights)
+        const y = objectType === 'cylinder' ? 0.03 : 0.02;
+        console.log(`[BatchDemo] Demo ${i+1} - Spawning ${objectName} at [${(pos.x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(pos.z*100).toFixed(1)}]cm`);
+        const newObject = createSimObjectFromTemplate(objectTemplate, [pos.x, y, pos.z]);
         const { id, ...objWithoutId } = newObject;
-        spawnObject({ ...objWithoutId, name: `Cube ${i + 1}`, scale: demoScale });
+        spawnObject({ ...objWithoutId, name: `${objectName} ${i + 1}`, scale: demoScale });
 
         // Wait for physics to settle
         console.log(`[BatchDemo] Demo ${i+1} - Waiting 1500ms for physics to settle`);
@@ -909,7 +937,10 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
         try {
           // Select a varied natural language prompt for this demo
-          const prompt = pickupPrompts[i % pickupPrompts.length];
+          // Mix of object-specific and generic prompts for variety
+          const prompt = Math.random() > 0.3
+            ? getObjectPrompt(objectType, objectColor)
+            : genericPrompts[Math.floor(Math.random() * genericPrompts.length)];
           console.log(`[BatchDemo] Demo ${i+1} - LLM Prompt: "${prompt}"`);
 
           // Build full robot state for LLM context
@@ -1002,10 +1033,11 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           }
 
           const graspCheckObjects = useAppStore.getState().objects;
-          const cube = graspCheckObjects.find(o => o.name?.includes('Cube'));
-          const cubeY = cube?.position?.[1] ?? 0;
-          const graspSuccess = cubeY > 0.05;
-          console.log(`[BatchDemo] Demo ${i+1} - GRASP CHECK: cubeY=${(cubeY*100).toFixed(1)}cm, success=${graspSuccess ? 'YES ✓' : 'NO ✗'}`);
+          // Find the target object (could be cube, ball, or cylinder)
+          const targetObj = graspCheckObjects.find(o => o.isGrabbable);
+          const objY = targetObj?.position?.[1] ?? 0;
+          const graspSuccess = objY > 0.05;
+          console.log(`[BatchDemo] Demo ${i+1} - GRASP CHECK: ${objectName} Y=${(objY*100).toFixed(1)}cm, success=${graspSuccess ? 'YES ✓' : 'NO ✗'}`);
 
           // Count images attached during smoothMove animation (at 10Hz)
           const framesWithImages = recordedFrames.filter(f => f.image).length;
