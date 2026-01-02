@@ -475,25 +475,25 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       "grasp the cube",
     ];
 
-    // Generate varied positions with x from 0.16-0.20 (expanded range for training variety)
+    // Generate varied positions with x from 0.16-0.195 (tested reliable range)
     // Z range ±3cm for wider lateral coverage
     // Positions distributed across the expanded workspace
     const positions: Array<{ x: number; z: number }> = [
-      { x: 0.16, z: 0.00 },   // Near center
-      { x: 0.17, z: 0.02 },   // Mid-near right
-      { x: 0.18, z: -0.02 },  // Mid left
-      { x: 0.19, z: 0.01 },   // Mid-far slight right
-      { x: 0.20, z: 0.00 },   // Far center
-      { x: 0.16, z: -0.03 },  // Near far left
-      { x: 0.17, z: 0.03 },   // Mid-near far right
-      { x: 0.18, z: 0.00 },   // Mid center
-      { x: 0.19, z: -0.02 },  // Mid-far left
-      { x: 0.20, z: 0.02 },   // Far right
-      { x: 0.16, z: 0.015 },  // Near slight right
-      { x: 0.17, z: -0.015 }, // Mid-near slight left
-      { x: 0.18, z: 0.025 },  // Mid right
-      { x: 0.19, z: -0.01 },  // Mid-far slight left
-      { x: 0.20, z: -0.025 }, // Far left
+      { x: 0.16, z: 0.00 },    // Near center
+      { x: 0.17, z: 0.02 },    // Mid-near right
+      { x: 0.18, z: -0.02 },   // Mid left
+      { x: 0.19, z: 0.01 },    // Mid-far slight right
+      { x: 0.195, z: 0.00 },   // Far center
+      { x: 0.16, z: -0.03 },   // Near far left
+      { x: 0.17, z: 0.03 },    // Mid-near far right
+      { x: 0.18, z: 0.00 },    // Mid center
+      { x: 0.19, z: -0.02 },   // Mid-far left
+      { x: 0.195, z: 0.015 },  // Far slight right
+      { x: 0.16, z: 0.015 },   // Near slight right
+      { x: 0.17, z: -0.015 },  // Mid-near slight left
+      { x: 0.18, z: 0.025 },   // Mid right
+      { x: 0.19, z: -0.01 },   // Mid-far slight left
+      { x: 0.195, z: -0.02 },  // Far left
     ];
 
     setIsDemoRunning(true);
