@@ -1384,7 +1384,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                   className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition flex items-center justify-center gap-2"
                 >
                   <Box className="w-4 h-4" />
-                  Cubes
+                  Objects
                 </button>
                 <button
                   onClick={() => setObjectMode('photo')}
@@ -1398,8 +1398,12 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           );
         }
 
-        // Library object selection - simplified to just cubes
+        // Library object selection - all types
         if (objectMode === 'library') {
+          const cubes = PRIMITIVE_OBJECTS.filter(o => o.type === 'cube');
+          const balls = PRIMITIVE_OBJECTS.filter(o => o.type === 'ball');
+          const cylinders = PRIMITIVE_OBJECTS.filter(o => o.type === 'cylinder');
+
           return (
             <div className="space-y-3">
               <button
@@ -1411,24 +1415,67 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               </button>
 
               <div className="text-center text-sm text-slate-400 mb-2">
-                Pick a cube color to add
+                Pick an object to add
               </div>
 
-              {/* Simple cube grid */}
-              <div className="grid grid-cols-3 gap-2">
-                {PRIMITIVE_OBJECTS.map(template => (
-                  <button
-                    key={template.id}
-                    onClick={() => handleAddLibraryObject(template)}
-                    className="flex flex-col items-center gap-1 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/50 transition"
-                  >
-                    <div
-                      className="w-10 h-10 rounded"
-                      style={{ backgroundColor: template.color }}
-                    />
-                    <span className="text-xs text-slate-300">{template.name.replace(' Cube', '')}</span>
-                  </button>
-                ))}
+              {/* Cubes */}
+              <div className="space-y-1">
+                <div className="text-xs text-slate-500 font-medium">Cubes</div>
+                <div className="grid grid-cols-6 gap-1">
+                  {cubes.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleAddLibraryObject(template)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/50 transition"
+                      title={template.name}
+                    >
+                      <div
+                        className="w-6 h-6 rounded"
+                        style={{ backgroundColor: template.color }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Balls */}
+              <div className="space-y-1">
+                <div className="text-xs text-slate-500 font-medium">Balls</div>
+                <div className="grid grid-cols-6 gap-1">
+                  {balls.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleAddLibraryObject(template)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/50 transition"
+                      title={template.name}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full"
+                        style={{ backgroundColor: template.color }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cylinders */}
+              <div className="space-y-1">
+                <div className="text-xs text-slate-500 font-medium">Cylinders</div>
+                <div className="grid grid-cols-6 gap-1">
+                  {cylinders.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleAddLibraryObject(template)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/50 transition"
+                      title={template.name}
+                    >
+                      <div
+                        className="w-4 h-6 rounded-sm"
+                        style={{ backgroundColor: template.color }}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           );
@@ -1731,13 +1778,24 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-800">
         <h1 className="text-lg font-semibold text-white">Train Robot</h1>
-        <button
-          onClick={onOpenDrawer}
-          className="p-2 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white"
-          title="Advanced Tools"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://buy.stripe.com/cNibJ0fTA5D5cdZdXgbEA00"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg text-white text-xs font-medium transition flex items-center gap-1"
+          >
+            <Rocket className="w-3 h-3" />
+            Pro $10/mo
+          </a>
+          <button
+            onClick={onOpenDrawer}
+            className="p-2 hover:bg-slate-800 rounded-lg transition text-slate-400 hover:text-white"
+            title="Advanced Tools"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Progress indicator */}
