@@ -198,6 +198,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     });
 
     if (chatInput.trim() && !isLLMLoading) {
+      // Auto-spawn a cube if no graspable objects exist
+      const graspableObjects = objects.filter(o => o.isGrabbable);
+      if (graspableObjects.length === 0) {
+        log.debug('No graspable objects - spawning default cube');
+        const cubeTemplate = PRIMITIVE_OBJECTS.find(o => o.id === 'lerobot-cube-red');
+        if (cubeTemplate) {
+          const newCube = createSimObjectFromTemplate(cubeTemplate, [0.17, 0.02, 0]);
+          const { id, ...objWithoutId } = newCube;
+          spawnObject({ ...objWithoutId, name: 'Red Cube', scale: 0.03 });
+        }
+      }
+
       // Start recording when sending a command
       if (!isRecording) {
         log.debug('Starting recording');
@@ -222,7 +234,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         isLoading: isLLMLoading
       });
     }
-  }, [chatInput, isLLMLoading, isRecording, sendMessage, getJointPositions, objects]);
+  }, [chatInput, isLLMLoading, isRecording, sendMessage, getJointPositions, objects, spawnObject]);
 
   // Auto-stop recording when robot stops moving after a command
   useEffect(() => {
@@ -1403,12 +1415,60 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 Auto-generates {BATCH_COUNT} varied pickups for training data
               </p>
 
-              <div className="relative my-2">
+              <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-700"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="bg-slate-900 px-2 text-slate-500">or test first</span>
+                  <span className="bg-slate-900 px-2 text-slate-500">or chat with the robot</span>
+                </div>
+              </div>
+
+              {/* Chat input - talk to the robot */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleChatSend()}
+                    placeholder="Try: pick up the red cube"
+                    disabled={isLLMLoading || isDemoRunning}
+                    className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleChatSend}
+                    disabled={!chatInput.trim() || isLLMLoading || isDemoRunning}
+                    className="p-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 rounded-xl text-white transition"
+                  >
+                    {isLLMLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {/* Quick prompts */}
+                <div className="flex flex-wrap gap-1 justify-center">
+                  {['pick up the cube', 'grab the ball', 'move to the cylinder'].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => setChatInput(prompt)}
+                      disabled={isLLMLoading || isDemoRunning}
+                      className="px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition disabled:opacity-50"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative my-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-slate-900 px-2 text-slate-500">or test with one click</span>
                 </div>
               </div>
 
