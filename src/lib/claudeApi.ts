@@ -7,45 +7,19 @@
  * New code should import from './claude' where possible.
  */
 
-import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SensorReading, SimObject } from '../types';
+import type { JointState, JointSequenceStep, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SimObject } from '../types';
 import { SYSTEM_PROMPTS } from '../hooks/useLLMChat';
 import { generateSemanticState } from './semanticState';
-import { API_CONFIG } from './config';
+import { API_CONFIG, STORAGE_CONFIG } from './config';
 import { loggers } from './logger';
 import { calculateInverseKinematics } from '../components/simulation/SO101Kinematics';
 import { solveIKAsync } from './ikSolverWorker';
 import { findSimilarPickups, getPickupStats, findClosestVerifiedPickup, adaptVerifiedSequence } from './pickupExamples';
 
-// Import from modular structure
-import {
-  TYPE_ALIASES,
-  COLOR_WORDS,
-  JOINT_LIMITS,
-  IK_ERROR_THRESHOLD,
-  CLAUDE_RESPONSE_FORMAT,
-} from './claude/constants';
-import {
-  matchObjectToMessage,
-  findObjectByDescription,
-} from './claude/objectMatching';
-import {
-  parseAmount,
-  calculateBaseAngleForPosition,
-  clampJoint,
-  calculateGripperPos,
-  calculateTipYForJawY,
-  estimateJawY,
-  getHelpText,
-  describeState,
-} from './claude/helpers';
-import {
-  simulateWheeledResponse,
-  simulateDroneResponse,
-  simulateHumanoidResponse,
-} from './claude/otherRobots';
-
-// Re-export API key management from modular structure
-export { setClaudeApiKey, getClaudeApiKey, clearClaudeApiKey } from './claude/apiKey';
+// NOTE: Modular versions exist in ./claude/ for new code
+// This file still contains local definitions for backwards compatibility
+import { CLAUDE_RESPONSE_FORMAT } from './claude/constants';
+import { calculateJawPositionURDF, calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 
 // Re-export types for backwards compatibility
 export type {
@@ -54,17 +28,17 @@ export type {
   FullRobotState,
   ConversationMessage,
   CallClaudeAPIOptions,
-  JointAngles,
 } from './claude/types';
 
 import type {
-  PickupAttemptInfo,
   ClaudeResponse,
   FullRobotState,
   ConversationMessage,
   CallClaudeAPIOptions,
-  JointAngles,
+  PickupAttemptInfo,
 } from './claude/types';
+
+import { matchObjectToMessage } from './claude/objectMatching';
 
 const log = loggers.claude;
 
@@ -1281,7 +1255,7 @@ await liftArm();`,
   // Key insight: Demo uses 800ms for gripper close - that's what makes it work!
   // The old 11-step sequence with 500ms steps was too fast for physics.
 
-  const sequence: Partial<JointState>[] = [
+  const sequence: JointSequenceStep[] = [
     // Step 1: Move to grasp position with gripper open
     // Combines approach + grasp into single smooth motion
     {
@@ -1294,7 +1268,7 @@ await liftArm();`,
     },
     // Step 2: Close gripper ONLY (no arm movement)
     // This step gets extra time via _gripperOnly flag for physics detection
-    { gripper: 0, _gripperOnly: true } as Partial<JointState> & { _gripperOnly?: boolean },
+    { gripper: 0, _gripperOnly: true },
     // Step 3: Hold position with gripper closed (physics settle time)
     {
       base: graspJoints.base,
@@ -1674,7 +1648,7 @@ for (let i = 0; i < 2; i++) {
 
   if (message.includes('place') || message.includes('put down') || message.includes('drop')) {
     // Get current gripper position using FK
-    const currentGripperPos = calculateSO101GripperPosition(state);
+    const currentGripperPos = calculateGripperPositionURDF(state);
     const [gx, gy, gz] = currentGripperPos;
 
     // Calculate IK for lowering to place position (lower Y to near table)

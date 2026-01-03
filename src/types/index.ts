@@ -13,6 +13,12 @@ export interface JointState {
   gripper: number;
 }
 
+/** Extended joint state for sequences that include metadata flags */
+export type JointSequenceStep = Partial<JointState> & {
+  /** Flag to indicate gripper-only step with extended timing for physics */
+  _gripperOnly?: boolean;
+};
+
 // Gear ratio configuration for servo motors
 export interface GearRatio {
   ratio: string;           // e.g., "1/345" for 1:345 reduction

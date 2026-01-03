@@ -26,7 +26,6 @@ import {
   getAllVerifiedExamples,
   clearPromotedExamples,
   getSuccessfulPickups,
-  getFailedPickups,
 } from '../../lib/pickupExamples';
 import {
   getContactStats,

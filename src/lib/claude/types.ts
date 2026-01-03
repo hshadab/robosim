@@ -2,7 +2,7 @@
  * Type definitions for Claude API integration
  */
 
-import type { JointState, WheeledRobotState, DroneState, HumanoidState, SensorReading, SimObject } from '../../types';
+import type { JointState, JointSequenceStep, WheeledRobotState, DroneState, HumanoidState, SensorReading, SimObject } from '../../types';
 
 /** Pickup attempt metadata for training data collection */
 export interface PickupAttemptInfo {
@@ -22,7 +22,7 @@ export interface ClaudeResponse {
   action: 'move' | 'sequence' | 'code' | 'explain' | 'query' | 'error';
   description: string;
   code?: string;
-  joints?: Partial<JointState> | Partial<JointState>[];
+  joints?: JointSequenceStep | JointSequenceStep[];
   wheeledAction?: Partial<WheeledRobotState>;
   droneAction?: Partial<DroneState>;
   humanoidAction?: Partial<HumanoidState>;

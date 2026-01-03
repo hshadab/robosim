@@ -6,7 +6,7 @@
  * Includes language augmentation for diverse training data.
  */
 
-import type { JointState } from '../types';
+import type { JointSequenceStep } from '../types';
 import { createLogger } from './logger';
 import { generateLanguageVariants } from './languageAugmentation';
 
@@ -21,7 +21,7 @@ export interface PickupExample {
   objectName: string;
   objectScale: number;
   // The joint sequence that worked
-  jointSequence: Partial<JointState>[];
+  jointSequence: JointSequenceStep[];
   // IK quality metrics
   ikErrors: {
     approach: number;
@@ -42,7 +42,7 @@ export interface PickupAttempt {
   objectType: string;
   objectName: string;
   objectScale: number;
-  jointSequence: Partial<JointState>[];
+  jointSequence: JointSequenceStep[];
   ikErrors: { approach: number; grasp: number; lift: number };
   userMessage: string;
 }

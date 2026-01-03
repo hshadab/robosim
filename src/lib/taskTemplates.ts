@@ -34,6 +34,9 @@ export { DEFAULT_PARAMETERS } from './templates/parameters';
 // Import types for use in this file
 import type { ParameterizedTaskTemplate } from './templates/types';
 
+// Import default parameters for use in templates below
+import { DEFAULT_PARAMETERS } from './templates/parameters';
+
 /**
  * Predefined parameterized task templates
  */
