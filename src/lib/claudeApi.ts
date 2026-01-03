@@ -1519,6 +1519,69 @@ function handleMoveToCommand(
   };
 }
 
+/**
+ * Handle multi-step commands using the primitives system
+ * e.g., "pick up the cube, twist it, and place it on the blue cube"
+ */
+async function handleMultiStepCommand(
+  message: string,
+  state: JointState,
+  objects: SimObject[]
+): Promise<ClaudeResponse | null> {
+  // Import primitives system
+  const { decomposeCommand, executeSequence } = await import('./primitives');
+  const { calculateGripperPositionURDF } = await import('../components/simulation/SO101KinematicsURDF');
+
+  // Convert SimObject[] to RobotState format
+  const gripperPos = calculateGripperPositionURDF(state);
+  const heldObject = objects.find(o => o.isGrabbed);
+
+  const robotState = {
+    joints: state,
+    gripperWorldPosition: gripperPos as [number, number, number],
+    objects: objects.map(o => ({
+      id: o.id,
+      name: o.name || o.id,
+      type: (o.type || 'cube') as 'cube' | 'cylinder' | 'ball' | 'custom',
+      position: o.position as [number, number, number],
+      scale: o.scale || 0.03,
+      isGrabbed: o.isGrabbed,
+    })),
+    heldObject: heldObject?.id,
+  };
+
+  // Decompose the command
+  const decomposition = decomposeCommand(message, robotState);
+
+  if (!decomposition.success || !decomposition.sequence) {
+    log.warn(`Multi-step decomposition failed: ${decomposition.error}`);
+    return null;
+  }
+
+  const { sequence } = decomposition;
+  log.info(`Multi-step command decomposed into ${sequence.steps.length} steps`);
+
+  // Execute the sequence
+  const { steps, phases, description } = await executeSequence(sequence, robotState);
+
+  // Build description of all steps
+  const stepDescriptions = phases
+    .filter(p => p.description && !p.description.includes('Stabilize'))
+    .map(p => p.description)
+    .slice(0, 5); // Limit to first 5 for readability
+
+  const fullDescription = stepDescriptions.length > 3
+    ? `${stepDescriptions.slice(0, 3).join(', ')}... (${phases.length} total phases)`
+    : stepDescriptions.join(', then ');
+
+  return {
+    action: 'sequence',
+    joints: steps,
+    description: fullDescription || description,
+    code: `// Multi-step command: ${message}\n${sequence.steps.map(s => `// Step: ${s.primitive}`).join('\n')}`,
+  };
+}
+
 async function simulateArmResponse(message: string, state: JointState, objects?: SimObject[]): Promise<ClaudeResponse> {
   log.debug('Processing message:', message);
   const amount = parseAmount(message);
@@ -1526,6 +1589,37 @@ async function simulateArmResponse(message: string, state: JointState, objects?:
   // Find grabbable objects
   const grabbableObjects = objects?.filter(o => o.isGrabbable && !o.isGrabbed) || [];
   const heldObject = objects?.find(o => o.isGrabbed);
+
+  // Check for MULTI-STEP commands - look for action verb separators
+  // Pattern: "verb ... (then|, then|and then|,) ... verb"
+  // Avoids false positives like "pick up the blue and green cube"
+  const actionVerbs = ['pick', 'grab', 'place', 'put', 'stack', 'move', 'rotate', 'twist', 'turn', 'lift', 'drop', 'release'];
+  const lowerMessage = message.toLowerCase();
+  const hasMultipleActions = (() => {
+    // Split by common separators
+    const parts = lowerMessage.split(/\s*(?:,\s*(?:then\s+)?|(?:\s+and\s+)?then\s+)\s*/);
+    if (parts.length < 2) return false;
+    // Check if at least 2 parts contain action verbs
+    let verbCount = 0;
+    for (const part of parts) {
+      if (actionVerbs.some(verb => part.includes(verb))) {
+        verbCount++;
+        if (verbCount >= 2) return true;
+      }
+    }
+    return false;
+  })();
+
+  if (hasMultipleActions) {
+    log.info('Detected multi-step command, using primitives system');
+    try {
+      const result = await handleMultiStepCommand(message, state, objects || []);
+      if (result) return result;
+    } catch (error) {
+      log.warn('Multi-step command failed, falling back to single command:', error);
+      // Fall through to single command handling
+    }
+  }
 
   // IMPORTANT: Check compound commands first (like "pick up") before simple ones (like "up")
 

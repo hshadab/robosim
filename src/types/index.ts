@@ -17,6 +17,12 @@ export interface JointState {
 export type JointSequenceStep = Partial<JointState> & {
   /** Flag to indicate gripper-only step with extended timing for physics */
   _gripperOnly?: boolean;
+  /** Duration in milliseconds for this step (from primitives system) */
+  _duration?: number;
+  /** Phase name for debugging/logging */
+  _phaseName?: string;
+  /** Human-readable description of what this step does */
+  _description?: string;
 };
 
 // Gear ratio configuration for servo motors

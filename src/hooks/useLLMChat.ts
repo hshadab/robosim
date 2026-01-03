@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
-import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
+import type { JointState, JointSequenceStep, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
 import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 import { createLogger } from '../lib/logger';
@@ -204,7 +204,7 @@ export const useLLMChat = () => {
   );
 
   const executeArmSequence = useCallback(
-    async (sequence: Record<string, number | string | boolean>[]) => {
+    async (sequence: JointSequenceStep[]) => {
       setIsAnimating(true);
       let currentJoints = { ...jointsRef.current };
 
@@ -214,8 +214,8 @@ export const useLLMChat = () => {
         // Check for gripper-only flag (needs extra time for physics)
         const isGripperOnly = step._gripperOnly === true;
         // Check if this step only changes gripper (no other joints)
-        const gripperOnlyStep = Object.keys(step).filter(k => k !== '_gripperOnly').length === 1
-          && step.gripper !== undefined;
+        const jointKeys = Object.keys(step).filter(k => !k.startsWith('_'));
+        const gripperOnlyStep = jointKeys.length === 1 && step.gripper !== undefined;
 
         for (const [joint, value] of Object.entries(step)) {
           // Skip internal flags
@@ -231,15 +231,20 @@ export const useLLMChat = () => {
           }
         }
 
-        // Use longer duration for gripper-only moves (physics needs time to detect contact)
-        // Demo uses 800ms for gripper close - this is critical for reliable grasping
-        const duration = (isGripperOnly || gripperOnlyStep) ? 800 : 700;
+        // Use _duration from primitives system if provided, otherwise use defaults
+        // Gripper-only steps need extra time for physics contact detection (800ms)
+        let duration: number;
+        if (typeof step._duration === 'number' && step._duration > 0) {
+          duration = step._duration;
+        } else {
+          duration = (isGripperOnly || gripperOnlyStep) ? 800 : 700;
+        }
 
         await animateToJoints(targetJoints, duration);
         currentJoints = { ...currentJoints, ...targetJoints };
 
         // Longer delay between steps for physics to settle
-        // Demo waits ~500ms after gripper close before lifting
+        // Gripper operations need more time for physics to stabilize
         const delayAfter = (isGripperOnly || gripperOnlyStep) ? 400 : 150;
         await new Promise((r) => setTimeout(r, delayAfter));
       }
