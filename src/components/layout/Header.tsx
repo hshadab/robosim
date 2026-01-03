@@ -74,8 +74,8 @@ export const Header: React.FC = () => {
           <Bot className="w-7 h-7 text-blue-400" />
           <span className="text-lg font-bold text-white">RoboSim</span>
         </div>
-        <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
-          For SO-101
+        <span className="text-xs bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full border border-slate-600/30">
+          LeRobot
         </span>
         {/* Community Stats Badge with Download */}
         {!communityStats.loading && communityStats.total > 0 && (

@@ -7,13 +7,14 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Rocket,
   GraduationCap,
   X,
   ChevronRight,
-  Sliders,
   Brain,
   Users,
+  Bot,
+  Zap,
+  Download,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'robosim_onboarding_completed';
@@ -29,7 +30,7 @@ const FeatureHighlight: React.FC<{
   description: string
 }> = ({ icon, title, description }) => (
   <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-    <div className="text-blue-400 mt-0.5">{icon}</div>
+    <div className="text-blue-400/70 mt-0.5">{icon}</div>
     <div>
       <h4 className="text-sm font-medium text-white">{title}</h4>
       <p className="text-xs text-slate-400 mt-0.5">{description}</p>
@@ -85,26 +86,26 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
 
         {/* Header with gradient */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
-            <Rocket className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/20 mb-4">
+            <Bot className="w-8 h-8 text-white/90" />
           </div>
           <h2 id="welcome-title" className="text-2xl font-bold text-white mb-2">
-            Train Your SO-101 Today
+            Browser-Based Robot Training
           </h2>
           <p className="text-blue-100 text-sm">
-            No GPU required. No setup. Just open your browser and start generating training data.
+            No GPU required. No setup. Generate training data for robot arms in any browser.
           </p>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4">
-          <p className="text-slate-300 text-sm text-center mb-4">
-            Isaac Sim requires a $700+ GPU. RoboSim runs in any browser.
+          <p className="text-slate-400 text-xs text-center mb-4">
+            Optimized for SO-101 and LeRobot-compatible arms
           </p>
 
           <div className="space-y-3">
             <FeatureHighlight
-              icon={<Rocket className="w-5 h-5" />}
+              icon={<Zap className="w-5 h-5" />}
               title="50 Demos in 5 Minutes"
               description="One-click batch generation vs hours of manual teleoperation"
             />
@@ -116,12 +117,12 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
             <FeatureHighlight
               icon={<Users className="w-5 h-5" />}
               title="Crowd-Sourced Dataset"
-              description="Every user's success helps everyone - shared LeRobot training data"
+              description="Community demos help everyone - shared LeRobot training data"
             />
             <FeatureHighlight
-              icon={<Sliders className="w-5 h-5" />}
+              icon={<Download className="w-5 h-5" />}
               title="Native LeRobot Export"
-              description="Same URDF, same joints as real SO-101 - ready for sim-to-real"
+              description="Accurate URDF and joint limits - ready for sim-to-real transfer"
             />
           </div>
         </div>
