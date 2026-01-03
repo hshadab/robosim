@@ -16,6 +16,7 @@ Training real robots is slow and expensive:
 RoboSim lets you:
 - ✅ Start training **before hardware arrives**
 - ✅ Generate **unlimited varied demos** automatically
+- ✅ **Crowd-sourced training** - every user's success helps everyone
 - ✅ Train on **free Google Colab GPU**
 - ✅ Transfer policies to **real SO-101** (sim-to-real)
 
@@ -75,6 +76,27 @@ When you type in the chat box, an **LLM interprets your intent**:
 This hybrid approach ensures training data is reliable while still allowing natural language control for exploration.
 
 ## Recent Updates (January 2025)
+
+### Crowd-Sourced Training (NEW - January 2025)
+Every successful pickup contributes to a shared training database. All users benefit from each other's demonstrations.
+
+- **Community Demo Counter** - Header badge shows total demos from all users (e.g., "1,247 demos")
+- **Auto-Upload on Success** - Successful pickups automatically uploaded to shared database
+- **One-Click LeRobot Download** - Download the entire community dataset in LeRobot format
+- **Shared Example Lookup** - Query similar successful pickups for any position/object type
+
+**How It Works:**
+1. User successfully picks up a cube → Joint sequence uploaded to Supabase
+2. Another user tries similar pickup → System queries shared database for proven sequences
+3. Training data grows automatically → Everyone benefits from crowd-sourced demonstrations
+
+**API Endpoints:**
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/examples` | Upload successful pickup |
+| `GET /api/examples/similar` | Query similar examples by position |
+| `GET /api/examples/all` | Download all examples (LeRobot export) |
+| `GET /api/examples/stats` | Get community statistics |
 
 ### LLM Training Data Pipeline (NEW - January 2025)
 A complete system for collecting, validating, and exporting high-quality training data from natural language robot commands.

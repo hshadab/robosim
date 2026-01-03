@@ -13,7 +13,7 @@ import {
   ChevronRight,
   Sliders,
   Brain,
-  Database,
+  Users,
   Gamepad2
 } from 'lucide-react';
 
@@ -93,7 +93,7 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
             Welcome to RoboSim!
           </h2>
           <p className="text-blue-100 text-sm">
-            Browser-based robotics simulation with AI-powered controls
+            Crowd-sourced robot training for SO-101. Every pickup helps everyone.
           </p>
         </div>
 
@@ -105,19 +105,19 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
 
           <div className="space-y-3">
             <FeatureHighlight
+              icon={<Users className="w-5 h-5" />}
+              title="Crowd-Sourced Training"
+              description="Every successful pickup contributes to a shared LeRobot dataset"
+            />
+            <FeatureHighlight
               icon={<Brain className="w-5 h-5" />}
               title="AI-Powered Pickup"
               description="Chat 'pick up the cube' - AI plans IK with validation and auto-retry"
             />
             <FeatureHighlight
-              icon={<Database className="w-5 h-5" />}
-              title="Training Data Pipeline"
-              description="Active learning auto-promotes successful pickups + exports to LeRobot"
-            />
-            <FeatureHighlight
               icon={<Sliders className="w-5 h-5" />}
-              title="Training Dashboard"
-              description="Track success rates, view coverage heatmap, export contact events"
+              title="One-Click LeRobot Download"
+              description="Download the entire community dataset in LeRobot format"
             />
             <FeatureHighlight
               icon={<Gamepad2 className="w-5 h-5" />}
