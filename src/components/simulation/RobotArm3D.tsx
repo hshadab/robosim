@@ -290,10 +290,11 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
   }
 
   // Camera position based on robot type
+  // Adjusted for better centering of robot in viewport
   const getCameraPosition = (): [number, number, number] => {
     switch (activeRobotType) {
       case 'arm':
-        return [0.5, 0.4, 0.5];  // Zoomed out to see full arm and objects
+        return [0.45, 0.35, 0.45];  // Slightly lower and closer for better arm visibility
       case 'wheeled':
         return [0.4, 0.3, 0.4];
       case 'drone':
@@ -301,14 +302,14 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
       case 'humanoid':
         return [0.8, 0.6, 0.8];
       default:
-        return [0.5, 0.4, 0.5];
+        return [0.45, 0.35, 0.45];
     }
   };
 
   const getCameraTarget = (): [number, number, number] => {
     switch (activeRobotType) {
       case 'arm':
-        return [0, 0.15, 0];
+        return [0.08, 0.1, 0];  // Look at robot center, slightly toward arm
       case 'wheeled':
         return [wheeledRobot.position.x, 0.05, wheeledRobot.position.z];
       case 'drone':
@@ -316,7 +317,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
       case 'humanoid':
         return [0, 0.4, 0];
       default:
-        return [0, 0.15, 0];
+        return [0.08, 0.1, 0];
     }
   };
 
@@ -351,6 +352,20 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
           minDistance={0.15}
           maxDistance={3}
           target={getCameraTarget()}
+          panSpeed={0.8}
+          rotateSpeed={0.8}
+          zoomSpeed={1.2}
+          // Right mouse button or two-finger drag for panning
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.PAN,
+            RIGHT: THREE.MOUSE.PAN,
+          }}
+          // Two-finger for pan on touch devices
+          touches={{
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
+          }}
         />
 
         {/* Studio lighting environment for PBR reflections */}
@@ -482,7 +497,7 @@ export const RobotArm3D: React.FC<RobotArm3DProps> = ({
       {/* Overlay info */}
       <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700/50">
         <div className="text-sm font-bold text-white">{getRobotName(activeRobotType)}</div>
-        <div className="text-xs text-slate-400">3D Simulation • Drag to rotate</div>
+        <div className="text-xs text-slate-400">Drag: rotate • Right-drag: pan • Scroll: zoom</div>
       </div>
 
       {/* Robot-specific overlays */}
