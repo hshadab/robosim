@@ -4,7 +4,9 @@ import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, Humano
 import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 import { createLogger } from '../lib/logger';
-import { logPickupAttempt, markPickupSuccess, markPickupFailure } from '../lib/pickupExamples';
+import { logPickupAttempt, markPickupSuccess, markPickupFailure, promoteToVerified } from '../lib/pickupExamples';
+import { startContactSession, endContactSession, startContactMonitoring } from '../lib/contactEvents';
+import { scheduleFrame } from '../lib/animationUtils';
 
 const log = createLogger('LLMChat');
 
@@ -189,7 +191,7 @@ export const useLLMChat = () => {
           setJoints(newJoints);
 
           if (progress < 1) {
-            requestAnimationFrame(animate);
+            scheduleFrame(animate);
           } else {
             resolve();
           }
@@ -358,6 +360,7 @@ export const useLLMChat = () => {
 
             // Log pickup attempt if this is a pickup command
             let pickupAttemptId: string | null = null;
+            let contactSessionId: string | null = null;
             if (response.pickupAttempt) {
               pickupAttemptId = logPickupAttempt({
                 objectPosition: response.pickupAttempt.objectPosition,
@@ -369,6 +372,10 @@ export const useLLMChat = () => {
                 userMessage: message,
               });
               log.debug(`Logged pickup attempt ${pickupAttemptId}`);
+
+              // Start contact event session for this pickup
+              startContactMonitoring();
+              contactSessionId = startContactSession(message);
             }
 
             // Record action and start task tracking
@@ -388,24 +395,44 @@ export const useLLMChat = () => {
                 if (grabbedObject) {
                   markPickupSuccess(pickupAttemptId);
                   log.info(`Pickup SUCCESS: Grabbed "${grabbedObject.name || grabbedObject.id}"`);
+
+                  // Active learning: try to promote this pickup to verified examples
+                  const wasPromoted = promoteToVerified(pickupAttemptId);
+                  if (wasPromoted) {
+                    log.info(`Active learning: Promoted pickup to verified examples`);
+                  }
+
+                  // End contact session with success
+                  if (contactSessionId) {
+                    endContactSession(true);
+                  }
                 } else {
-                  // Log detailed failure info for debugging
+                  // Log detailed failure info for debugging (debug level to reduce noise in production)
                   const targetObj = currentObjects.find(o => o.isGrabbable);
                   if (targetObj) {
                     const [x, y, z] = targetObj.position;
                     const dist = Math.sqrt(x * x + z * z);
-                    log.warn(`Pickup FAILED: Object "${targetObj.name}" at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm (${(dist*100).toFixed(1)}cm from base)`);
-                    log.warn(`  Grasp threshold is 4cm from jaw - IK may have positioned gripper too far from object`);
+                    log.debug(`Pickup FAILED: Object "${targetObj.name}" at [${(x*100).toFixed(1)}, ${(y*100).toFixed(1)}, ${(z*100).toFixed(1)}]cm (${(dist*100).toFixed(1)}cm from base)`);
+                    log.debug(`  Grasp threshold is 4cm from jaw - IK may have positioned gripper too far from object`);
                   } else {
-                    log.warn(`Pickup FAILED: No object grabbed`);
+                    log.debug(`Pickup FAILED: No object grabbed`);
                   }
                   markPickupFailure(pickupAttemptId, 'No object grabbed after sequence');
+
+                  // End contact session with failure
+                  if (contactSessionId) {
+                    endContactSession(false);
+                  }
                 }
               }
             } catch (err) {
               robotContext.failTask(err instanceof Error ? err.message : 'Movement failed');
               if (pickupAttemptId) {
                 markPickupFailure(pickupAttemptId, err instanceof Error ? err.message : 'Movement failed');
+              }
+              // End contact session on error
+              if (contactSessionId) {
+                endContactSession(false);
               }
             }
           } else if (activeRobotType === 'wheeled' && response.wheeledAction) {

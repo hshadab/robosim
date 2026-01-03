@@ -33,6 +33,7 @@ import {
   createSimObjectFromTemplate,
   type ObjectTemplate,
 } from '../../lib/objectLibrary';
+import { scheduleFrame, cancelFrame } from '../../lib/animationUtils';
 import {
   autoGenerateEpisodes,
   TARGET_EPISODE_COUNT,
@@ -686,7 +687,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
 
         const animate = () => {
           if (abortRef.current.aborted) {
-            if (rafId) cancelAnimationFrame(rafId);
+            if (rafId) cancelFrame(rafId);
             resolve(false);
             return;
           }
@@ -751,7 +752,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           }
 
           if (t < 1) {
-            rafId = requestAnimationFrame(animate);
+            rafId = scheduleFrame(animate);
           } else {
             // Attach images to nearest frames
             for (const [imgTimestamp, imgData] of capturedImagesMap) {
@@ -775,7 +776,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           }
         };
 
-        rafId = requestAnimationFrame(animate);
+        rafId = scheduleFrame(animate);
       });
     };
 

@@ -49,3 +49,5 @@ export { QuickTrainPanel } from './QuickTrainPanel';
 // Minimal UI
 export { MinimalTrainFlow } from './MinimalTrainFlow';
 export { ToolsDrawer } from './ToolsDrawer';
+// Training Dashboard
+export { TrainingDashboard } from './TrainingDashboard';

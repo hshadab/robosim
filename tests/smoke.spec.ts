@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock auth
+    // Mock auth and dismiss modals
     await page.addInitScript(() => {
       localStorage.setItem('robosim-auth', JSON.stringify({
         state: {
@@ -18,6 +18,9 @@ test.describe('Smoke Tests', () => {
         },
         version: 0,
       }));
+      // Dismiss welcome and onboarding modals
+      localStorage.setItem('robosim-welcomed', 'true');
+      localStorage.setItem('robosim_onboarding_completed', 'true');
     });
 
     await page.goto('/', { waitUntil: 'domcontentloaded' });

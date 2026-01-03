@@ -841,6 +841,146 @@ export const PARAMETERIZED_TEMPLATES: ParameterizedTaskTemplate[] = [
       },
     ],
   },
+  // ========================================
+  // PUSH/SLIDE TASK - Contact-rich manipulation
+  // ========================================
+  {
+    id: 'push-object',
+    name: 'Push Object',
+    description: 'Push an object across the table surface with sustained contact',
+    category: 'manipulation',
+    parameters: [
+      {
+        name: 'objectBaseAngle',
+        description: 'Base angle to object position',
+        defaultValue: 0,
+        min: -45,
+        max: 45,
+        unit: '°',
+        randomize: true,
+      },
+      {
+        name: 'pushDistance',
+        description: 'Distance to push the object',
+        defaultValue: 5,
+        min: 3,
+        max: 10,
+        unit: 'cm',
+        randomize: true,
+      },
+      {
+        name: 'contactHeight',
+        description: 'Shoulder angle for contact height',
+        defaultValue: -60,
+        min: -70,
+        max: -50,
+        unit: '°',
+        randomize: true,
+      },
+      {
+        name: 'reachExtension',
+        description: 'Elbow extension for reach',
+        defaultValue: 60,
+        min: 50,
+        max: 75,
+        unit: '°',
+        randomize: true,
+      },
+      {
+        name: 'pushSpeed',
+        description: 'Speed multiplier for push motion',
+        defaultValue: 0.8,
+        min: 0.5,
+        max: 1.2,
+        unit: 'x',
+        randomize: true,
+      },
+    ],
+    waypoints: [
+      {
+        name: 'Home',
+        joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 50 },
+        duration: 0.5,
+      },
+      {
+        name: 'Approach Behind Object',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: -30,
+          elbow: 40,
+          wrist: -20,
+          wristRoll: 0,
+          gripper: 0, // Closed for pushing
+        },
+        duration: 0.6,
+      },
+      {
+        name: 'Lower to Contact',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: '${contactHeight}',
+          elbow: '${reachExtension - 15}', // Behind object
+          wrist: -10,
+          wristRoll: 0,
+          gripper: 0,
+        },
+        duration: 0.4,
+      },
+      {
+        name: 'Push Start',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: '${contactHeight}',
+          elbow: '${reachExtension}',
+          wrist: -10,
+          wristRoll: 0,
+          gripper: 0,
+        },
+        duration: 0.3,
+      },
+      {
+        name: 'Push Mid',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: '${contactHeight + pushDistance * 0.5}',
+          elbow: '${reachExtension + pushDistance}',
+          wrist: -15,
+          wristRoll: 0,
+          gripper: 0,
+        },
+        duration: 0.8,
+      },
+      {
+        name: 'Push End',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: '${contactHeight + pushDistance}',
+          elbow: '${reachExtension + pushDistance * 2}',
+          wrist: -20,
+          wristRoll: 0,
+          gripper: 0,
+        },
+        duration: 0.8,
+      },
+      {
+        name: 'Lift Away',
+        joints: {
+          base: '${objectBaseAngle}',
+          shoulder: -25,
+          elbow: 40,
+          wrist: -15,
+          wristRoll: 0,
+          gripper: 0,
+        },
+        duration: 0.4,
+      },
+      {
+        name: 'Return Home',
+        joints: { base: 0, shoulder: 0, elbow: 0, wrist: 0, wristRoll: 0, gripper: 50 },
+        duration: 0.6,
+      },
+    ],
+  },
 ];
 
 /**
@@ -851,6 +991,71 @@ function randomizeParameter(param: TaskParameter): number {
     return param.defaultValue;
   }
   return param.min + Math.random() * (param.max - param.min);
+}
+
+/**
+ * Safe arithmetic expression evaluator
+ * Handles basic math operations without using eval/Function
+ */
+function safeEvaluateExpression(expression: string): number {
+  // Tokenize: split into numbers and operators
+  const tokens: (number | string)[] = [];
+  let current = '';
+
+  for (const char of expression) {
+    if ('+-*/()'.includes(char)) {
+      if (current.trim()) {
+        tokens.push(parseFloat(current.trim()));
+        current = '';
+      }
+      tokens.push(char);
+    } else if (char !== ' ') {
+      current += char;
+    }
+  }
+  if (current.trim()) {
+    tokens.push(parseFloat(current.trim()));
+  }
+
+  // Simple recursive descent parser for basic arithmetic
+  let pos = 0;
+
+  function parseExpression(): number {
+    let left = parseTerm();
+    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+      const op = tokens[pos++];
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm(): number {
+    let left = parseFactor();
+    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+      const op = tokens[pos++];
+      const right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    return left;
+  }
+
+  function parseFactor(): number {
+    if (tokens[pos] === '(') {
+      pos++; // skip '('
+      const result = parseExpression();
+      pos++; // skip ')'
+      return result;
+    }
+    // Handle negative numbers
+    if (tokens[pos] === '-') {
+      pos++;
+      return -parseFactor();
+    }
+    return tokens[pos++] as number;
+  }
+
+  return parseExpression();
 }
 
 /**
@@ -879,18 +1084,17 @@ function resolveParameterValue(
   }
 
   // Handle simple arithmetic expressions
-  // Replace parameter names with values and evaluate
+  // Replace parameter names with values
   let evalExpression = expression;
   for (const [name, val] of Object.entries(paramValues)) {
     evalExpression = evalExpression.replace(new RegExp(name, 'g'), val.toString());
   }
 
-  // Safe evaluation of simple arithmetic
+  // Safe evaluation using our custom parser
   try {
-    // Only allow numbers, operators, parentheses, and spaces
+    // Only allow numbers, operators, parentheses, spaces, and decimal points
     if (/^[\d\s+\-*/.()]+$/.test(evalExpression)) {
-      // Using Function constructor for controlled evaluation
-      return new Function(`return ${evalExpression}`)() as number;
+      return safeEvaluateExpression(evalExpression);
     }
   } catch {
     console.warn(`Failed to evaluate expression: ${expression}`);

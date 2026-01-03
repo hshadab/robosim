@@ -33,6 +33,9 @@ test.describe('Demo Pick Up Tests', () => {
         version: 0,
       };
       localStorage.setItem('robosim-auth', JSON.stringify(mockAuthState));
+      // Dismiss welcome and onboarding modals
+      localStorage.setItem('robosim-welcomed', 'true');
+      localStorage.setItem('robosim_onboarding_completed', 'true');
     });
 
     // Navigate to app

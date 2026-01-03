@@ -105,24 +105,24 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
 
           <div className="space-y-3">
             <FeatureHighlight
-              icon={<Sliders className="w-5 h-5" />}
-              title="Direct Joint Control"
-              description="Use sliders or keyboard to control each robot joint in real-time"
-            />
-            <FeatureHighlight
               icon={<Brain className="w-5 h-5" />}
-              title="AI-Powered Commands"
-              description="Chat with AI to control the robot using natural language"
+              title="AI-Powered Pickup"
+              description="Chat 'pick up the cube' - AI plans IK with validation and auto-retry"
             />
             <FeatureHighlight
               icon={<Database className="w-5 h-5" />}
-              title="LeRobot Dataset Export"
-              description="Record demonstrations and export to HuggingFace LeRobot format"
+              title="Training Data Pipeline"
+              description="Active learning auto-promotes successful pickups + exports to LeRobot"
+            />
+            <FeatureHighlight
+              icon={<Sliders className="w-5 h-5" />}
+              title="Training Dashboard"
+              description="Track success rates, view coverage heatmap, export contact events"
             />
             <FeatureHighlight
               icon={<Gamepad2 className="w-5 h-5" />}
               title="Multiple Control Modes"
-              description="Keyboard, gamepad, hand tracking, and click-to-move IK"
+              description="Keyboard, gamepad, hand tracking, click-to-move IK, and voice"
             />
           </div>
         </div>

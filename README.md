@@ -76,7 +76,58 @@ This hybrid approach ensures training data is reliable while still allowing natu
 
 ## Recent Updates (January 2025)
 
-### Enhanced Sim-to-Real Export (NEW)
+### LLM Training Data Pipeline (NEW - January 2025)
+A complete system for collecting, validating, and exporting high-quality training data from natural language robot commands.
+
+#### Sprint 1: Expanded Demo Coverage
+- **Expanded Demo Zone** - 8 cube positions + 3 cylinder positions covering the workspace
+- **IK Confidence Gating** - 4cm threshold; falls back to verified examples when IK unreliable
+- **Cylinder Horizontal Grasp** - Dedicated grasp examples for cylindrical objects
+
+#### Sprint 2: Active Learning System
+- **Active Learning Loop** - Successful novel pickups auto-promote to verified examples
+- **Novelty Detection** - Only promotes pickups >5cm from existing verified positions
+- **IK Quality Gates** - Only promotes pickups with <3cm IK error
+- **LocalStorage Persistence** - Promoted examples survive browser refresh
+
+#### Sprint 3: Language Augmentation
+- **Language Variant Generation** - Each pickup generates ~20 training phrases
+- **Natural Language Variants** - "pick up the cube", "grab the block", "get the red one"
+- **Article Agreement** - Proper grammar with "the", "a", articles
+- **Verb Pool Expansion** - pick, grab, get, fetch, retrieve, take, lift
+
+#### Sprint 4: Push/Slide Task + Validation
+- **Push Task Template** - New parameterized template for pushing objects
+- **Validation Loop with Retry** - Up to 9 retry attempts before fallback:
+  - Strategy 1: Try different base angles (±5°, ±10°)
+  - Strategy 2: Try different grasp heights (±1cm, ±2cm)
+  - Strategy 3: Toggle side grasp approach
+- **Safe Expression Evaluation** - Replaced `new Function()` with recursive descent parser
+
+#### Sprint 5: Contact Events & Training Dashboard
+- **Contact Events Export** - Automatic grasp/release event capture
+  - Subscribes to store for real-time grasp state monitoring
+  - Records gripper position, joint state, force estimates
+  - LeRobot-compatible episode export format
+  - LocalStorage persistence for sessions
+- **Training Dashboard** - React component in Tools Drawer → Data
+  - Overview tab: Success rate, totals, by-object-type breakdown
+  - Coverage tab: Position heatmap, verified example counts
+  - Contacts tab: Session stats, event types, recent sessions
+  - Export tab: Download buttons + clear data options
+
+**Files Added/Modified**:
+| File | Change |
+|------|--------|
+| `src/lib/pickupExamples.ts` | +180 lines - Verified examples, active learning, localStorage |
+| `src/lib/claudeApi.ts` | +180 lines - Validation loop, IK gating, shared matching |
+| `src/lib/languageAugmentation.ts` | NEW - 280 lines for language variant generation |
+| `src/lib/contactEvents.ts` | NEW - Contact event capture system |
+| `src/lib/taskTemplates.ts` | +140 lines - Push task template, safe expression eval |
+| `src/hooks/useLLMChat.ts` | +20 lines - Active learning + contact session integration |
+| `src/components/controls/TrainingDashboard.tsx` | NEW - Training dashboard UI |
+
+### Enhanced Sim-to-Real Export
 Major improvements for realistic data export to LeRobot/HuggingFace:
 
 **Motor Dynamics Simulation**
@@ -217,6 +268,37 @@ Streamlined object library focused on reliable training:
 ### Improved UI
 - **Floating Tools Button** - Access manual controls from right edge
 - **No Screen Darkening** - Drawer slides without overlay
+
+### Mobile-Responsive Design
+- **Bottom Navigation Bar** - 3D View, Chat, Camera, Tools, Settings tabs on mobile
+- **Touch-Friendly Targets** - 78x56px nav buttons meet Apple HIG guidelines
+- **Responsive Canvas** - Full-width 3D view on phone/tablet viewports
+- **MobileDrawer Component** - Slide-up panels with snap points (half/full)
+- **Tested Viewports** - iPhone (390x844), iPad (768x1024), Android (393x851)
+
+### Playwright Test Suite
+Comprehensive end-to-end testing for all task types:
+
+| Test | Description |
+|------|-------------|
+| **LLM Arm Control** | Demo pickup, smooth motion, arm return to home |
+| **Batch Demo Variety** | Verifies position/color variety in generated demos |
+| **Task Type Selector** | Pickup, Stack, Place task switching |
+| **Stack Task** | Spawns 2 cubes (pick target + base) |
+| **Place Task** | Uses target zones (left, center, right) |
+| **Mobile Responsiveness** | Canvas rendering, nav visibility, touch targets |
+
+Run tests:
+```bash
+# All tests (headless)
+npx playwright test
+
+# With API key for LLM tests
+ANTHROPIC_API_KEY=your_key npx playwright test
+
+# Visual debugging (headed)
+npx playwright test --headed
+```
 
 See `docs/GRIPPER_ANALYSIS.md` and `docs/GRASP_PROBLEM_ANALYSIS.md` for technical details.
 
@@ -1093,6 +1175,7 @@ src/
 │   │   ├── ImageTo3DPanel.tsx         # Image-to-3D with CSM API
 │   │   ├── ObjectLibraryPanel.tsx     # Physics object library browser
 │   │   ├── LLMRecordingPanel.tsx      # LLM → Physics recording
+│   │   ├── TrainingDashboard.tsx      # Training data stats and export
 │   │   ├── JointTrajectoryGraph.tsx   # Real-time plotting
 │   │   ├── SerialConnectionPanel.tsx  # Hardware connection
 │   │   └── ...
@@ -1132,6 +1215,8 @@ src/
 │   ├── qualityGates.ts        # Episode quality validation for export
 │   ├── huggingfaceUpload.ts   # HuggingFace Hub dataset upload
 │   ├── pickupExamples.ts      # Training data from successful pickups
+│   ├── languageAugmentation.ts # Language variant generation for training
+│   ├── contactEvents.ts       # Grasp/release contact event capture
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...

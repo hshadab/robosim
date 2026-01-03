@@ -41,6 +41,7 @@ import { DatasetBrowserPanel } from './DatasetBrowserPanel';
 import { DatasetPlayerPanel } from './DatasetPlayer';
 import { DatasetRecorderPanel } from './DatasetRecorder';
 import { ImageTo3DPanel } from './ImageTo3DPanel';
+import { TrainingDashboard } from './TrainingDashboard';
 
 interface ToolsDrawerProps {
   isOpen: boolean;
@@ -91,6 +92,7 @@ export const ToolsDrawer: React.FC<ToolsDrawerProps> = ({ isOpen, onClose }) => 
     data: {
       label: 'Data',
       items: [
+        { id: 'training', label: 'Training Dashboard', icon: <BarChart3 className="w-4 h-4" />, content: <TrainingDashboard /> },
         { id: 'recorder', label: 'Manual Recording', icon: <Database className="w-4 h-4" />, content: <DatasetRecorderPanel /> },
         { id: 'browser', label: 'Browse Datasets', icon: <Search className="w-4 h-4" />, content: <DatasetBrowserPanel /> },
         { id: 'player', label: 'Play Dataset', icon: <Play className="w-4 h-4" />, content: <DatasetPlayerPanel /> },

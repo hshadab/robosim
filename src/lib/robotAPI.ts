@@ -7,6 +7,7 @@
 
 import { useAppStore } from '../stores/useAppStore';
 import type { JointState } from '../types';
+import { scheduleFrame } from './animationUtils';
 
 // Types for the API
 export interface Vector3 {
@@ -57,7 +58,7 @@ const animateToJoints = (
       useAppStore.getState().setJoints(newJoints);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        scheduleFrame(animate);
       } else {
         resolve();
       }
