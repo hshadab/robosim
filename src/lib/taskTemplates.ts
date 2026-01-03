@@ -2,144 +2,37 @@
  * Parameterized Task Templates
  *
  * Provides configurable task templates with randomizable parameters
- * for generating diverse training data. Each parameter can have:
- * - A default value
- * - Min/max range for randomization
- * - Whether to enable randomization
+ * for generating diverse training data.
+ *
+ * NOTE: This module is being refactored into smaller modules in ./templates/
+ * New code should import from './templates' where possible.
  */
 
-import type { JointState } from '../types';
+// Re-export types from modular structure
+export type {
+  TaskParameter,
+  ParameterizedWaypoint,
+  ParameterizedTaskTemplate,
+  ResolvedTaskTemplate,
+} from './templates/types';
 
-/**
- * A single parameter that can be randomized
- */
-export interface TaskParameter {
-  name: string;
-  description: string;
-  defaultValue: number;
-  min: number;
-  max: number;
-  unit: string;
-  randomize: boolean;
-}
+// Re-export utilities from modular structure
+export {
+  randomizeParameter,
+  safeEvaluateExpression,
+  resolveParameterValue,
+  resolveWaypoint,
+  resolveTaskTemplate,
+  generateTaskVariations,
+  getDefaultParameterValues,
+  validateTemplate,
+} from './templates/utils';
 
-/**
- * A waypoint with parameterized joint values
- * Values can be numbers or parameter references (e.g., "${pickAngle}")
- */
-export interface ParameterizedWaypoint {
-  name: string;
-  joints: {
-    base: number | string;
-    shoulder: number | string;
-    elbow: number | string;
-    wrist: number | string;
-    wristRoll: number | string;
-    gripper: number | string;
-  };
-  duration?: number;
-}
+// Re-export default parameters
+export { DEFAULT_PARAMETERS } from './templates/parameters';
 
-/**
- * A parameterized task template
- */
-export interface ParameterizedTaskTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: 'manipulation' | 'navigation' | 'inspection';
-  parameters: TaskParameter[];
-  waypoints: ParameterizedWaypoint[];
-}
-
-/**
- * Resolved task template with concrete joint values
- */
-export interface ResolvedTaskTemplate {
-  id: string;
-  name: string;
-  waypoints: JointState[];
-  durations: number[];
-  parameterValues: Record<string, number>;
-}
-
-/**
- * Default task parameters for common operations
- */
-export const DEFAULT_PARAMETERS: Record<string, TaskParameter> = {
-  pickBaseAngle: {
-    name: 'pickBaseAngle',
-    description: 'Base rotation angle for pick position',
-    defaultValue: 0,
-    min: -90,
-    max: 90,
-    unit: '°',
-    randomize: true,
-  },
-  placeBaseAngle: {
-    name: 'placeBaseAngle',
-    description: 'Base rotation angle for place position',
-    defaultValue: 90,
-    min: -90,
-    max: 90,
-    unit: '°',
-    randomize: true,
-  },
-  pickHeight: {
-    name: 'pickHeight',
-    description: 'Shoulder angle for pick height (more negative = lower)',
-    defaultValue: -50,
-    min: -70,
-    max: -30,
-    unit: '°',
-    randomize: true,
-  },
-  placeHeight: {
-    name: 'placeHeight',
-    description: 'Shoulder angle for place height',
-    defaultValue: -50,
-    min: -70,
-    max: -30,
-    unit: '°',
-    randomize: true,
-  },
-  reachExtension: {
-    name: 'reachExtension',
-    description: 'Elbow angle for reach distance',
-    defaultValue: 70,
-    min: 50,
-    max: 90,
-    unit: '°',
-    randomize: true,
-  },
-  gripperOpenAmount: {
-    name: 'gripperOpenAmount',
-    description: 'Gripper opening percentage',
-    defaultValue: 100,
-    min: 80,
-    max: 100,
-    unit: '%',
-    randomize: false,
-  },
-  gripperCloseAmount: {
-    name: 'gripperCloseAmount',
-    description: 'Gripper closing percentage',
-    defaultValue: 20,
-    min: 0,
-    max: 40,
-    unit: '%',
-    randomize: true,
-  },
-  movementSpeed: {
-    name: 'movementSpeed',
-    description: 'Overall movement speed multiplier',
-    defaultValue: 1.0,
-    min: 0.5,
-    max: 2.0,
-    unit: 'x',
-    randomize: true,
-  },
-};
+// Import types for use in this file
+import type { ParameterizedTaskTemplate } from './templates/types';
 
 /**
  * Predefined parameterized task templates
@@ -983,225 +876,5 @@ export const PARAMETERIZED_TEMPLATES: ParameterizedTaskTemplate[] = [
   },
 ];
 
-/**
- * Generate a random value within parameter range
- */
-function randomizeParameter(param: TaskParameter): number {
-  if (!param.randomize) {
-    return param.defaultValue;
-  }
-  return param.min + Math.random() * (param.max - param.min);
-}
-
-/**
- * Safe arithmetic expression evaluator
- * Handles basic math operations without using eval/Function
- */
-function safeEvaluateExpression(expression: string): number {
-  // Tokenize: split into numbers and operators
-  const tokens: (number | string)[] = [];
-  let current = '';
-
-  for (const char of expression) {
-    if ('+-*/()'.includes(char)) {
-      if (current.trim()) {
-        tokens.push(parseFloat(current.trim()));
-        current = '';
-      }
-      tokens.push(char);
-    } else if (char !== ' ') {
-      current += char;
-    }
-  }
-  if (current.trim()) {
-    tokens.push(parseFloat(current.trim()));
-  }
-
-  // Simple recursive descent parser for basic arithmetic
-  let pos = 0;
-
-  function parseExpression(): number {
-    let left = parseTerm();
-    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
-      const op = tokens[pos++];
-      const right = parseTerm();
-      left = op === '+' ? left + right : left - right;
-    }
-    return left;
-  }
-
-  function parseTerm(): number {
-    let left = parseFactor();
-    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
-      const op = tokens[pos++];
-      const right = parseFactor();
-      left = op === '*' ? left * right : left / right;
-    }
-    return left;
-  }
-
-  function parseFactor(): number {
-    if (tokens[pos] === '(') {
-      pos++; // skip '('
-      const result = parseExpression();
-      pos++; // skip ')'
-      return result;
-    }
-    // Handle negative numbers
-    if (tokens[pos] === '-') {
-      pos++;
-      return -parseFactor();
-    }
-    return tokens[pos++] as number;
-  }
-
-  return parseExpression();
-}
-
-/**
- * Resolve a parameter reference string like "${pickBaseAngle}"
- * Also handles simple expressions like "${sweepStart * 0.5 + sweepEnd * 0.5}"
- */
-function resolveParameterValue(
-  value: number | string,
-  paramValues: Record<string, number>
-): number {
-  if (typeof value === 'number') {
-    return value;
-  }
-
-  // Extract expression from ${...}
-  const match = value.match(/^\$\{(.+)\}$/);
-  if (!match) {
-    return parseFloat(value) || 0;
-  }
-
-  const expression = match[1];
-
-  // Simple parameter reference
-  if (paramValues[expression] !== undefined) {
-    return paramValues[expression];
-  }
-
-  // Handle simple arithmetic expressions
-  // Replace parameter names with values
-  let evalExpression = expression;
-  for (const [name, val] of Object.entries(paramValues)) {
-    evalExpression = evalExpression.replace(new RegExp(name, 'g'), val.toString());
-  }
-
-  // Safe evaluation using our custom parser
-  try {
-    // Only allow numbers, operators, parentheses, spaces, and decimal points
-    if (/^[\d\s+\-*/.()]+$/.test(evalExpression)) {
-      return safeEvaluateExpression(evalExpression);
-    }
-  } catch {
-    console.warn(`Failed to evaluate expression: ${expression}`);
-  }
-
-  return 0;
-}
-
-/**
- * Resolve a parameterized waypoint to concrete joint values
- */
-function resolveWaypoint(
-  waypoint: ParameterizedWaypoint,
-  paramValues: Record<string, number>
-): JointState {
-  return {
-    base: resolveParameterValue(waypoint.joints.base, paramValues),
-    shoulder: resolveParameterValue(waypoint.joints.shoulder, paramValues),
-    elbow: resolveParameterValue(waypoint.joints.elbow, paramValues),
-    wrist: resolveParameterValue(waypoint.joints.wrist, paramValues),
-    wristRoll: resolveParameterValue(waypoint.joints.wristRoll, paramValues),
-    gripper: resolveParameterValue(waypoint.joints.gripper, paramValues),
-  };
-}
-
-/**
- * Resolve a full task template with given or randomized parameters
- */
-export function resolveTaskTemplate(
-  template: ParameterizedTaskTemplate,
-  customValues?: Partial<Record<string, number>>
-): ResolvedTaskTemplate {
-  // Generate parameter values (randomized or custom)
-  const paramValues: Record<string, number> = {};
-  for (const param of template.parameters) {
-    if (customValues && customValues[param.name] !== undefined) {
-      paramValues[param.name] = customValues[param.name]!;
-    } else {
-      paramValues[param.name] = randomizeParameter(param);
-    }
-  }
-
-  // Get movement speed for duration scaling
-  const speedMultiplier = paramValues.movementSpeed || 1.0;
-
-  // Resolve waypoints
-  const waypoints = template.waypoints.map((wp) => resolveWaypoint(wp, paramValues));
-  const durations = template.waypoints.map((wp) => (wp.duration || 0.5) / speedMultiplier);
-
-  return {
-    id: template.id,
-    name: template.name,
-    waypoints,
-    durations,
-    parameterValues: paramValues,
-  };
-}
-
-/**
- * Generate multiple variations of a task template
- */
-export function generateTaskVariations(
-  template: ParameterizedTaskTemplate,
-  count: number
-): ResolvedTaskTemplate[] {
-  const variations: ResolvedTaskTemplate[] = [];
-  for (let i = 0; i < count; i++) {
-    variations.push(resolveTaskTemplate(template));
-  }
-  return variations;
-}
-
-/**
- * Get default parameter values (no randomization)
- */
-export function getDefaultParameterValues(
-  template: ParameterizedTaskTemplate
-): Record<string, number> {
-  const values: Record<string, number> = {};
-  for (const param of template.parameters) {
-    values[param.name] = param.defaultValue;
-  }
-  return values;
-}
-
-/**
- * Validate that all parameter references in waypoints are defined
- */
-export function validateTemplate(template: ParameterizedTaskTemplate): string[] {
-  const errors: string[] = [];
-  const paramNames = new Set(template.parameters.map((p) => p.name));
-
-  for (const waypoint of template.waypoints) {
-    for (const [joint, value] of Object.entries(waypoint.joints)) {
-      if (typeof value === 'string') {
-        const match = value.match(/\$\{([^}]+)\}/g);
-        if (match) {
-          for (const ref of match) {
-            const paramName = ref.slice(2, -1).split(/[+\-*/\s]/)[0].trim();
-            if (!paramNames.has(paramName) && !/^\d+$/.test(paramName)) {
-              errors.push(`Waypoint "${waypoint.name}" joint "${joint}" references undefined parameter "${paramName}"`);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return errors;
-}
+// All utility functions (resolveTaskTemplate, generateTaskVariations, etc.)
+// are now imported from ./templates/utils and re-exported at the top of this file.

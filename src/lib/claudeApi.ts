@@ -2,135 +2,82 @@
  * Claude API Integration for RoboSim
  * Provides real LLM-powered robot control and code generation
  * Enhanced with semantic state for natural language understanding
+ *
+ * NOTE: This module is being refactored into smaller modules in ./claude/
+ * New code should import from './claude' where possible.
  */
 
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SensorReading, SimObject } from '../types';
 import { SYSTEM_PROMPTS } from '../hooks/useLLMChat';
 import { generateSemanticState } from './semanticState';
-import { API_CONFIG, STORAGE_CONFIG } from './config';
+import { API_CONFIG } from './config';
 import { loggers } from './logger';
-import { calculateInverseKinematics, calculateSO101GripperPosition } from '../components/simulation/SO101Kinematics';
-import { calculateJawPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+import { calculateInverseKinematics } from '../components/simulation/SO101Kinematics';
 import { solveIKAsync } from './ikSolverWorker';
 import { findSimilarPickups, getPickupStats, findClosestVerifiedPickup, adaptVerifiedSequence } from './pickupExamples';
 
+// Import from modular structure
+import {
+  TYPE_ALIASES,
+  COLOR_WORDS,
+  JOINT_LIMITS,
+  IK_ERROR_THRESHOLD,
+  CLAUDE_RESPONSE_FORMAT,
+} from './claude/constants';
+import {
+  matchObjectToMessage,
+  findObjectByDescription,
+} from './claude/objectMatching';
+import {
+  parseAmount,
+  calculateBaseAngleForPosition,
+  clampJoint,
+  calculateGripperPos,
+  calculateTipYForJawY,
+  estimateJawY,
+  getHelpText,
+  describeState,
+} from './claude/helpers';
+import {
+  simulateWheeledResponse,
+  simulateDroneResponse,
+  simulateHumanoidResponse,
+} from './claude/otherRobots';
+
+// Re-export API key management from modular structure
+export { setClaudeApiKey, getClaudeApiKey, clearClaudeApiKey } from './claude/apiKey';
+
+// Re-export types for backwards compatibility
+export type {
+  PickupAttemptInfo,
+  ClaudeResponse,
+  FullRobotState,
+  ConversationMessage,
+  CallClaudeAPIOptions,
+  JointAngles,
+} from './claude/types';
+
+import type {
+  PickupAttemptInfo,
+  ClaudeResponse,
+  FullRobotState,
+  ConversationMessage,
+  CallClaudeAPIOptions,
+  JointAngles,
+} from './claude/types';
+
 const log = loggers.claude;
 
-// ========================================
-// SHARED CONSTANTS FOR OBJECT MATCHING
-// ========================================
+// NOTE: The following types, interfaces, and helper functions have been moved to ./claude/
+// They are imported at the top of this file for backwards compatibility.
+// - PickupAttemptInfo, ClaudeResponse, FullRobotState, ConversationMessage, CallClaudeAPIOptions, JointAngles (types)
+// - TYPE_ALIASES, COLOR_WORDS, JOINT_LIMITS, IK_ERROR_THRESHOLD, CLAUDE_RESPONSE_FORMAT (constants)
+// - matchObjectToMessage, findObjectByDescription (object matching)
+// - parseAmount, calculateBaseAngleForPosition, clampJoint, etc. (helpers)
+// - simulateWheeledResponse, simulateDroneResponse, simulateHumanoidResponse (other robots)
+// - setClaudeApiKey, getClaudeApiKey, clearClaudeApiKey (API key management)
 
-/** Shape/type synonyms for natural language matching */
-const TYPE_ALIASES: Record<string, string[]> = {
-  cube: ['cube', 'block', 'box', 'square'],
-  ball: ['ball', 'sphere', 'round'],
-  cylinder: ['cylinder', 'can', 'bottle', 'cup', 'tube'],
-};
-
-/** Common color words for object matching */
-const COLOR_WORDS = ['red', 'blue', 'green', 'yellow', 'orange', 'white', 'black', 'pink', 'purple'];
-
-/**
- * Match an object against a natural language message
- * Returns match type if found, null otherwise
- */
-function matchObjectToMessage(
-  obj: SimObject,
-  message: string
-): { match: true; via: string } | { match: false } {
-  const name = (obj.name || '').toLowerCase();
-  const objType = (obj.type || '').toLowerCase();
-  const color = (obj.color || '').toLowerCase();
-  const words = name.split(/\s+/);
-  const messageColor = COLOR_WORDS.find(c => message.includes(c));
-  const typeMatches = TYPE_ALIASES[objType]?.some(alias => message.includes(alias)) || message.includes(objType);
-
-  if (message.includes(name)) {
-    return { match: true, via: 'full name' };
-  }
-  if (message.includes(obj.id)) {
-    return { match: true, via: 'id' };
-  }
-  if (words.some(word => word.length > 2 && message.includes(word))) {
-    return { match: true, via: 'word match' };
-  }
-  if (typeMatches) {
-    return { match: true, via: 'type match' };
-  }
-  if (messageColor && (name.includes(messageColor) || color.includes(messageColor))) {
-    return { match: true, via: 'color match' };
-  }
-  return { match: false };
-}
-
-// Pickup attempt metadata for training data collection
-export interface PickupAttemptInfo {
-  objectPosition: [number, number, number];
-  objectType: string;
-  objectName: string;
-  objectScale: number;
-  ikErrors: {
-    approach: number;
-    grasp: number;
-    lift: number;
-  };
-}
-
-export interface ClaudeResponse {
-  action: 'move' | 'sequence' | 'code' | 'explain' | 'query' | 'error';
-  description: string;
-  code?: string;
-  joints?: Partial<JointState> | Partial<JointState>[];
-  wheeledAction?: Partial<WheeledRobotState>;
-  droneAction?: Partial<DroneState>;
-  humanoidAction?: Partial<HumanoidState>;
-  duration?: number;
-  // New: allow LLM to ask clarifying questions
-  clarifyingQuestion?: string;
-  // Pickup attempt info for training data collection
-  pickupAttempt?: PickupAttemptInfo;
-}
-
-const CLAUDE_RESPONSE_FORMAT = `
-RESPONSE FORMAT - You MUST respond with valid JSON:
-{
-  "action": "sequence",
-  "description": "Brief explanation of the action",
-  "joints": [
-    { "base": 0, "shoulder": -50, "elbow": 30, "wrist": 45, "wristRoll": 90, "gripper": 100 },
-    { "base": 0, "shoulder": -22, "elbow": 51, "wrist": 63, "wristRoll": 90, "gripper": 100 },
-    { "base": 0, "shoulder": -22, "elbow": 51, "wrist": 63, "wristRoll": 90, "gripper": 0, "_gripperOnly": true },
-    { "base": 0, "shoulder": -50, "elbow": 30, "wrist": 45, "wristRoll": 90, "gripper": 0 }
-  ],
-  "duration": 700
-}
-
-CRITICAL 4-STEP PICKUP SEQUENCE (PROVEN TO WORK):
-1. APPROACH from above: shoulder=-50, elbow=30, wrist=45, gripper=100 (open)
-2. DESCEND to grasp: shoulder=-22, elbow=51, wrist=63, gripper=100 (still open)
-3. CLOSE gripper: same position, gripper=0, "_gripperOnly": true
-4. LIFT: shoulder=-50, elbow=30, wrist=45, gripper=0 (closed)
-
-BASE ANGLE CALCULATION - MUST calculate from object position:
-- base = atan2(z_cm, x_cm) * 180 / PI (in degrees)
-- Object at [17, 2, 0]cm → base = 0°
-- Object at [17, 2, 1]cm → base = 3.4°
-- Object at [17, 2, -1]cm → base = -3.4°
-- Object at [18, 2, 1]cm → base = 3.2°
-- Object at [18, 2, -1]cm → base = -3.2°
-
-CRITICAL: Negative z = negative base angle! wristRoll=90 for cubes (vertical fingers).
-`;
-
-export interface FullRobotState {
-  joints: JointState;
-  wheeledRobot: WheeledRobotState;
-  drone: DroneState;
-  humanoid: HumanoidState;
-  sensors: SensorReading;
-  isAnimating: boolean;
-  objects?: SimObject[];
-}
+// FullRobotState is now imported from ./claude/types
 
 function buildSystemPrompt(robotType: ActiveRobotType, fullState: FullRobotState): string {
   const basePrompt = SYSTEM_PROMPTS[robotType];
@@ -215,15 +162,7 @@ Important:
 `;
 }
 
-export interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-export interface CallClaudeAPIOptions {
-  /** Force real API call even for manipulation commands (for training data generation) */
-  forceRealAPI?: boolean;
-}
+// ConversationMessage and CallClaudeAPIOptions are now imported from ./claude/types
 
 export async function callClaudeAPI(
   message: string,

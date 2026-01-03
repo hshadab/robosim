@@ -22,17 +22,32 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
 .env
+.env.local
+.env.*.local
 
-# E2E test screenshots
+# Test artifacts and screenshots
 e2e-*.png
-
-# Test files with potential secrets
-e2e-test.mjs
-test-*.mjs
-playwright*.mjs
 test-screenshots/
 test-results/
-trajectory-visualization.html
-visual-test.mjs
-windows-chrome-test.mjs
+playwright-report/
+
+# Legacy test scripts (moved to tests/legacy/)
+/e2e-test.mjs
+/test-*.mjs
+/playwright-*.mjs
+/visual-test.mjs
+/windows-chrome-test.mjs
+/screenshot.cjs
+/screenshot.js
+/trajectory-visualization.html
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Build artifacts
+*.tsbuildinfo

@@ -3,6 +3,23 @@
  *
  * Apple-inspired one-button UX for the "photo to trained robot" flow.
  * Shows only what's needed at each step - everything else in a drawer.
+ *
+ * Component Structure (potential future refactoring targets):
+ * - WelcomeModal: First-time visitor welcome dialog
+ * - FlowStepIndicator: Shows current step in the flow
+ * - AddObjectStep: Object selection/generation UI
+ * - RecordDemoStep: Demo recording UI with LLM control
+ * - GenerateStep: Batch episode generation
+ * - UploadStep: HuggingFace dataset upload
+ * - ApiKeyInputs: FAL/HF API key management
+ * - SettingsDrawer: Advanced settings panel
+ *
+ * Flow Steps:
+ * 1. add-object - Select or generate a 3D object
+ * 2. record-demo - Record a pickup demonstration
+ * 3. generate - Generate training data variations
+ * 4. upload - Upload dataset to HuggingFace
+ * 5. done - Success state
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';

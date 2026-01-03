@@ -1,3 +1,21 @@
+/**
+ * Main application state store using Zustand
+ *
+ * This store manages all application state including:
+ * - Robot state (joints, motor dynamics, different robot types)
+ * - Gripper state (position, orientation, grasp state)
+ * - Simulation state
+ * - Environment state (objects, target zones)
+ * - Challenge/game state
+ * - Code editor state
+ * - Chat/LLM state
+ * - UI preferences
+ *
+ * NOTE: This store is intentionally kept as a single unit for now due to
+ * interdependencies between state slices. Future refactoring could split
+ * into separate slices using Zustand's slice pattern.
+ */
+
 import { create } from 'zustand';
 import type {
   JointState,
