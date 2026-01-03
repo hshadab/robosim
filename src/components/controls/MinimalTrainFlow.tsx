@@ -29,7 +29,6 @@ import {
   CheckCircle,
   Loader2,
   Settings,
-  Sparkles,
   Box,
   ChevronLeft,
   Send,
@@ -1433,7 +1432,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-6 h-6" />
                     Generate {BATCH_COUNT} {selectedTask.charAt(0).toUpperCase() + selectedTask.slice(1)} Demos
                   </>
                 )}
@@ -1781,7 +1779,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
                 disabled={isProcessing}
                 className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-2xl text-white font-semibold text-lg transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 ring-2 ring-green-400/50 ring-offset-2 ring-offset-slate-900"
               >
-                <Sparkles className="w-6 h-6" />
                 Generate Training Data ({TARGET_EPISODE_COUNT} episodes)
               </button>
 

@@ -421,6 +421,56 @@ function parseAmount(message: string): number {
   return 30;
 }
 
+// Parse height/distance from message (returns meters)
+function parseHeight(message: string): number | null {
+  // Explicit cm: "20cm", "15 cm", "20 centimeters"
+  const cmMatch = message.match(/(\d+(?:\.\d+)?)\s*(cm|centimeters?)/i);
+  if (cmMatch) return parseFloat(cmMatch[1]) / 100;
+
+  // Explicit meters: "0.2m", "0.15 meters"
+  const mMatch = message.match(/(\d+(?:\.\d+)?)\s*(m|meters?)/i);
+  if (mMatch) return parseFloat(mMatch[1]);
+
+  // Height modifiers (return absolute heights from ground)
+  if (message.includes('very high') || message.includes('maximum height')) return 0.28;
+  if (message.includes('high')) return 0.22;
+  if (message.includes('medium') || message.includes('mid')) return 0.15;
+  if (message.includes('low') || message.includes('slightly')) return 0.10;
+  if (message.includes('very low') || message.includes('barely')) return 0.06;
+
+  return null; // No height specified
+}
+
+// Parse target joint angle from message: "shoulder to 45", "base 90 degrees"
+function parseJointTarget(message: string): { joint: string; angle: number } | null {
+  const joints = ['base', 'shoulder', 'elbow', 'wrist', 'wristroll', 'gripper'];
+
+  for (const joint of joints) {
+    // Match patterns like "shoulder to 45", "base 90 degrees", "elbow at -30°"
+    const regex = new RegExp(`${joint}\\s*(?:to|at|=)?\\s*(-?\\d+(?:\\.\\d+)?)\\s*(degrees?|deg|°)?`, 'i');
+    const match = message.match(regex);
+    if (match) {
+      return { joint: joint === 'wristroll' ? 'wristRoll' : joint, angle: parseFloat(match[1]) };
+    }
+  }
+
+  // Also check for "set X to Y" pattern
+  const setMatch = message.match(/set\s+(base|shoulder|elbow|wrist|wristroll|gripper)\s+(?:to\s+)?(-?\d+(?:\.\d+)?)/i);
+  if (setMatch) {
+    const joint = setMatch[1].toLowerCase();
+    return { joint: joint === 'wristroll' ? 'wristRoll' : joint, angle: parseFloat(setMatch[2]) };
+  }
+
+  return null;
+}
+
+// Parse intensity/speed modifiers
+function parseIntensity(message: string): 'gentle' | 'normal' | 'fast' {
+  if (message.includes('slow') || message.includes('gentle') || message.includes('careful')) return 'gentle';
+  if (message.includes('fast') || message.includes('quick') || message.includes('rapid')) return 'fast';
+  return 'normal';
+}
+
 // Calculate base angle to point at a position
 // Robot faces +Z direction when base=0, positive rotation is counter-clockwise (left)
 function calculateBaseAngleForPosition(x: number, z: number): number {
@@ -838,12 +888,12 @@ async function calculateLiftJoints(objX: number, objY: number, objZ: number, bas
   // This prevents the arm from spinning around
   const referenceY = graspAchievedY !== undefined ? graspAchievedY : objY;
 
-  // Try multiple lift heights
+  // Try multiple lift heights - lift high enough to be clearly visible
   const liftHeights = [
-    referenceY + 0.08,  // 8cm above reference
-    referenceY + 0.10,  // 10cm above reference
-    referenceY + 0.12,  // 12cm above reference
     referenceY + 0.15,  // 15cm above reference
+    referenceY + 0.18,  // 18cm above reference
+    referenceY + 0.20,  // 20cm above reference
+    referenceY + 0.12,  // 12cm fallback if higher positions unreachable
   ];
 
   let bestResult = await solveIKForTarget([objX, liftHeights[0], objZ], 1000, baseAngle);
@@ -856,8 +906,9 @@ async function calculateLiftJoints(objX: number, objY: number, objZ: number, bas
       bestResult = result;
     }
 
-    // If we found a good solution, stop searching
-    if (result.error < 0.02) {
+    // If we found a good solution at a high lift, stop searching
+    // Only stop early for the first 3 (high) positions, not the fallback
+    if (result.error < 0.02 && liftY >= referenceY + 0.14) {
       log.debug(`[calculateLiftJoints] Found good lift at Y=${(liftY*100).toFixed(1)}cm`);
       break;
     }
@@ -1246,18 +1297,26 @@ await liftArm();`,
   log.debug(`[handlePickUpCommand] Expected grasp tip: [${expectedGraspPos.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
   log.debug(`[handlePickUpCommand] Object position: [${(objX*100).toFixed(1)}, ${(objY*100).toFixed(1)}, ${(objZ*100).toFixed(1)}]cm`);
 
-  // Build SIMPLE 4-step sequence (matches working Demo Pick Up):
-  // 1. Position at grasp with gripper open
-  // 2. Close gripper (SLOW - physics needs time to detect contact)
-  // 3. Hold briefly for physics to register grab
-  // 4. Lift
+  // Build 5-step sequence with proper approach to avoid knocking cube:
+  // 1. Approach position (above object) with gripper open
+  // 2. Lower to grasp position
+  // 3. Close gripper (SLOW - physics needs time to detect contact)
+  // 4. Hold briefly for physics to register grab
+  // 5. Lift HIGH
   //
   // Key insight: Demo uses 800ms for gripper close - that's what makes it work!
-  // The old 11-step sequence with 500ms steps was too fast for physics.
 
   const sequence: JointSequenceStep[] = [
-    // Step 1: Move to grasp position with gripper open
-    // Combines approach + grasp into single smooth motion
+    // Step 1: Move to APPROACH position (above object) with gripper open
+    {
+      base: approachJoints.base,
+      shoulder: approachJoints.shoulder,
+      elbow: approachJoints.elbow,
+      wrist: approachJoints.wrist,
+      wristRoll: wristRollAngle,
+      gripper: 100
+    },
+    // Step 2: Lower to grasp position (gripper still open)
     {
       base: graspJoints.base,
       shoulder: graspJoints.shoulder,
@@ -1266,10 +1325,10 @@ await liftArm();`,
       wristRoll: wristRollAngle,
       gripper: 100
     },
-    // Step 2: Close gripper ONLY (no arm movement)
+    // Step 3: Close gripper ONLY (no arm movement)
     // This step gets extra time via _gripperOnly flag for physics detection
     { gripper: 0, _gripperOnly: true },
-    // Step 3: Hold position with gripper closed (physics settle time)
+    // Step 4: Hold position with gripper closed (physics settle time)
     {
       base: graspJoints.base,
       shoulder: graspJoints.shoulder,
@@ -1278,7 +1337,7 @@ await liftArm();`,
       wristRoll: wristRollAngle,
       gripper: 0
     },
-    // Step 4: Lift
+    // Step 5: Lift HIGH
     {
       base: liftJoints.base,
       shoulder: liftJoints.shoulder,
@@ -1493,6 +1552,62 @@ async function simulateArmResponse(message: string, state: JointState, objects?:
   if ((message.includes('move to') || message.includes('go to') || message.includes('reach')) &&
       objects && objects.length > 0) {
     return handleMoveToCommand(message, objects, state);
+  }
+
+  // Direct joint setting: "shoulder to 45", "base 90 degrees", "set elbow to -30"
+  const jointTarget = parseJointTarget(message);
+  if (jointTarget) {
+    const { joint, angle } = jointTarget;
+    // Clamp to joint limits
+    const limits: Record<string, [number, number]> = {
+      base: [-135, 135],
+      shoulder: [-90, 90],
+      elbow: [-135, 0],
+      wrist: [-90, 90],
+      wristRoll: [-90, 90],
+      gripper: [0, 100],
+    };
+    const [min, max] = limits[joint] || [-180, 180];
+    const clampedAngle = Math.max(min, Math.min(max, angle));
+    return {
+      action: 'move',
+      joints: { [joint]: clampedAngle },
+      description: `Setting ${joint} to ${clampedAngle}°`,
+      code: `await moveJoint('${joint}', ${clampedAngle});`,
+    };
+  }
+
+  // Lift to specific height (with held object or just arm)
+  // Check for height modifiers: "lift high", "raise to 20cm", "lift very high"
+  const targetHeight = parseHeight(message);
+  if (targetHeight && (message.includes('lift') || message.includes('raise'))) {
+    // Use IK to find joint angles for target height
+    // Keep current X/Z, just change Y
+    const currentPos = calculateGripperPositionURDF(state);
+    const targetX = currentPos.x;
+    const targetZ = currentPos.z;
+
+    const ikResult = calculateInverseKinematics(targetX, targetHeight, targetZ, state);
+    if (ikResult) {
+      const heightCm = (targetHeight * 100).toFixed(0);
+      return {
+        action: 'move',
+        joints: {
+          base: ikResult.base,
+          shoulder: ikResult.shoulder,
+          elbow: ikResult.elbow,
+          wrist: ikResult.wrist,
+        },
+        description: `Lifting to ${heightCm}cm height`,
+        code: `await moveToPosition({ y: ${targetHeight.toFixed(3)} }); // ${heightCm}cm`,
+      };
+    } else {
+      return {
+        action: 'error',
+        description: `Cannot reach ${(targetHeight * 100).toFixed(0)}cm height - out of range`,
+        code: '',
+      };
+    }
   }
 
   // Movement commands - base rotation

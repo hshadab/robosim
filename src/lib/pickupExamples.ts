@@ -706,3 +706,161 @@ export function clearExamples(): void {
 
 // Initialize on module load
 initializePickupExamples();
+
+// ========================================
+// SHARED TRAINING API
+// ========================================
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://robosim-api.onrender.com';
+
+interface SharedExampleResponse {
+  id: string;
+  objectPosition: [number, number, number];
+  objectType: string;
+  objectScale: number;
+  jointSequence: JointSequenceStep[];
+  similarity: number;
+}
+
+interface SharedStats {
+  totalExamples: number;
+  byObjectType: Record<string, number>;
+  coverageHeatmap: Array<{ x: number; z: number; count: number }>;
+  lastUpdated: string;
+}
+
+/**
+ * Upload a successful pickup to the shared training database.
+ * All users benefit from crowd-sourced training data.
+ */
+export async function uploadToSharedDatabase(example: PickupExample): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/examples`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        objectPosition: example.objectPosition,
+        objectType: example.objectType,
+        objectScale: example.objectScale,
+        jointSequence: example.jointSequence,
+        ikErrors: example.ikErrors,
+        userMessage: example.userMessage,
+        languageVariants: example.languageVariants,
+      }),
+    });
+
+    if (!response.ok) {
+      log.warn(`Failed to upload to shared database: ${response.status}`);
+      return false;
+    }
+
+    const result = await response.json();
+    log.info(`Uploaded to shared database: ${result.id}`);
+    return true;
+  } catch (error) {
+    log.warn(`Failed to upload to shared database: ${error}`);
+    return false;
+  }
+}
+
+/**
+ * Query the shared database for similar pickup examples.
+ * Returns proven sequences from other users.
+ */
+export async function querySharedExamples(
+  position: [number, number, number],
+  objectType?: string,
+  maxDistance: number = 0.05,
+  limit: number = 5
+): Promise<SharedExampleResponse[]> {
+  try {
+    const params = new URLSearchParams({
+      x: position[0].toString(),
+      y: position[1].toString(),
+      z: position[2].toString(),
+      max_distance: maxDistance.toString(),
+      limit: limit.toString(),
+    });
+    if (objectType) {
+      params.append('object_type', objectType);
+    }
+
+    const response = await fetch(`${API_BASE}/api/examples/similar?${params}`);
+
+    if (!response.ok) {
+      log.warn(`Failed to query shared database: ${response.status}`);
+      return [];
+    }
+
+    const examples = await response.json();
+    log.debug(`Found ${examples.length} similar examples in shared database`);
+    return examples;
+  } catch (error) {
+    log.warn(`Failed to query shared database: ${error}`);
+    return [];
+  }
+}
+
+/**
+ * Get statistics about the shared training database.
+ */
+export async function getSharedStats(): Promise<SharedStats | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/examples/stats`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    log.warn(`Failed to get shared stats: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Trigger a training job on the aggregated shared examples.
+ */
+export async function triggerSharedTraining(
+  minExamples: number = 50,
+  force: boolean = false
+): Promise<{ success: boolean; message: string; jobId?: string }> {
+  try {
+    const params = new URLSearchParams({
+      min_examples: minExamples.toString(),
+      force: force.toString(),
+    });
+
+    const response = await fetch(`${API_BASE}/api/training/trigger?${params}`, {
+      method: 'POST',
+    });
+
+    return await response.json();
+  } catch (error) {
+    return {
+      success: false,
+      message: `Failed to trigger training: ${error}`,
+    };
+  }
+}
+
+/**
+ * Enhanced recordPickupAttempt that also uploads to shared database on success
+ */
+export async function recordAndSharePickup(
+  attempt: PickupAttempt,
+  success: boolean
+): Promise<PickupExample> {
+  // Record locally first
+  const example = recordPickupAttempt(attempt, success);
+
+  // If successful, also upload to shared database (async, don't wait)
+  if (success) {
+    uploadToSharedDatabase(example).catch(() => {
+      // Silent fail - local storage still works
+    });
+  }
+
+  return example;
+}

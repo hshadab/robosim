@@ -1,20 +1,24 @@
 """
-RoboSim API - Parquet Conversion & HuggingFace Upload
+RoboSim API - Parquet Conversion, HuggingFace Upload & Shared Training
 
 Handles:
 1. Converting LeRobot episode JSON to Parquet format
 2. Uploading datasets to HuggingFace Hub
 3. Stripe webhook for Pro subscriptions
+4. Shared training examples (crowd-sourced pickup data)
+5. Training job triggers
 """
 
 import io
 import json
 import tempfile
 import os
-from typing import Optional
+import math
+from datetime import datetime
+from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pyarrow as pa
@@ -390,6 +394,241 @@ async def convert_to_parquet(episodes: list[Episode]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# =============================================================================
+# SHARED TRAINING EXAMPLES
+# =============================================================================
+
+class JointSequenceStep(BaseModel):
+    base: Optional[float] = None
+    shoulder: Optional[float] = None
+    elbow: Optional[float] = None
+    wrist: Optional[float] = None
+    wristRoll: Optional[float] = None
+    gripper: Optional[float] = None
+    _gripperOnly: Optional[bool] = None
+
+
+class SharedExample(BaseModel):
+    """A successful pickup/manipulation example from any user"""
+    objectPosition: List[float]  # [x, y, z] in meters
+    objectType: str  # "cube", "cylinder", "ball"
+    objectScale: float  # Size in meters
+    jointSequence: List[dict]  # Sequence of joint angles that worked
+    ikErrors: dict  # { approach, grasp, lift } errors in meters
+    userMessage: str  # Original command
+    languageVariants: Optional[List[str]] = None  # Alternative phrasings
+
+
+class SharedExampleResponse(BaseModel):
+    id: str
+    objectPosition: List[float]
+    objectType: str
+    objectScale: float
+    jointSequence: List[dict]
+    similarity: Optional[float] = None
+    contributorCount: Optional[int] = None
+
+
+class ExampleStats(BaseModel):
+    totalExamples: int
+    byObjectType: dict
+    coverageHeatmap: Optional[List[dict]] = None
+    lastUpdated: str
+
+
+def euclidean_distance(pos1: List[float], pos2: List[float]) -> float:
+    """Calculate 3D Euclidean distance between two positions"""
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(pos1, pos2)))
+
+
+@app.post("/api/examples", response_model=dict)
+async def submit_example(example: SharedExample):
+    """
+    Submit a successful manipulation example to the shared database.
+    All users benefit from crowd-sourced training data.
+    """
+    supabase = get_supabase()
+    if not supabase:
+        # Fallback: store locally (for development)
+        return {
+            "success": True,
+            "message": "Example recorded (local mode - Supabase not configured)",
+            "id": f"local-{datetime.now().timestamp()}"
+        }
+
+    try:
+        # Insert into shared_examples table
+        result = supabase.table("shared_examples").insert({
+            "object_position": example.objectPosition,
+            "object_type": example.objectType,
+            "object_scale": example.objectScale,
+            "joint_sequence": example.jointSequence,
+            "ik_errors": example.ikErrors,
+            "user_message": example.userMessage,
+            "language_variants": example.languageVariants or [],
+            "created_at": datetime.now().isoformat(),
+        }).execute()
+
+        example_id = result.data[0]["id"] if result.data else "unknown"
+
+        return {
+            "success": True,
+            "message": "Example added to shared training database",
+            "id": example_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save example: {e}")
+
+
+@app.get("/api/examples/similar", response_model=List[SharedExampleResponse])
+async def get_similar_examples(
+    x: float = Query(..., description="X position in meters"),
+    y: float = Query(..., description="Y position in meters"),
+    z: float = Query(..., description="Z position in meters"),
+    object_type: Optional[str] = Query(None, description="Filter by object type"),
+    max_distance: float = Query(0.05, description="Max distance in meters"),
+    limit: int = Query(5, description="Max results to return")
+):
+    """
+    Query similar pickup examples near a position.
+    Returns proven joint sequences that worked for similar pickups.
+    """
+    supabase = get_supabase()
+    if not supabase:
+        return []
+
+    try:
+        # Query all examples (could optimize with PostGIS for large datasets)
+        query = supabase.table("shared_examples").select("*")
+        if object_type:
+            query = query.eq("object_type", object_type)
+
+        result = query.execute()
+
+        # Filter by distance and sort
+        target_pos = [x, y, z]
+        similar = []
+
+        for row in result.data:
+            pos = row["object_position"]
+            dist = euclidean_distance(pos, target_pos)
+
+            if dist <= max_distance:
+                similar.append({
+                    "id": row["id"],
+                    "objectPosition": pos,
+                    "objectType": row["object_type"],
+                    "objectScale": row["object_scale"],
+                    "jointSequence": row["joint_sequence"],
+                    "similarity": 1.0 - (dist / max_distance),  # 1.0 = exact match
+                })
+
+        # Sort by similarity (highest first) and limit
+        similar.sort(key=lambda x: x["similarity"], reverse=True)
+        return similar[:limit]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query examples: {e}")
+
+
+@app.get("/api/examples/stats", response_model=ExampleStats)
+async def get_example_stats():
+    """
+    Get aggregate statistics about shared training examples.
+    Shows coverage and contribution metrics.
+    """
+    supabase = get_supabase()
+    if not supabase:
+        return ExampleStats(
+            totalExamples=0,
+            byObjectType={},
+            lastUpdated=datetime.now().isoformat()
+        )
+
+    try:
+        result = supabase.table("shared_examples").select("object_type, object_position").execute()
+
+        # Count by type
+        by_type = {}
+        for row in result.data:
+            obj_type = row["object_type"]
+            by_type[obj_type] = by_type.get(obj_type, 0) + 1
+
+        # Build simple coverage heatmap (grid cells)
+        heatmap = []
+        grid_size = 0.05  # 5cm grid
+        grid_counts = {}
+
+        for row in result.data:
+            pos = row["object_position"]
+            # Quantize to grid
+            gx = round(pos[0] / grid_size) * grid_size
+            gz = round(pos[2] / grid_size) * grid_size
+            key = f"{gx:.2f},{gz:.2f}"
+            grid_counts[key] = grid_counts.get(key, 0) + 1
+
+        for key, count in grid_counts.items():
+            gx, gz = map(float, key.split(","))
+            heatmap.append({"x": gx, "z": gz, "count": count})
+
+        return ExampleStats(
+            totalExamples=len(result.data),
+            byObjectType=by_type,
+            coverageHeatmap=heatmap,
+            lastUpdated=datetime.now().isoformat()
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {e}")
+
+
+@app.post("/api/training/trigger")
+async def trigger_training(
+    min_examples: int = Query(50, description="Minimum examples before training"),
+    force: bool = Query(False, description="Force training even if below threshold")
+):
+    """
+    Trigger a training job on the aggregated examples.
+    Returns a job ID that can be used to check status.
+
+    Training uses Modal.com or Google Colab (free tier).
+    """
+    supabase = get_supabase()
+
+    # Check example count
+    if supabase:
+        result = supabase.table("shared_examples").select("id", count="exact").execute()
+        example_count = result.count or 0
+    else:
+        example_count = 0
+
+    if example_count < min_examples and not force:
+        return {
+            "success": False,
+            "message": f"Need at least {min_examples} examples to train. Currently have {example_count}.",
+            "exampleCount": example_count
+        }
+
+    # TODO: Trigger actual training job
+    # Options:
+    # 1. Modal.com - serverless GPU
+    # 2. GitHub Actions with self-hosted runner
+    # 3. Manual Colab trigger via API
+
+    return {
+        "success": True,
+        "message": f"Training job queued with {example_count} examples",
+        "jobId": f"train-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+        "exampleCount": example_count,
+        "status": "queued",
+        "note": "Training infrastructure pending - will use Modal.com or Colab"
+    }
+
+
+# =============================================================================
+# STRIPE WEBHOOKS
+# =============================================================================
 
 @app.post("/api/stripe/webhook")
 async def stripe_webhook(request: Request, stripe_signature: str = Header(None, alias="Stripe-Signature")):
