@@ -412,6 +412,7 @@ export function logPickupAttempt(attempt: PickupAttempt): string {
 
 /**
  * Mark a pickup as successful and generate language variants
+ * Also auto-uploads to shared database for crowd-sourced training
  */
 export function markPickupSuccess(id: string): void {
   const example = pickupExamples.find(e => e.id === id);
@@ -423,6 +424,15 @@ export function markPickupSuccess(id: string): void {
 
     log.info(`Pickup ${id} succeeded - "${example.objectName}" at [${example.objectPosition.map(p => (p*100).toFixed(1)).join(', ')}]cm`);
     log.debug(`Generated ${example.languageVariants.length} language variants for training`);
+
+    // Auto-upload to shared database for crowd-sourced training (async, don't block)
+    uploadToSharedDatabase(example).then(uploaded => {
+      if (uploaded) {
+        log.info(`Auto-uploaded pickup ${id} to shared training database`);
+      }
+    }).catch(() => {
+      // Silent fail - local storage still works
+    });
   }
 }
 
@@ -853,7 +863,13 @@ export async function recordAndSharePickup(
   success: boolean
 ): Promise<PickupExample> {
   // Record locally first
-  const example = recordPickupAttempt(attempt, success);
+  const id = logPickupAttempt(attempt);
+  if (success) {
+    markPickupSuccess(id);
+  } else {
+    markPickupFailure(id, 'Unknown failure');
+  }
+  const example = pickupExamples.find(e => e.id === id)!;
 
   // If successful, also upload to shared database (async, don't wait)
   if (success) {
@@ -863,4 +879,88 @@ export async function recordAndSharePickup(
   }
 
   return example;
+}
+
+/**
+ * Download all shared examples from the community database.
+ */
+export async function downloadAllSharedExamples(): Promise<SharedExampleResponse[]> {
+  try {
+    const response = await fetch(`${API_BASE}/api/examples/all?limit=10000`);
+
+    if (!response.ok) {
+      log.warn(`Failed to download shared examples: ${response.status}`);
+      return [];
+    }
+
+    const examples = await response.json();
+    log.info(`Downloaded ${examples.length} examples from shared database`);
+    return examples;
+  } catch (error) {
+    log.warn(`Failed to download shared examples: ${error}`);
+    return [];
+  }
+}
+
+/**
+ * Export community dataset as LeRobot-compatible format.
+ * Downloads all shared examples and converts to episodes.
+ */
+export async function exportCommunityDataset(): Promise<void> {
+  const examples = await downloadAllSharedExamples();
+
+  if (examples.length === 0) {
+    throw new Error('No community examples available to download');
+  }
+
+  // Convert shared examples to LeRobot episode format
+  const { exportLeRobotDataset } = await import('./lerobotExporter');
+
+  // Convert each example to an episode
+  const episodes = examples.map((example, index) => ({
+    episodeId: index,
+    frames: example.jointSequence.map((step, frameIndex) => ({
+      timestamp: frameIndex * 33.33, // 30fps
+      observation: {
+        jointPositions: [
+          step.base ?? 0,
+          step.shoulder ?? 0,
+          step.elbow ?? 0,
+          step.wrist ?? 0,
+          step.wristRoll ?? 0,
+          step.gripper ?? 0,
+        ],
+      },
+      action: {
+        jointTargets: [
+          step.base ?? 0,
+          step.shoulder ?? 0,
+          step.elbow ?? 0,
+          step.wrist ?? 0,
+          step.wristRoll ?? 0,
+          step.gripper ?? 0,
+        ],
+      },
+      done: frameIndex === example.jointSequence.length - 1,
+    })),
+    metadata: {
+      robotType: 'arm' as const,
+      robotId: 'so-101',
+      task: `pickup_${example.objectType}`,
+      languageInstruction: `Pick up the ${example.objectType}`,
+      success: true,
+      duration: example.jointSequence.length * 33.33,
+      frameCount: example.jointSequence.length,
+      recordedAt: new Date().toISOString(),
+    },
+  }));
+
+  // Export as LeRobot dataset
+  await exportLeRobotDataset(episodes, {
+    datasetName: `robosim_community_${examples.length}_demos`,
+    robotId: 'so-101',
+    fps: 30,
+  });
+
+  log.info(`Exported ${examples.length} community examples as LeRobot dataset`);
 }

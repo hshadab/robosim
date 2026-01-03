@@ -464,13 +464,6 @@ function parseJointTarget(message: string): { joint: string; angle: number } | n
   return null;
 }
 
-// Parse intensity/speed modifiers
-function parseIntensity(message: string): 'gentle' | 'normal' | 'fast' {
-  if (message.includes('slow') || message.includes('gentle') || message.includes('careful')) return 'gentle';
-  if (message.includes('fast') || message.includes('quick') || message.includes('rapid')) return 'fast';
-  return 'normal';
-}
-
 // Calculate base angle to point at a position
 // Robot faces +Z direction when base=0, positive rotation is counter-clockwise (left)
 function calculateBaseAngleForPosition(x: number, z: number): number {
@@ -1584,8 +1577,8 @@ async function simulateArmResponse(message: string, state: JointState, objects?:
     // Use IK to find joint angles for target height
     // Keep current X/Z, just change Y
     const currentPos = calculateGripperPositionURDF(state);
-    const targetX = currentPos.x;
-    const targetZ = currentPos.z;
+    const targetX = currentPos[0];
+    const targetZ = currentPos[2];
 
     const ikResult = calculateInverseKinematics(targetX, targetHeight, targetZ, state);
     if (ikResult) {

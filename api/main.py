@@ -583,6 +583,38 @@ async def get_example_stats():
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {e}")
 
 
+@app.get("/api/examples/all", response_model=List[SharedExampleResponse])
+async def get_all_examples(
+    limit: int = Query(1000, description="Max examples to return")
+):
+    """
+    Download all shared examples for LeRobot training.
+    Returns the complete crowd-sourced dataset.
+    """
+    supabase = get_supabase()
+    if not supabase:
+        return []
+
+    try:
+        result = supabase.table("shared_examples").select("*").limit(limit).execute()
+
+        examples = []
+        for row in result.data:
+            examples.append({
+                "id": row["id"],
+                "objectPosition": row["object_position"],
+                "objectType": row["object_type"],
+                "objectScale": row["object_scale"],
+                "jointSequence": row["joint_sequence"],
+                "similarity": 1.0,
+            })
+
+        return examples
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get examples: {e}")
+
+
 @app.post("/api/training/trigger")
 async def trigger_training(
     min_examples: int = Query(50, description="Minimum examples before training"),
