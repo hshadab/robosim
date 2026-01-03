@@ -14,7 +14,6 @@ import {
   Sliders,
   Brain,
   Users,
-  Gamepad2
 } from 'lucide-react';
 
 const STORAGE_KEY = 'robosim_onboarding_completed';

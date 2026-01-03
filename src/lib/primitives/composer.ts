@@ -306,7 +306,7 @@ export async function planSequence(
 
     // Update state for next step (simulate state changes)
     if (step.primitive === 'pick') {
-      const obj = findObject(currentState, step.params.object!);
+      const obj = findObject(currentState.objects, step.params.object!);
       if (obj) {
         currentState = {
           ...currentState,
