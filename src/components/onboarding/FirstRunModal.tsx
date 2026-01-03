@@ -90,39 +90,39 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
             <Rocket className="w-8 h-8 text-white" />
           </div>
           <h2 id="welcome-title" className="text-2xl font-bold text-white mb-2">
-            Welcome to RoboSim!
+            Train Your SO-101 Today
           </h2>
           <p className="text-blue-100 text-sm">
-            Crowd-sourced robot training for SO-101. Every pickup helps everyone.
+            No GPU required. No setup. Just open your browser and start generating training data.
           </p>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4">
           <p className="text-slate-300 text-sm text-center mb-4">
-            Get started quickly with these key features:
+            Isaac Sim requires a $700+ GPU. RoboSim runs in any browser.
           </p>
 
           <div className="space-y-3">
             <FeatureHighlight
-              icon={<Users className="w-5 h-5" />}
-              title="Crowd-Sourced Training"
-              description="Every successful pickup contributes to a shared LeRobot dataset"
+              icon={<Rocket className="w-5 h-5" />}
+              title="50 Demos in 5 Minutes"
+              description="One-click batch generation vs hours of manual teleoperation"
             />
             <FeatureHighlight
               icon={<Brain className="w-5 h-5" />}
-              title="AI-Powered Pickup"
-              description="Chat 'pick up the cube' - AI plans IK with validation and auto-retry"
+              title="Train on Free GPU"
+              description="One-click Google Colab notebook - no local setup required"
+            />
+            <FeatureHighlight
+              icon={<Users className="w-5 h-5" />}
+              title="Crowd-Sourced Dataset"
+              description="Every user's success helps everyone - shared LeRobot training data"
             />
             <FeatureHighlight
               icon={<Sliders className="w-5 h-5" />}
-              title="One-Click LeRobot Download"
-              description="Download the entire community dataset in LeRobot format"
-            />
-            <FeatureHighlight
-              icon={<Gamepad2 className="w-5 h-5" />}
-              title="Multiple Control Modes"
-              description="Keyboard, gamepad, hand tracking, click-to-move IK, and voice"
+              title="Native LeRobot Export"
+              description="Same URDF, same joints as real SO-101 - ready for sim-to-real"
             />
           </div>
         </div>

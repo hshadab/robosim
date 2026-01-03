@@ -75,7 +75,7 @@ export const Header: React.FC = () => {
           <span className="text-lg font-bold text-white">RoboSim</span>
         </div>
         <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
-          AI-Native
+          For SO-101
         </span>
         {/* Community Stats Badge with Download */}
         {!communityStats.loading && communityStats.total > 0 && (

@@ -2044,34 +2044,81 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       {/* Welcome Modal for First-Time Visitors */}
       {showWelcome && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-xl border border-slate-700 max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-xl border border-slate-700 max-h-[90vh] overflow-y-auto">
             <div className="text-center mb-6">
               <div className="text-4xl mb-3">🤖</div>
-              <h2 className="text-2xl font-bold text-white mb-2">Train Robot AI in Your Browser</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Just Bought an SO-101?</h2>
               <p className="text-slate-400">
-                Generate 50 training episodes in 5 minutes instead of 5 hours of manual teleoperation.
+                Start training AI for your robot <strong className="text-white">today</strong> - no GPU, no Linux, no setup required.
               </p>
+            </div>
+
+            {/* Comparison Table */}
+            <div className="bg-slate-900/50 rounded-xl p-4 mb-4 overflow-x-auto">
+              <h3 className="text-white font-semibold mb-3 text-center">RoboSim vs Industry Tools</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-slate-400 border-b border-slate-700">
+                    <th className="text-left py-2 pr-2"></th>
+                    <th className="text-center py-2 px-2">Isaac Sim</th>
+                    <th className="text-center py-2 px-2">GR00T N1</th>
+                    <th className="text-center py-2 px-2 text-purple-400">RoboSim</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-300">
+                  <tr className="border-b border-slate-700/50">
+                    <td className="py-2 pr-2 text-slate-400">Target Robot</td>
+                    <td className="text-center py-2 px-2">$16k+ humanoids</td>
+                    <td className="text-center py-2 px-2">$16k+ humanoids</td>
+                    <td className="text-center py-2 px-2 text-green-400">SO-101 ($299)</td>
+                  </tr>
+                  <tr className="border-b border-slate-700/50">
+                    <td className="py-2 pr-2 text-slate-400">GPU Required</td>
+                    <td className="text-center py-2 px-2">RTX 3080+ ($700)</td>
+                    <td className="text-center py-2 px-2">Datacenter</td>
+                    <td className="text-center py-2 px-2 text-green-400">None (browser)</td>
+                  </tr>
+                  <tr className="border-b border-slate-700/50">
+                    <td className="py-2 pr-2 text-slate-400">Setup Time</td>
+                    <td className="text-center py-2 px-2">Days</td>
+                    <td className="text-center py-2 px-2">Weeks</td>
+                    <td className="text-center py-2 px-2 text-green-400">0 minutes</td>
+                  </tr>
+                  <tr className="border-b border-slate-700/50">
+                    <td className="py-2 pr-2 text-slate-400">50 Demos</td>
+                    <td className="text-center py-2 px-2">Hours (manual)</td>
+                    <td className="text-center py-2 px-2">N/A</td>
+                    <td className="text-center py-2 px-2 text-green-400">5 minutes</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-2 text-slate-400">Training</td>
+                    <td className="text-center py-2 px-2">Local GPU</td>
+                    <td className="text-center py-2 px-2">Cloud API</td>
+                    <td className="text-center py-2 px-2 text-green-400">Free Colab</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <div className="space-y-4 mb-6">
               <div className="bg-slate-900/50 rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-2">How it works:</h3>
+                <h3 className="text-white font-semibold mb-2">5-Minute Workflow:</h3>
                 <ol className="text-sm text-slate-300 space-y-2">
-                  <li className="flex gap-2"><span className="text-purple-400">1.</span> Select a task (Pickup, Stack, Place)</li>
-                  <li className="flex gap-2"><span className="text-purple-400">2.</span> Click "Generate Demos" - AI runs varied pickups</li>
-                  <li className="flex gap-2"><span className="text-purple-400">3.</span> Upload to HuggingFace</li>
-                  <li className="flex gap-2"><span className="text-purple-400">4.</span> Train on Google Colab (free GPU)</li>
-                  <li className="flex gap-2"><span className="text-purple-400">5.</span> Deploy to real SO-101 robot</li>
+                  <li className="flex gap-2"><span className="text-purple-400">1.</span> Select task type (Pickup, Stack, Place)</li>
+                  <li className="flex gap-2"><span className="text-purple-400">2.</span> Click "Generate 10 Demos" - done in 2 minutes</li>
+                  <li className="flex gap-2"><span className="text-purple-400">3.</span> Upload to HuggingFace (one click)</li>
+                  <li className="flex gap-2"><span className="text-purple-400">4.</span> Train on Google Colab (free T4 GPU, ~2 hours)</li>
+                  <li className="flex gap-2"><span className="text-purple-400">5.</span> Deploy to your real SO-101</li>
                 </ol>
               </div>
 
               <div className="bg-slate-900/50 rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-2">Who is this for?</h3>
+                <h3 className="text-white font-semibold mb-2">Perfect for:</h3>
                 <ul className="text-sm text-slate-300 space-y-1">
-                  <li>🔧 <strong>Makers</strong> - Train AI before hardware arrives</li>
-                  <li>🎓 <strong>Students</strong> - Learn robotics without lab access</li>
-                  <li>🚀 <strong>Startups</strong> - Prototype behaviors quickly</li>
-                  <li>📦 <strong>Applications</strong> - Warehouse, assembly, food service</li>
+                  <li>🎓 <strong>Students</strong> - Learn imitation learning without lab access</li>
+                  <li>🔧 <strong>Makers</strong> - Train AI while your SO-101 is shipping</li>
+                  <li>🚀 <strong>Researchers</strong> - Generate synthetic data to bootstrap training</li>
+                  <li>📚 <strong>Educators</strong> - Teach robotics/ML without physical robots</li>
                 </ul>
               </div>
             </div>
@@ -2080,7 +2127,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               onClick={dismissWelcome}
               className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white font-semibold transition"
             >
-              Get Started
+              Get Started - It's Free
             </button>
           </div>
         </div>
