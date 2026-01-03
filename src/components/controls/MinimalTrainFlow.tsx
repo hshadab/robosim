@@ -31,6 +31,8 @@ import {
   Settings,
   Box,
   ChevronLeft,
+  ChevronDown,
+  ChevronRight,
   Send,
   Play,
   ExternalLink,
@@ -42,6 +44,8 @@ import {
   Wrench,
   FlaskConical,
   BookOpen,
+  Sparkles,
+  Upload,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import type { Episode, Frame } from '../../lib/datasetExporter';
@@ -133,6 +137,7 @@ function interpolateWaypoints(
 }
 
 type FlowStep = 'add-object' | 'record-demo' | 'generate' | 'upload' | 'done';
+type ExpandedSection = 'objects' | 'training' | null;
 
 interface MinimalTrainFlowProps {
   onOpenDrawer: () => void;
@@ -155,6 +160,9 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   const [state, setState] = useState<QuickTrainState>(initialQuickTrainState);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Progressive disclosure - which section is expanded
+  const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
 
   // API keys - load from persistent storage
   const [falApiKey, setFalApiKeyState] = useState(() => getFalApiKey() || '');
@@ -1989,10 +1997,6 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     }
   };
 
-  // Progress dots
-  const steps: FlowStep[] = ['add-object', 'record-demo', 'generate', 'upload', 'done'];
-  const currentStepIndex = steps.indexOf(step);
-
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {/* Header */}
@@ -2025,28 +2029,262 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
         </div>
       </div>
 
-      {/* Progress indicator */}
-      <div className="flex justify-center gap-2 py-4">
-        {steps.slice(0, -1).map((s, i) => (
-          <div
-            key={s}
-            className={`w-2 h-2 rounded-full transition ${
-              i <= currentStepIndex ? 'bg-blue-500' : 'bg-slate-700'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col justify-center px-6 pb-8">
+      {/* Main content - Progressive Disclosure */}
+      <div className="flex-1 overflow-y-auto">
         {error && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-400 text-sm">
+          <div className="mx-4 mt-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-400 text-sm">
             {error}
             <button onClick={() => setError(null)} className="float-right text-red-500 hover:text-red-400">×</button>
           </div>
         )}
 
-        {renderStep()}
+        {/* Section 1: Chat - Always Visible */}
+        <div className="p-4 border-b border-slate-800">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare className="w-4 h-4 text-blue-400/70" />
+            <span className="text-sm font-medium text-white">Chat with Robot</span>
+            {isRecording && (
+              <span className="flex items-center gap-1 text-xs text-red-400">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                Recording
+              </span>
+            )}
+          </div>
+
+          {/* Chat input */}
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleChatSend()}
+              placeholder="Try: pick up the cube"
+              disabled={isLLMLoading || isDemoRunning}
+              className="flex-1 px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 disabled:opacity-50"
+            />
+            <button
+              onClick={handleChatSend}
+              disabled={!chatInput.trim() || isLLMLoading || isDemoRunning}
+              className="p-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 rounded-xl text-white transition"
+            >
+              {isLLMLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Quick prompts */}
+          <div className="flex flex-wrap gap-1">
+            {['pick up cube', 'place on left', 'stack blue on red'].map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => setChatInput(prompt)}
+                disabled={isLLMLoading || isDemoRunning}
+                className="px-2 py-1 text-xs bg-slate-800/50 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white border border-slate-700/50 transition disabled:opacity-50"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {/* Claude API key prompt if needed */}
+          {!hasClaudeKey && (
+            <div className="mt-3 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+              <p className="text-xs text-slate-400 mb-2">Enter Claude API key for chat</p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={claudeKeyInput}
+                  onChange={(e) => setClaudeKeyInput(e.target.value)}
+                  placeholder="sk-ant-..."
+                  className="flex-1 px-2 py-1.5 bg-slate-900 border border-slate-600 rounded text-white text-xs"
+                />
+                <button
+                  onClick={handleSaveClaudeKey}
+                  disabled={!claudeKeyInput.trim()}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 rounded text-white text-xs transition"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 2: Objects - Collapsible */}
+        <div className="border-b border-slate-800">
+          <button
+            onClick={() => setExpandedSection(expandedSection === 'objects' ? null : 'objects')}
+            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/30 transition"
+          >
+            <div className="flex items-center gap-2">
+              <Box className="w-4 h-4 text-purple-400/70" />
+              <span className="text-sm font-medium text-white">Objects</span>
+              {objects.filter(o => o.isGrabbable).length > 0 && (
+                <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">
+                  {objects.filter(o => o.isGrabbable).length}
+                </span>
+              )}
+            </div>
+            {expandedSection === 'objects' ? (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+
+          {expandedSection === 'objects' && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* Quick add buttons */}
+              <div className="grid grid-cols-6 gap-1">
+                {PRIMITIVE_OBJECTS.filter(o => o.type === 'cube').slice(0, 6).map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleAddLibraryObject(template)}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-purple-500/50 transition"
+                    title={template.name}
+                  >
+                    <div
+                      className="w-5 h-5 rounded"
+                      style={{ backgroundColor: template.color }}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Photo to 3D */}
+              <button
+                onClick={() => {
+                  setObjectMode('photo');
+                  setStep('add-object');
+                }}
+                className="w-full py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg text-slate-300 text-sm font-medium border border-slate-700/50 hover:border-purple-500/50 transition flex items-center justify-center gap-2"
+              >
+                <Camera className="w-4 h-4 opacity-70" />
+                Photo to 3D
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Training - Collapsible */}
+        <div className="border-b border-slate-800">
+          <button
+            onClick={() => setExpandedSection(expandedSection === 'training' ? null : 'training')}
+            className="w-full flex items-center justify-between p-4 hover:bg-slate-800/30 transition"
+          >
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-green-400/70" />
+              <span className="text-sm font-medium text-white">Training Data</span>
+              {(state.demoEpisodes.length + state.generatedEpisodes.length) > 0 && (
+                <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                  {state.demoEpisodes.length + state.generatedEpisodes.length} demos
+                </span>
+              )}
+            </div>
+            {expandedSection === 'training' ? (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+
+          {expandedSection === 'training' && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* Task type selector */}
+              <div className="flex gap-1">
+                {(['pickup', 'stack', 'place'] as const).map((task) => (
+                  <button
+                    key={task}
+                    onClick={() => setSelectedTask(task)}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition ${
+                      selectedTask === task
+                        ? 'bg-green-600 text-white'
+                        : 'bg-slate-800/50 text-slate-400 hover:text-white border border-slate-700/50'
+                    }`}
+                  >
+                    {task.charAt(0).toUpperCase() + task.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Generate button */}
+              <button
+                onClick={() => handleBatchDemos(selectedTask)}
+                disabled={isDemoRunning || isAnimating || isLLMLoading}
+                className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-700 rounded-xl text-white font-medium transition flex items-center justify-center gap-2"
+              >
+                {isDemoRunning && batchProgress ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Demo {batchProgress.current}/{batchProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate {BATCH_COUNT} Demos
+                  </>
+                )}
+              </button>
+
+              {/* Single test */}
+              <button
+                onClick={handleDemoPickUp}
+                disabled={isDemoRunning || isAnimating || isLLMLoading}
+                className="w-full py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg text-slate-300 text-sm font-medium border border-slate-700/50 transition flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 opacity-70" />
+                Test Single Pickup
+              </button>
+
+              {/* Demo count and upload */}
+              {(state.demoEpisodes.length + state.generatedEpisodes.length) > 0 && (
+                <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400">
+                      {state.demoEpisodes.length + state.generatedEpisodes.length} episodes ready
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async () => {
+                          const allEpisodes = getAllEpisodes(state);
+                          await exportLeRobotDataset(allEpisodes, `${state.objectName || 'robot'}_training`, selectedRobotId);
+                        }}
+                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white transition"
+                      >
+                        Download
+                      </button>
+                      <button
+                        onClick={() => setStep('upload')}
+                        className="px-2 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs text-white transition flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" />
+                        Upload
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Progress indicator */}
+              {isDemoRunning && demoResults.length > 0 && (
+                <div className="text-xs text-slate-400">
+                  <span className="text-green-400">{demoResults.filter(r => r.success).length}</span> passed /
+                  <span className="text-red-400 ml-1">{demoResults.filter(r => !r.success).length}</span> failed
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Legacy step content for upload/done states */}
+        {(step === 'upload' || step === 'done') && (
+          <div className="p-4">
+            {renderStep()}
+          </div>
+        )}
       </div>
 
       {/* Welcome Modal for First-Time Visitors */}
