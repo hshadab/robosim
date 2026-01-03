@@ -137,7 +137,7 @@ export const LearnMorePage: React.FC<LearnMorePageProps> = ({ onBack, onGetStart
             <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30">
               <p className="text-blue-300 text-sm">
                 <Lightbulb className="w-4 h-4 inline mr-2" />
-                <strong>Don't have a photo?</strong> Use one of 34 built-in objects like cubes, balls, bottles, and fruits.
+                <strong>Don't have a photo?</strong> Use one of the built-in training cubes optimized for SO-101 gripper.
               </p>
             </div>
           </div>
