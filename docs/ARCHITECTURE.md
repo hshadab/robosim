@@ -132,6 +132,10 @@ Key files:
 - `src/lib/pickupExamples.ts` - Training data storage
 - `src/lib/claudeApi.ts` - IK calculation + pickupAttempt metadata
 - `src/hooks/useLLMChat.ts` - Success/failure logging
+- `src/lib/lerobotExporter.ts` - LeRobot format export
+- `src/lib/qualityGates.ts` - Episode validation
+
+> **See Also**: [TRAINING_DATA_GUIDE.md](./TRAINING_DATA_GUIDE.md) for detailed information on training data quality, known issues, and export best practices.
 
 ### Graceful Degradation
 

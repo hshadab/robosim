@@ -31,24 +31,46 @@ export interface QualityThresholds {
   minDuration: number;
 }
 
+/**
+ * Default quality thresholds - balanced between strictness and flexibility
+ * Updated to be more strict to ensure higher quality training data
+ */
 export const DEFAULT_THRESHOLDS: QualityThresholds = {
-  minFrames: 30,
-  maxJerk: 50.0, // rad/s³ - higher = more jerky motion
-  minActionVariance: 0.001, // minimum variance across all actions
-  maxStaticFrames: 60, // ~2 seconds at 30fps
-  minTaskConfidence: 0.5,
-  maxTimestampGap: 100, // ms
-  minDuration: 1000, // 1 second minimum
+  minFrames: 45,           // ~1.5 seconds at 30fps (was 30)
+  maxJerk: 35.0,           // rad/s³ - moderate smoothness required (was 50)
+  minActionVariance: 0.003, // require meaningful movement (was 0.001)
+  maxStaticFrames: 45,     // ~1.5 seconds max idle (was 60)
+  minTaskConfidence: 0.6,   // 60% confidence required (was 0.5)
+  maxTimestampGap: 75,     // ms - tighter timing (was 100)
+  minDuration: 1500,       // 1.5 second minimum (was 1000)
 };
 
+/**
+ * Strict quality thresholds - for production training data
+ * Use these when quality is more important than quantity
+ */
 export const STRICT_THRESHOLDS: QualityThresholds = {
-  minFrames: 60,
-  maxJerk: 25.0,
-  minActionVariance: 0.01,
-  maxStaticFrames: 30,
-  minTaskConfidence: 0.75,
-  maxTimestampGap: 50,
-  minDuration: 2000,
+  minFrames: 60,           // 2 seconds at 30fps
+  maxJerk: 25.0,           // rad/s³ - smooth motion only
+  minActionVariance: 0.01,  // significant movement required
+  maxStaticFrames: 30,     // 1 second max idle
+  minTaskConfidence: 0.75,  // 75% confidence required
+  maxTimestampGap: 50,     // ms - strict timing
+  minDuration: 2000,       // 2 second minimum
+};
+
+/**
+ * Lenient thresholds - for debugging or initial data collection
+ * Only use when you need to capture more data and will filter later
+ */
+export const LENIENT_THRESHOLDS: QualityThresholds = {
+  minFrames: 20,           // ~0.7 seconds at 30fps
+  maxJerk: 75.0,           // allow jerky motion
+  minActionVariance: 0.0005, // nearly static episodes ok
+  maxStaticFrames: 90,     // 3 seconds max idle
+  minTaskConfidence: 0.3,   // 30% confidence
+  maxTimestampGap: 150,    // ms - loose timing
+  minDuration: 500,        // 0.5 second minimum
 };
 
 // =============================================================================

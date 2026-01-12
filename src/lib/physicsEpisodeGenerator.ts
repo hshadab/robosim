@@ -214,7 +214,9 @@ export class PhysicsEpisodeGenerator {
           store.setJoints(targetJoints);
 
           // Capture frame
-          const frameTime = (Date.now() - this.startTime) / 1000;
+          // Store timestamp in milliseconds to match DatasetRecorder convention
+          // The export pipeline will convert ms → seconds when writing Parquet
+          const frameTime = Date.now() - this.startTime;
           const imageDataUrl = this.config.captureImages
             ? this.videoRecorder?.captureFrame()
             : undefined;
@@ -263,7 +265,8 @@ export class PhysicsEpisodeGenerator {
       }
 
       // Create episode
-      const duration = (Date.now() - this.startTime) / 1000;
+      // Duration in milliseconds to match DatasetRecorder convention
+      const duration = Date.now() - this.startTime;
       const metadata: EpisodeMetadata = {
         robotType: 'arm',
         robotId: this.config.robotId,
@@ -311,7 +314,7 @@ export class PhysicsEpisodeGenerator {
             robotId: this.config.robotId,
             task: plan.description,
             success: false,
-            duration: (Date.now() - this.startTime) / 1000,
+            duration: Date.now() - this.startTime, // milliseconds
             frameCount: this.frames.length,
             recordedAt: new Date().toISOString(),
           },

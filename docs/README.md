@@ -10,6 +10,10 @@ This directory contains technical documentation for the RoboSim project.
 - **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** - Original implementation plan
 - **[IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md)** - Completed improvements and future ideas
 
+## Training & ML
+
+- **[TRAINING_DATA_GUIDE.md](./TRAINING_DATA_GUIDE.md)** - Training data quality, known issues, and LeRobot export best practices
+
 ## Analysis Documents
 
 - **[GRASP_PROBLEM_ANALYSIS.md](./GRASP_PROBLEM_ANALYSIS.md)** - Analysis of gripper grasp mechanics

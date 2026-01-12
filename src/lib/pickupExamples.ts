@@ -730,6 +730,9 @@ interface SharedExampleResponse {
   objectScale: number;
   jointSequence: JointSequenceStep[];
   similarity: number;
+  // Language data for diverse training (if available from server)
+  userMessage?: string;
+  languageVariants?: string[];
 }
 
 interface SharedStats {
@@ -947,7 +950,9 @@ export async function exportCommunityDataset(): Promise<void> {
       robotType: 'arm' as const,
       robotId: 'so-101',
       task: `pickup_${example.objectType}`,
-      languageInstruction: `Pick up the ${example.objectType}`,
+      // Preserve original user message for language-conditioned learning
+      // Falls back to generic description if not available
+      languageInstruction: example.userMessage || `Pick up the ${example.objectType}`,
       success: true,
       duration: example.jointSequence.length * 33.33,
       frameCount: example.jointSequence.length,

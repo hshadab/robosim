@@ -210,7 +210,24 @@ if __name__ == '__main__':
 }
 
 /**
+ * Convert joint values from degrees to radians, normalizing gripper
+ * Joint indices 0-4 are angles in degrees, index 5 is gripper (0-100%)
+ */
+function convertToRadians(joints: number[]): number[] {
+  const DEG_TO_RAD = Math.PI / 180;
+  return joints.map((val, idx) => {
+    if (idx === 5) return val / 100; // Gripper: 0-100% → 0-1
+    return val * DEG_TO_RAD;         // Joint angles: degrees → radians
+  });
+}
+
+/**
  * Convert episodes to Parquet-compatible format
+ *
+ * IMPORTANT: This function now properly converts:
+ * - Joint angles from degrees to radians (LeRobot standard)
+ * - Gripper values from 0-100 to 0-1 (normalized)
+ * - Computes velocity from position deltas
  */
 export function episodesToParquetFormat(
   episodes: {
@@ -226,10 +243,11 @@ export function episodesToParquetFormat(
       task?: string;
     };
   }[],
-  _fps = 30
+  fps = 30
 ): ParquetEpisodeData {
   const data: ParquetEpisodeData = {
     'observation.state': [],
+    'observation.velocity': [],
     'action': [],
     'episode_index': [],
     'frame_index': [],
@@ -238,17 +256,37 @@ export function episodesToParquetFormat(
     'task_index': [],
   };
 
+  const dt = 1.0 / fps; // Time delta between frames in seconds
   let globalFrameIndex = 0;
 
   episodes.forEach((episode, episodeIdx) => {
+    let prevState: number[] | null = null;
+
     episode.frames.forEach((frame, frameIdx) => {
-      data['observation.state'].push(frame.observation.jointPositions);
-      data['action'].push(frame.action.jointTargets);
+      // Convert degrees to radians and normalize gripper
+      const state = convertToRadians(frame.observation.jointPositions);
+      const action = convertToRadians(frame.action.jointTargets);
+
+      // Compute velocity from position delta
+      // v = (pos - prevPos) / dt
+      let velocity: number[];
+      if (prevState) {
+        velocity = state.map((pos, i) => (pos - prevState![i]) / dt);
+      } else {
+        // First frame: zero velocity
+        velocity = new Array(state.length).fill(0);
+      }
+
+      data['observation.state'].push(state);
+      data['observation.velocity']!.push(velocity);
+      data['action'].push(action);
       data['episode_index'].push(episodeIdx);
       data['frame_index'].push(globalFrameIndex);
       data['timestamp'].push(frame.timestamp / 1000); // Convert ms to seconds
       data['next.done'].push(frameIdx === episode.frames.length - 1);
       data['task_index'].push(0); // Default task index
+
+      prevState = state;
       globalFrameIndex++;
     });
   });

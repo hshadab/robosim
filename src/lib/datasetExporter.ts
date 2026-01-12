@@ -104,6 +104,15 @@ export class DatasetRecorder {
 
   /**
    * Record a frame during the episode
+   *
+   * IMPORTANT: For imitation learning, the action should be the COMMANDED TARGET,
+   * not the current observation. The action represents "what the robot was told to do"
+   * which led to the next observation.
+   *
+   * @param state - Current robot state (becomes observation)
+   * @param action - Commanded action (jointTargets should be the TARGET positions)
+   * @param imageDataUrl - Optional camera image
+   * @param done - Whether this is the final frame
    */
   recordFrame(
     state: JointState | WheeledRobotState | DroneState | HumanoidState,
@@ -118,9 +127,11 @@ export class DatasetRecorder {
     // Convert state to observation
     const observation = this.stateToObservation(state, imageDataUrl);
 
-    // Build action from state changes
+    // Build action - use provided jointTargets if available, otherwise fall back to observation
+    // Note: Callers should provide action.jointTargets with the commanded target positions
+    // for proper imitation learning data
     const fullAction: Action = {
-      jointTargets: observation.jointPositions,
+      jointTargets: action.jointTargets ?? observation.jointPositions,
       gripper: action.gripper,
       extras: action.extras,
     };

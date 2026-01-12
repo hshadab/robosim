@@ -11,7 +11,7 @@
 
 import type { Episode } from './datasetExporter';
 import { episodesToParquetFormat, writeParquetFilePure, validateParquetData, generateConversionScript } from './parquetWriter';
-import { checkBatchQuality, DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, type QualityThresholds, type QualityGateResult } from './qualityGates';
+import { checkBatchQuality, DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, LENIENT_THRESHOLDS, type QualityThresholds, type QualityGateResult } from './qualityGates';
 import type { ImageAugmentationConfig } from './imageAugmentation';
 import type { TimeWarpConfig } from './trajectoryAugmentation';
 import type { PhysicsIdentification } from './systemIdentification';
@@ -19,7 +19,7 @@ import type { ActionCalibrationConfig } from './actionCalibration';
 import type { SimCameraConfig } from '../types';
 
 // Re-export quality gates for convenience
-export { DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, checkBatchQuality };
+export { DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, LENIENT_THRESHOLDS, checkBatchQuality };
 export type { QualityThresholds, QualityGateResult };
 
 /**
