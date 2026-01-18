@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { MessageCircle, Trash2, Sparkles, Key, Check, Radio } from 'lucide-react';
+import { MessageCircle, Trash2, Sparkles, Key, Check, Radio, ListChecks, AlertCircle, Lightbulb } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { QuickPrompts } from './QuickPrompts';
@@ -9,6 +9,9 @@ import { useLLMChat } from '../../hooks/useLLMChat';
 import { getClaudeApiKey, setClaudeApiKey } from '../../lib/claudeApi';
 import { useRobotContext } from '../../hooks/useRobotContext';
 import { eventToMessage } from '../../lib/semanticState';
+import { getActivePlan, getPlanProgress, getCurrentStep } from '../../lib/taskPlanner';
+import { getRecentFailures, FAILURE_CATEGORIES } from '../../lib/failureAnalysis';
+import { getFeedbackSummary } from '../../lib/gripperFeedback';
 
 export const ChatPanel: React.FC = () => {
   const { messages, isLLMLoading, clearMessages, isAnimating, addMessage } = useAppStore();
@@ -19,6 +22,20 @@ export const ChatPanel: React.FC = () => {
   const [showApiInput, setShowApiInput] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [robotStatus, setRobotStatus] = useState<string>('');
+  const [activePlan, setActivePlan] = useState(getActivePlan());
+  const [lastFailure, setLastFailure] = useState<ReturnType<typeof getRecentFailures>[0] | null>(null);
+
+  // Update active plan periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActivePlan(getActivePlan());
+      const failures = getRecentFailures(1);
+      if (failures.length > 0) {
+        setLastFailure(failures[0]);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   // Subscribe to robot events and show important ones in chat
   useEffect(() => {
@@ -116,6 +133,60 @@ export const ChatPanel: React.FC = () => {
           {robotStatus || 'Connecting...'}
         </span>
       </div>
+
+      {/* Task Progress Bar */}
+      {activePlan && activePlan.status !== 'completed' && activePlan.status !== 'failed' && (
+        <div className="px-3 py-2 border-b border-slate-700/30 bg-purple-900/20">
+          <div className="flex items-center gap-2 mb-1">
+            <ListChecks className="w-3 h-3 text-purple-400" />
+            <span className="text-xs text-purple-300 flex-1 truncate">
+              {activePlan.description}
+            </span>
+            <span className="text-xs text-purple-400">
+              {getPlanProgress(activePlan).percentage}%
+            </span>
+          </div>
+          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-purple-500 transition-all duration-300"
+              style={{ width: `${getPlanProgress(activePlan).percentage}%` }}
+            />
+          </div>
+          {getCurrentStep(activePlan) && (
+            <div className="text-[10px] text-slate-400 mt-1">
+              Step {activePlan.currentStepIndex + 1}/{activePlan.steps.length}: {getCurrentStep(activePlan)?.description}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent Failure Explanation */}
+      {lastFailure && Date.now() - lastFailure.timestamp < 30000 && (
+        <div className="px-3 py-2 border-b border-slate-700/30 bg-red-900/20">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-red-300">
+                {lastFailure.category.replace(/_/g, ' ')}
+              </div>
+              {FAILURE_CATEGORIES[lastFailure.category] && (
+                <div className="flex items-start gap-1 mt-1">
+                  <Lightbulb className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-[10px] text-amber-300">
+                    {FAILURE_CATEGORIES[lastFailure.category].suggestedFix}
+                  </span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setLastFailure(null)}
+              className="text-slate-500 hover:text-slate-300 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* API Key Input */}
       {showApiInput && (

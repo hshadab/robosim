@@ -18,6 +18,11 @@ import {
   Activity,
   Database,
   RefreshCw,
+  AlertTriangle,
+  Clock,
+  Zap,
+  TrendingUp,
+  AlertCircle,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import {
@@ -35,17 +40,44 @@ import {
   saveSessionsToStorage,
 } from '../../lib/contactEvents';
 import { generateLanguageVariants } from '../../lib/languageAugmentation';
+import {
+  getFailureStats,
+  getRecentFailures,
+  getSuggestedAdjustments,
+  FAILURE_CATEGORIES,
+  type FailureCategory,
+} from '../../lib/failureAnalysis';
+import {
+  generateSnapshot,
+  aggregateMetrics,
+  getSuccessRate,
+} from '../../lib/performanceMetrics';
+import {
+  getMaintenanceRecommendations,
+  calculateQualityScore,
+} from '../../lib/examplePruning';
 
 export const TrainingDashboard: React.FC = () => {
   const { activeRobotType } = useAppStore();
   const [expanded, setExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'coverage' | 'contacts' | 'export'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'coverage' | 'failures' | 'performance' | 'contacts' | 'export'>('overview');
 
   // Compute statistics
   const pickupStats = useMemo(() => getPickupStats(), []);
   const verifiedCounts = useMemo(() => getVerifiedCounts(), []);
   const contactStats = useMemo(() => getContactStats(), []);
   const allVerified = useMemo(() => getAllVerifiedExamples(), []);
+
+  // Failure analysis stats
+  const failureStats = useMemo(() => getFailureStats(), []);
+  const recentFailures = useMemo(() => getRecentFailures(5), []);
+
+  // Performance metrics
+  const performanceSnapshot = useMemo(() => generateSnapshot(), []);
+
+  // Example quality recommendations
+  const qualityRecommendations = useMemo(() =>
+    getMaintenanceRecommendations(allVerified), [allVerified]);
 
   // Refresh trigger
   const [refreshKey, setRefreshKey] = useState(0);
@@ -143,21 +175,38 @@ export const TrainingDashboard: React.FC = () => {
 
       {expanded && (
         <div className="mt-3 space-y-3">
-          {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-slate-900/50 rounded-lg">
-            {(['overview', 'coverage', 'contacts', 'export'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
-                  activeTab === tab
-                    ? 'bg-purple-600 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
+          {/* Tabs - Two rows for 6 tabs */}
+          <div className="space-y-1">
+            <div className="flex gap-1 p-1 bg-slate-900/50 rounded-lg">
+              {(['overview', 'coverage', 'failures'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                    activeTab === tab
+                      ? 'bg-purple-600 text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 p-1 bg-slate-900/50 rounded-lg">
+              {(['performance', 'contacts', 'export'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                    activeTab === tab
+                      ? 'bg-purple-600 text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Overview Tab */}
@@ -309,6 +358,220 @@ export const TrainingDashboard: React.FC = () => {
                   </span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Failures Tab */}
+          {activeTab === 'failures' && (
+            <div className="space-y-3">
+              {/* Failure Stats Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                <StatCard
+                  icon={<AlertTriangle className="w-4 h-4" />}
+                  label="Total Failures"
+                  value={failureStats.total}
+                  color="red"
+                />
+                <StatCard
+                  icon={<Target className="w-4 h-4" />}
+                  label="IK Issues"
+                  value={failureStats.byCategory.ik_unreachable || 0}
+                  color="orange"
+                />
+                <StatCard
+                  icon={<XCircle className="w-4 h-4" />}
+                  label="Grasp Missed"
+                  value={failureStats.byCategory.grasp_missed || 0}
+                  color="purple"
+                />
+              </div>
+
+              {/* Failure Breakdown */}
+              {Object.keys(failureStats.byCategory).length > 0 && (
+                <div className="p-2 bg-slate-900/50 rounded-lg">
+                  <div className="text-xs text-slate-400 mb-2">Failure Categories</div>
+                  <div className="space-y-1.5">
+                    {Object.entries(failureStats.byCategory)
+                      .sort(([,a], [,b]) => b - a)
+                      .map(([category, count]) => {
+                        const info = FAILURE_CATEGORIES[category as FailureCategory];
+                        const percentage = failureStats.total > 0
+                          ? (count / failureStats.total * 100).toFixed(0)
+                          : 0;
+                        return (
+                          <div key={category} className="flex items-center gap-2 text-xs">
+                            <span className="text-white w-24 truncate" title={info?.description}>
+                              {category.replace(/_/g, ' ')}
+                            </span>
+                            <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-red-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-slate-400 w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Failures */}
+              <div className="p-2 bg-slate-900/50 rounded-lg">
+                <div className="text-xs text-slate-400 mb-2">Recent Failures</div>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {recentFailures.length > 0 ? (
+                    recentFailures.map((failure, i) => {
+                      const info = FAILURE_CATEGORIES[failure.category];
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-start gap-2 text-xs p-1.5 bg-slate-800/50 rounded"
+                        >
+                          <AlertCircle className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-slate-300 truncate">
+                              {failure.category.replace(/_/g, ' ')}
+                            </div>
+                            <div className="text-slate-500 text-[10px]">
+                              {info?.suggestedFix || failure.reason}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-slate-500 text-xs">No failures recorded</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Common Fixes */}
+              {failureStats.total > 0 && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <div className="text-xs text-amber-400 mb-1 flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    Suggested Fixes
+                  </div>
+                  <ul className="text-xs text-slate-300 space-y-0.5 list-disc list-inside">
+                    {failureStats.byCategory.ik_unreachable > 0 && (
+                      <li>Move objects closer to robot base (18-22cm)</li>
+                    )}
+                    {failureStats.byCategory.grasp_missed > 0 && (
+                      <li>Increase gripper close duration to 800ms</li>
+                    )}
+                    {failureStats.byCategory.object_slipped > 0 && (
+                      <li>Move slower when holding objects</li>
+                    )}
+                    {failureStats.byCategory.collision_detected > 0 && (
+                      <li>Use collision-aware trajectory planning</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Performance Tab */}
+          {activeTab === 'performance' && (
+            <div className="space-y-3">
+              {/* Timing Stats Grid */}
+              <div className="grid grid-cols-2 gap-2">
+                <StatCard
+                  icon={<Clock className="w-4 h-4" />}
+                  label="Avg IK Solve"
+                  value={`${performanceSnapshot.metrics.ikSolve.avgDuration.toFixed(0)}ms`}
+                  color="blue"
+                />
+                <StatCard
+                  icon={<Zap className="w-4 h-4" />}
+                  label="Avg LLM Response"
+                  value={`${performanceSnapshot.metrics.llmResponse.avgDuration.toFixed(0)}ms`}
+                  color="purple"
+                />
+              </div>
+
+              {/* Detailed Timing */}
+              <div className="p-2 bg-slate-900/50 rounded-lg">
+                <div className="text-xs text-slate-400 mb-2">Timing Metrics (P50 / P95)</div>
+                <div className="space-y-2">
+                  {Object.entries(performanceSnapshot.metrics).map(([name, metrics]) => {
+                    if (metrics.count === 0) return null;
+                    return (
+                      <div key={name} className="flex items-center gap-2 text-xs">
+                        <span className="text-white w-20 capitalize">{name.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <div className="flex-1 flex gap-1 items-center">
+                          <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden relative">
+                            <div
+                              className="h-full bg-blue-500 absolute"
+                              style={{ width: `${Math.min(100, metrics.p50Duration / 10)}%` }}
+                            />
+                            <div
+                              className="h-full bg-blue-300 absolute opacity-50"
+                              style={{ width: `${Math.min(100, metrics.p95Duration / 10)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className="text-slate-400 w-20 text-right font-mono text-[10px]">
+                          {metrics.p50Duration.toFixed(0)} / {metrics.p95Duration.toFixed(0)}ms
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Success Rates */}
+              <div className="p-2 bg-slate-900/50 rounded-lg">
+                <div className="text-xs text-slate-400 mb-2">Success Rates</div>
+                <div className="space-y-1.5">
+                  {Object.entries(performanceSnapshot.successRates).map(([name, rate]) => (
+                    <div key={name} className="flex items-center gap-2 text-xs">
+                      <span className="text-white w-24 capitalize">{name.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${
+                            rate >= 0.8 ? 'bg-green-500' :
+                            rate >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${rate * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-slate-400 w-12 text-right">
+                        {(rate * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Resource Usage */}
+              {performanceSnapshot.resourceUsage.memoryMB && (
+                <div className="p-2 bg-slate-900/50 rounded-lg">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Memory Usage</span>
+                    <span className="text-white font-mono">
+                      {performanceSnapshot.resourceUsage.memoryMB.toFixed(1)} MB
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Quality Recommendations */}
+              {qualityRecommendations.length > 0 && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <div className="text-xs text-amber-400 mb-1 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    Optimization Recommendations
+                  </div>
+                  <ul className="text-xs text-slate-300 space-y-0.5 list-disc list-inside">
+                    {qualityRecommendations.slice(0, 3).map((rec, i) => (
+                      <li key={i}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

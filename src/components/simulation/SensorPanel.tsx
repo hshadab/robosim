@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   Battery,
@@ -9,10 +9,19 @@ import {
   Hand,
   ChevronDown,
   ChevronUp,
+  Grip,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useSensorSimulation } from '../../hooks';
 import type { SensorReading, JointState } from '../../types';
+import {
+  getCurrentFeedback,
+  isHoldingSecurely,
+  isSlipping,
+  getSuggestedAdjustment,
+  type GripperFeedback,
+} from '../../lib/gripperFeedback';
 
 type SensorTab = 'basic' | 'motion' | 'position';
 
@@ -94,7 +103,21 @@ export const SensorPanel: React.FC = () => {
 const BasicSensors: React.FC<{
   sensors: SensorReading;
   joints: JointState;
-}> = ({ sensors, joints }) => (
+}> = ({ sensors, joints }) => {
+  const [gripperFeedback, setGripperFeedback] = useState<GripperFeedback | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGripperFeedback(getCurrentFeedback());
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  const holdingSecurely = isHoldingSecurely();
+  const slipping = isSlipping();
+  const suggestion = getSuggestedAdjustment();
+
+  return (
   <div className="space-y-3">
     {/* Gripper */}
     <div>
@@ -109,6 +132,102 @@ const BasicSensors: React.FC<{
         />
       </div>
     </div>
+
+    {/* Gripper Feedback Section */}
+    {gripperFeedback && (
+      <div className="p-2 bg-slate-900/50 rounded-lg space-y-2">
+        <div className="flex items-center gap-1 text-xs text-slate-400">
+          <Grip className="w-3 h-3" />
+          Gripper Feedback
+        </div>
+
+        {/* Contact Status */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">Contact</span>
+          <span className={gripperFeedback.contact.isContacting ? 'text-green-400' : 'text-slate-500'}>
+            {gripperFeedback.contact.isContacting
+              ? `${gripperFeedback.contact.contactPoints} point${gripperFeedback.contact.contactPoints !== 1 ? 's' : ''}`
+              : 'None'}
+          </span>
+        </div>
+
+        {/* Force Indicator */}
+        {gripperFeedback.contact.isContacting && (
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-slate-400">Force</span>
+              <span className="text-slate-300">{(gripperFeedback.contact.estimatedForce * 100).toFixed(0)}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all duration-200 ${
+                  gripperFeedback.contact.estimatedForce > 0.7 ? 'bg-green-500' :
+                  gripperFeedback.contact.estimatedForce > 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${gripperFeedback.contact.estimatedForce * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Stability Status */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">Stability</span>
+          <div className="flex items-center gap-1">
+            {slipping && <AlertTriangle className="w-3 h-3 text-red-400" />}
+            <span className={
+              holdingSecurely ? 'text-green-400' :
+              slipping ? 'text-red-400' :
+              gripperFeedback.contact.isContacting ? 'text-yellow-400' : 'text-slate-500'
+            }>
+              {holdingSecurely ? 'Secure' :
+               slipping ? 'Slipping!' :
+               gripperFeedback.contact.isContacting ? 'Unstable' : 'N/A'}
+            </span>
+          </div>
+        </div>
+
+        {/* Grasp Quality */}
+        {gripperFeedback.contact.isContacting && (
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-slate-400">Grasp Quality</span>
+              <span className={
+                gripperFeedback.stability.graspQuality > 0.7 ? 'text-green-400' :
+                gripperFeedback.stability.graspQuality > 0.4 ? 'text-yellow-400' : 'text-red-400'
+              }>
+                {gripperFeedback.stability.graspQuality > 0.7 ? 'Good' :
+                 gripperFeedback.stability.graspQuality > 0.4 ? 'Fair' : 'Poor'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all duration-200 ${
+                  gripperFeedback.stability.graspQuality > 0.7 ? 'bg-green-500' :
+                  gripperFeedback.stability.graspQuality > 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${gripperFeedback.stability.graspQuality * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Slip Risk */}
+        {gripperFeedback.contact.isContacting && gripperFeedback.stability.slipRisk > 0.3 && (
+          <div className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 rounded px-2 py-1">
+            <AlertTriangle className="w-3 h-3" />
+            <span>Slip risk: {(gripperFeedback.stability.slipRisk * 100).toFixed(0)}%</span>
+          </div>
+        )}
+
+        {/* Suggested Adjustment */}
+        {suggestion && (
+          <div className="text-[10px] text-blue-400 bg-blue-500/10 rounded px-2 py-1">
+            Suggestion: {suggestion}
+          </div>
+        )}
+      </div>
+    )}
 
     {/* Ultrasonic */}
     <SensorRow
@@ -164,7 +283,8 @@ const BasicSensors: React.FC<{
       }
     />
   </div>
-);
+  );
+};
 
 // Motion Sensors Tab
 const MotionSensors: React.FC<{
