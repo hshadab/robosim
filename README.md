@@ -98,6 +98,112 @@ Every successful pickup contributes to a shared training database. All users ben
 | `GET /api/examples/all` | Download all examples (LeRobot export) |
 | `GET /api/examples/stats` | Get community statistics |
 
+### Enhanced LLM Robot Control System (NEW - January 2025)
+Major improvements to the AI-powered robot control pipeline, enabling more reliable, intelligent, and self-improving natural language robot control.
+
+#### Structured Failure Analysis
+Real-time classification of pickup failures with actionable insights:
+- **8 Failure Categories** - `ik_unreachable`, `grasp_missed`, `object_slipped`, `collision_detected`, `gripper_timing`, `physics_unstable`, `timeout`, `approach_failed`
+- **Context-Aware Prompts** - LLM receives failure history and suggested adjustments
+- **Auto-Corrections** - System suggests height/approach/timing fixes based on failure patterns
+- **Files**: `src/lib/failureAnalysis.ts`
+
+#### Multi-Solution Inverse Kinematics
+Enhanced IK solver that generates and ranks multiple solutions:
+- **18+ Starting Configurations** - Explores diverse joint configurations
+- **Multi-Criteria Ranking** - Scores by error, travel distance, manipulability, approach quality, collision risk
+- **Best Solution Selection** - Automatically picks the optimal solution for the task
+- **Files**: `src/lib/numericalIK.ts` (added `solveIKMultipleSolutions`)
+
+#### Claude Tool Use API
+Structured tool definitions for reliable LLM-to-robot commands:
+- **9 Robot Tools** - `execute_pickup`, `execute_place`, `move_to_position`, `set_joints`, `execute_sequence`, `open_gripper`, `close_gripper`, `get_robot_state`, `query_scene`
+- **Type-Safe Parameters** - JSON schema validation for all tool inputs
+- **Consistent Execution** - Reliable command parsing and execution
+- **Files**: `src/lib/claude/tools.ts`
+
+#### Real-Time Gripper Feedback
+Physics-based gripper sensing for reliable grasps:
+- **Contact Detection** - Tracks contact points, estimated force, grip stability
+- **Slip Risk Assessment** - Real-time slip detection during motion
+- **Grasp Quality Scoring** - 0-1 score based on contact stability and force
+- **Files**: `src/lib/gripperFeedback.ts`
+
+#### Collision-Aware Motion Planning
+Safe trajectory generation with obstacle avoidance:
+- **Collision Detection** - Table, self-collision, and boundary checking
+- **Approach Trajectories** - Smooth paths with pre-grasp waypoints
+- **Collision-Free Planning** - Automatic path adjustment around obstacles
+- **Files**: `src/lib/motionPlanning.ts`
+
+#### Payload-Based Velocity Profiling
+Adaptive velocity scaling for safe manipulation:
+- **5 Velocity Profiles** - `normal`, `holding`, `fragile`, `cautious`, `precision`
+- **Payload Scaling** - Automatic slowdown when holding objects
+- **Configuration Awareness** - Reduced speed near joint limits and singularities
+- **Files**: `src/lib/velocityProfiling.ts`
+
+#### Automatic Example Pruning
+Quality-based management of pickup examples:
+- **Quality Scoring** - Success, IK error, age, usage, failure rate
+- **Duplicate Merging** - Consolidates similar examples within 3cm
+- **Age-Based Pruning** - Removes stale examples (>7 days)
+- **Maintenance Reports** - Recommendations for example health
+- **Files**: `src/lib/examplePruning.ts`
+
+#### Multi-Turn Task Planning
+Complex task decomposition into executable steps:
+- **Plan Types** - `createPickupPlan`, `createPlacePlan`, `createStackPlan`, `createSortPlan`
+- **Step Tracking** - Progress, completion, failure handling per step
+- **LLM Context** - Current step and plan summary for context-aware responses
+- **Files**: `src/lib/taskPlanner.ts`
+
+#### Performance Metrics Dashboard
+Comprehensive timing and success tracking:
+- **Timing Categories** - IK solve, LLM response, animation, physics, pickup/place
+- **Percentile Metrics** - P50, P95, P99 latencies for all operations
+- **Success Rates** - Per-operation success tracking over time
+- **Export/Report** - JSON export and human-readable summaries
+- **Files**: `src/lib/performanceMetrics.ts`
+
+**Architecture Overview:**
+```
+User Chat Input
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Enhanced LLM Processing                                         │
+│  • Failure context from previous attempts                        │
+│  • Suggested adjustments based on error patterns                 │
+│  • Tool Use API for structured commands                          │
+└──────────────────────────────────────────────────────────────────┘
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Multi-Solution IK                                               │
+│  • 18+ starting configurations explored                          │
+│  • Solutions ranked by manipulability, collision risk, etc.      │
+└──────────────────────────────────────────────────────────────────┘
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Motion Planning                                                 │
+│  • Collision-aware trajectory generation                         │
+│  • Velocity profiling based on payload/fragility                 │
+└──────────────────────────────────────────────────────────────────┘
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Execution with Feedback                                         │
+│  • Real-time gripper force sensing                               │
+│  • Slip detection and grasp quality scoring                      │
+│  • Performance metrics recording                                 │
+└──────────────────────────────────────────────────────────────────┘
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Learning Loop                                                   │
+│  • Success → promote to verified examples                        │
+│  • Failure → structured analysis, suggest corrections            │
+│  • Example pruning → maintain quality database                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 ### LLM Training Data Pipeline (NEW - January 2025)
 A complete system for collecting, validating, and exporting high-quality training data from natural language robot commands.
 
@@ -881,7 +987,7 @@ npm run test:e2e:full
 | Command | Time | Description |
 |---------|------|-------------|
 | `npm run test:all` | **~41s** | Unit tests + smoke E2E (recommended for dev) |
-| `npm run test:unit` | **~1s** | 17 unit tests for batch demo logic |
+| `npm run test:unit` | **~2s** | 274 unit tests for batch demos, IK, LLM control |
 | `npm run test:e2e:smoke` | **~40s** | 3 quick E2E tests (app load, single demo, 3 batch demos) |
 | `npm run test:e2e:full` | **~7min** | Full 10-demo batch test with camera capture |
 | `npm run test:e2e:headed` | varies | Run E2E with visible browser for debugging |
@@ -895,14 +1001,12 @@ Fast tests that validate batch demo logic without a browser:
 npm run test:unit
 ```
 
-**Coverage (17 tests, <1 second):**
-- Position variety validation (x: 16/17/18cm positions)
-- Synthetic frame generation at 30fps
-- Easing curves (smooth cubic interpolation)
-- Joint limits validation
-- Timestamp monotonicity
-- Episode structure (~81 frames per demo)
-- Data quality checks
+**Coverage (274 tests, ~2 seconds):**
+- **Batch Demo Tests** - Position variety, frame generation, easing curves, joint limits
+- **Numerical IK Tests** - Multi-solution generation, ranking, convergence, workspace coverage
+- **LLM Robot Control Tests** - Gripper timing validation, failure analysis, pickup sequences
+- **Physics Fidelity Tests** - Realistic data validation, joint velocity limits
+- **Trajectory Validation Tests** - Sequence structure, waypoint validation
 
 #### E2E Tests (Playwright)
 
@@ -1239,6 +1343,13 @@ src/
 │   ├── pickupExamples.ts      # Training data from successful pickups
 │   ├── languageAugmentation.ts # Language variant generation for training
 │   ├── contactEvents.ts       # Grasp/release contact event capture
+│   ├── failureAnalysis.ts     # Structured failure categories and analysis
+│   ├── gripperFeedback.ts     # Real-time gripper force and slip detection
+│   ├── motionPlanning.ts      # Collision-aware trajectory generation
+│   ├── velocityProfiling.ts   # Payload-based velocity scaling
+│   ├── examplePruning.ts      # Automatic example quality management
+│   ├── taskPlanner.ts         # Multi-turn task decomposition
+│   ├── performanceMetrics.ts  # Timing and success rate tracking
 │   ├── trajectoryPlanner.ts   # Motion interpolation
 │   ├── serialConnection.ts    # Web Serial API
 │   └── ...

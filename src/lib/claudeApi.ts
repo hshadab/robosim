@@ -15,6 +15,7 @@ import { loggers } from './logger';
 import { calculateInverseKinematics } from '../components/simulation/SO101Kinematics';
 import { solveIKAsync } from './ikSolverWorker';
 import { findSimilarPickups, getPickupStats, findClosestVerifiedPickup, adaptVerifiedSequence } from './pickupExamples';
+import { generateFailureContext, getRecentFailures, getSuggestedAdjustments } from './failureAnalysis';
 
 // NOTE: Modular versions exist in ./claude/ for new code
 // This file still contains local definitions for backwards compatibility
@@ -109,6 +110,23 @@ To pick up an object:
 
 CRITICAL: Gripper grab radius is only 4cm - the object must be precisely between the gripper fingers.
 `;
+
+      // Add failure context if there are recent failures
+      const failureContext = generateFailureContext();
+      if (failureContext) {
+        objectsDescription += failureContext;
+      }
+
+      // Add suggested adjustments based on failure history
+      if (grabbableObjects.length > 0) {
+        const suggestions = getSuggestedAdjustments(
+          grabbableObjects[0].position as [number, number, number],
+          grabbableObjects[0].type || 'cube'
+        );
+        if (suggestions.length > 0) {
+          objectsDescription += `\n# TIPS BASED ON HISTORY\n${suggestions.map(s => `- ${s}`).join('\n')}\n`;
+        }
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import type { JointSequenceStep } from '../types';
 import { createLogger } from './logger';
 import { generateLanguageVariants } from './languageAugmentation';
 import { generateSecureId } from './crypto';
+import { analyzeFailure, recordFailure, type StructuredFailure, type FailureCategory } from './failureAnalysis';
 
 const log = createLogger('PickupExamples');
 
@@ -36,6 +37,9 @@ export interface PickupExample {
   // Outcome
   success: boolean;
   failureReason?: string;
+  // Structured failure analysis (new)
+  structuredFailure?: StructuredFailure;
+  failureCategory?: FailureCategory;
 }
 
 export interface PickupAttempt {
@@ -440,12 +444,39 @@ export function markPickupSuccess(id: string): void {
 /**
  * Mark a pickup as failed with reason
  */
-export function markPickupFailure(id: string, reason: string): void {
+export function markPickupFailure(
+  id: string,
+  reason: string,
+  failureParams?: {
+    ikError?: number;
+    graspDistance?: number;
+    hadContact?: boolean;
+    lostContact?: boolean;
+    gripperCloseDuration?: number;
+    objectFlewAway?: boolean;
+    hitObstacle?: boolean;
+    timedOut?: boolean;
+    finalObjectPosition?: [number, number, number];
+  }
+): void {
   const example = pickupExamples.find(e => e.id === id);
   if (example) {
     example.success = false;
     example.failureReason = reason;
-    log.warn(`Pickup ${id} failed: ${reason}`);
+
+    // Analyze and record structured failure
+    const structuredFailure = analyzeFailure({
+      ...failureParams,
+      objectPosition: example.objectPosition,
+    });
+    example.structuredFailure = structuredFailure;
+    example.failureCategory = structuredFailure.category;
+
+    // Record for prompt enhancement
+    recordFailure(example.objectPosition, example.objectType, structuredFailure);
+
+    log.warn(`Pickup ${id} failed: ${structuredFailure.category} - ${reason}`);
+    log.debug(`Suggested fix: ${structuredFailure.suggestedFix}`);
   }
 }
 

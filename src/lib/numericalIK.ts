@@ -629,6 +629,214 @@ export function generateIKTrajectory(
   return { waypoints, success: true };
 }
 
+// ============================================================================
+// Multi-Solution IK with Ranking
+// ============================================================================
+
+/**
+ * A ranked IK solution with quality metrics
+ */
+export interface RankedIKSolution {
+  joints: JointState;
+  error: number;              // Position error in meters
+  travelDistance: number;     // Sum of absolute joint angle changes from current
+  manipulability: number;     // Dexterity measure (higher = better)
+  approachScore: number;      // 0-1, quality of gripper approach angle
+  collisionRisk: number;      // 0-1, estimated collision risk (0 = safe)
+  overallScore: number;       // Combined ranking score (higher = better)
+}
+
+/**
+ * Configuration for multi-solution IK
+ */
+export interface MultiSolutionConfig {
+  numSolutions: number;       // How many solutions to generate
+  baseAngleOffsets: number[]; // Base angle offsets to try
+  shoulderVariants: number[]; // Shoulder angle variants
+  preferLowTravel: boolean;   // Prioritize solutions closer to current position
+  preferHighManip: boolean;   // Prioritize high manipulability configurations
+}
+
+const DEFAULT_MULTI_CONFIG: MultiSolutionConfig = {
+  numSolutions: 5,
+  baseAngleOffsets: [0, 5, -5, 10, -10, 15, -15],
+  shoulderVariants: [0, -10, 10],
+  preferLowTravel: true,
+  preferHighManip: true,
+};
+
+/**
+ * Calculate travel distance between two joint configurations
+ */
+function calculateTravelDistance(from: JointState, to: JointState): number {
+  return (
+    Math.abs(to.base - from.base) +
+    Math.abs(to.shoulder - from.shoulder) +
+    Math.abs(to.elbow - from.elbow) +
+    Math.abs(to.wrist - from.wrist) +
+    Math.abs(to.wristRoll - from.wristRoll)
+  );
+}
+
+/**
+ * Estimate approach quality (0-1)
+ * Good approach: gripper coming from above at reasonable angle
+ */
+function estimateApproachScore(joints: JointState): number {
+  // Ideal shoulder angle for approach: -30 to -60 degrees (looking down)
+  const shoulderScore = Math.max(0, 1 - Math.abs(joints.shoulder + 45) / 60);
+
+  // Ideal wrist angle: 40-70 degrees (angled but not extreme)
+  const wristScore = Math.max(0, 1 - Math.abs(joints.wrist - 55) / 50);
+
+  // Elbow should be positive (arm bent, not extended)
+  const elbowScore = joints.elbow > 20 ? 1 : joints.elbow / 20;
+
+  return (shoulderScore * 0.4 + wristScore * 0.3 + elbowScore * 0.3);
+}
+
+/**
+ * Estimate collision risk (0-1, 0 = safe)
+ * Simple heuristic based on joint angles
+ */
+function estimateCollisionRisk(joints: JointState, targetY: number): number {
+  let risk = 0;
+
+  // Risk if wrist is very negative (pointing down into table)
+  if (joints.wrist < -20) {
+    risk += 0.3 * Math.min(1, Math.abs(joints.wrist + 20) / 40);
+  }
+
+  // Risk if shoulder is too positive (arm reaching back/up)
+  if (joints.shoulder > 30) {
+    risk += 0.2 * Math.min(1, (joints.shoulder - 30) / 30);
+  }
+
+  // Risk if target is very low
+  if (targetY < 0.03) {
+    risk += 0.2 * (1 - targetY / 0.03);
+  }
+
+  return Math.min(1, risk);
+}
+
+/**
+ * Solve IK and return multiple ranked solutions
+ *
+ * Generates several solutions by trying different starting configurations
+ * and ranks them by error, travel distance, manipulability, and approach quality.
+ */
+export function solveIKMultipleSolutions(
+  target: IKTarget,
+  currentJoints: JointState,
+  config: Partial<MultiSolutionConfig> = {},
+  ikConfig: Partial<IKConfig> = {}
+): RankedIKSolution[] {
+  const multiConfig = { ...DEFAULT_MULTI_CONFIG, ...config };
+  const solutions: RankedIKSolution[] = [];
+  const seenConfigs = new Set<string>();
+
+  // Helper to create a unique key for a joint configuration
+  const configKey = (j: JointState) =>
+    `${Math.round(j.base)},${Math.round(j.shoulder)},${Math.round(j.elbow)},${Math.round(j.wrist)}`;
+
+  // Try different base angle offsets
+  for (const baseOffset of multiConfig.baseAngleOffsets) {
+    // Calculate target base angle from position
+    const targetBaseAngle = Math.atan2(target.position.z, target.position.x) * (180 / Math.PI);
+    const trialBase = Math.max(-110, Math.min(110, targetBaseAngle + baseOffset));
+
+    // Try different shoulder variants
+    for (const shoulderOffset of multiConfig.shoulderVariants) {
+      const startJoints: JointState = {
+        ...currentJoints,
+        base: trialBase,
+        shoulder: Math.max(-100, Math.min(100, currentJoints.shoulder + shoulderOffset)),
+      };
+
+      const result = solveIK(target, startJoints, {
+        ...ikConfig,
+        maxIterations: 75, // Fewer iterations for multi-solution
+      });
+
+      // Skip if we've seen a very similar configuration
+      const key = configKey(result.joints);
+      if (seenConfigs.has(key)) continue;
+      seenConfigs.add(key);
+
+      // Calculate metrics
+      const travelDistance = calculateTravelDistance(currentJoints, result.joints);
+      const manipulability = calculateManipulability(result.joints);
+      const approachScore = estimateApproachScore(result.joints);
+      const collisionRisk = estimateCollisionRisk(result.joints, target.position.y);
+
+      // Calculate overall score (higher is better)
+      const errorPenalty = result.finalError * 100; // Convert to cm for scaling
+      const travelPenalty = multiConfig.preferLowTravel ? travelDistance / 180 : 0;
+      const manipBonus = multiConfig.preferHighManip ? manipulability * 0.5 : 0;
+
+      const overallScore =
+        1.0 -                           // Start at 1
+        errorPenalty * 5 -              // Heavy penalty for error
+        travelPenalty * 0.3 +           // Light penalty for travel
+        manipBonus +                    // Bonus for manipulability
+        approachScore * 0.2 -           // Bonus for good approach
+        collisionRisk * 0.5;            // Penalty for collision risk
+
+      solutions.push({
+        joints: result.joints,
+        error: result.finalError,
+        travelDistance,
+        manipulability,
+        approachScore,
+        collisionRisk,
+        overallScore,
+      });
+    }
+  }
+
+  // Sort by overall score (descending)
+  solutions.sort((a, b) => b.overallScore - a.overallScore);
+
+  // Return top N solutions
+  return solutions.slice(0, multiConfig.numSolutions);
+}
+
+/**
+ * Get the best IK solution from multiple attempts
+ *
+ * Convenience wrapper that returns just the best solution
+ */
+export function solveBestIK(
+  target: IKTarget,
+  currentJoints: JointState,
+  config: Partial<IKConfig> = {}
+): IKResult {
+  const solutions = solveIKMultipleSolutions(target, currentJoints, { numSolutions: 5 }, config);
+
+  if (solutions.length === 0) {
+    return {
+      success: false,
+      joints: currentJoints,
+      iterations: 0,
+      finalError: Infinity,
+      converged: false,
+      message: 'No valid IK solutions found',
+    };
+  }
+
+  const best = solutions[0];
+  return {
+    success: best.error < 0.04, // 4cm threshold
+    joints: best.joints,
+    iterations: 0,
+    finalError: best.error,
+    converged: best.error < 0.01,
+    message: `Best of ${solutions.length} solutions. Error: ${(best.error * 100).toFixed(1)}cm, ` +
+             `Travel: ${best.travelDistance.toFixed(0)}°, Score: ${best.overallScore.toFixed(2)}`,
+  };
+}
+
 /**
  * Get diagnostic information about the IK solver state
  */
