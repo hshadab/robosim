@@ -2136,60 +2136,36 @@ function simulateHumanoidResponse(message: string, _state: HumanoidState): Claud
   };
 }
 
-// In-memory store for API key (not persisted for security)
-let storedApiKey: string | null = null;
+// =============================================================================
+// API Key Management (delegated to central apiKeys.ts)
+// =============================================================================
 
-/**
- * Validate and clean Claude API key
- */
-function cleanApiKey(key: string | null): string | null {
-  if (!key) return null;
-  // Trim whitespace and newlines
-  const cleaned = key.trim().replace(/[\r\n]/g, '');
-  if (!cleaned) return null;
-  // Log prefix for debugging (never log full key)
-  const prefix = cleaned.substring(0, 12);
-  log.debug(`API key prefix: ${prefix}...`);
-  return cleaned;
-}
+import {
+  getClaudeApiKey as _getClaudeApiKey,
+  setClaudeApiKey as _setClaudeApiKey,
+  clearClaudeApiKey as _clearClaudeApiKey,
+} from './apiKeys';
 
 /**
  * Set Claude API key
- * Note: For security, API keys are only stored in memory by default.
- * Enable localStorage storage only for development convenience.
+ * Keys are stored in localStorage via the central apiKeys module.
+ * @param key - The API key to store, or null to clear
+ * @param _persistToStorage - Ignored (always persists for compatibility)
  */
-export function setClaudeApiKey(key: string | null, persistToStorage = false) {
-  storedApiKey = cleanApiKey(key);
-  if (persistToStorage) {
-    if (storedApiKey) {
-      // Warn about security implications
-      log.warn('Storing API key in localStorage. This is insecure for production use.');
-      localStorage.setItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY, storedApiKey);
-    } else {
-      localStorage.removeItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
-    }
-  }
+export function setClaudeApiKey(key: string | null, _persistToStorage = false) {
+  _setClaudeApiKey(key);
 }
 
 /**
- * Get Claude API key from memory or localStorage
+ * Get Claude API key from localStorage
  */
 export function getClaudeApiKey(): string | null {
-  if (storedApiKey) return storedApiKey;
-  // Check localStorage as fallback (for development convenience)
-  const stored = localStorage.getItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
-  storedApiKey = cleanApiKey(stored);
-  // Update storage with cleaned version if needed
-  if (stored && storedApiKey && stored !== storedApiKey) {
-    localStorage.setItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY, storedApiKey);
-  }
-  return storedApiKey;
+  return _getClaudeApiKey();
 }
 
 /**
- * Clear stored API key from both memory and localStorage
+ * Clear stored API key
  */
 export function clearClaudeApiKey(): void {
-  storedApiKey = null;
-  localStorage.removeItem(STORAGE_CONFIG.KEYS.CLAUDE_API_KEY);
+  _clearClaudeApiKey();
 }

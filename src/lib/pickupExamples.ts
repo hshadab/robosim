@@ -9,6 +9,7 @@
 import type { JointSequenceStep } from '../types';
 import { createLogger } from './logger';
 import { generateLanguageVariants } from './languageAugmentation';
+import { generateSecureId } from './crypto';
 
 const log = createLogger('PickupExamples');
 
@@ -389,7 +390,7 @@ export function clearPromotedExamples(): void {
  * Log a pickup attempt (before we know if it succeeded)
  */
 export function logPickupAttempt(attempt: PickupAttempt): string {
-  const id = `pickup-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  const id = generateSecureId('pickup');
 
   const example: PickupExample = {
     id,

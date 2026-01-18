@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:unit": "vitest run src/test/batchDemo.test.ts src/test/demoPickup.test.ts",
+    "test:unit": "vitest run src/test/*.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test smoke.spec.ts",
     "test:e2e:full": "playwright test demo-pickup.spec.ts",

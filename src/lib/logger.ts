@@ -4,6 +4,33 @@
  * Provides structured logging with levels, namespaces, and production-safe output.
  * In development mode, logs are shown in the console.
  * In production, only warnings and errors are shown.
+ *
+ * ## Usage Conventions
+ *
+ * ### For common namespaces, use pre-created loggers:
+ * ```typescript
+ * import { loggers } from './logger';
+ * loggers.claude.info('API call successful');
+ * loggers.ik.debug('Computed position', { x, y, z });
+ * ```
+ *
+ * ### For module-specific logging, create a logger:
+ * ```typescript
+ * import { createLogger } from './logger';
+ * const log = createLogger('MyModule');
+ * log.info('Module initialized');
+ * ```
+ *
+ * ### Naming Conventions:
+ * - Use PascalCase for namespace names (e.g., 'Claude', 'PolicyRunner')
+ * - For new modules, prefer adding to `loggers` object if widely used
+ * - For one-off module logging, use `createLogger()` with descriptive name
+ *
+ * ### Log Levels:
+ * - debug: Detailed debugging info (dev only)
+ * - info: General operational info
+ * - warn: Potential issues that don't break functionality
+ * - error: Errors that affect functionality
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

@@ -16,18 +16,10 @@ import type {
 import {
   DEFAULT_DRONE_STATE,
   DEFAULT_HUMANOID_STATE,
+  DEFAULT_WHEELED_STATE,
 } from '../components/simulation/defaults';
-
-// Default state for wheeled robots
-const DEFAULT_WHEELED_STATE: WheeledRobotState = {
-  leftWheelSpeed: 0,
-  rightWheelSpeed: 0,
-  position: { x: 0, y: 0, z: 0 },
-  heading: 0,
-  velocity: 0,
-  angularVelocity: 0,
-  servoHead: 90,
-};
+import { generateSecureId } from './crypto';
+import { ROBOT_COLORS } from '../config/colors';
 
 // Robot instance interface
 export interface RobotInstance {
@@ -63,17 +55,8 @@ export const DEFAULT_MULTI_ROBOT_CONFIG: MultiRobotConfig = {
   syncMode: 'independent',
 };
 
-// Color palette for robot instances
-export const ROBOT_COLORS = [
-  '#3b82f6', // Blue (primary)
-  '#ef4444', // Red
-  '#22c55e', // Green
-  '#f59e0b', // Orange
-  '#8b5cf6', // Purple
-  '#06b6d4', // Cyan
-  '#ec4899', // Pink
-  '#84cc16', // Lime
-];
+// Re-export ROBOT_COLORS for backwards compatibility
+export { ROBOT_COLORS };
 
 // Default joint state for arm robots
 const DEFAULT_ARM_JOINTS: JointState = {
@@ -90,7 +73,7 @@ const DEFAULT_ARM_JOINTS: JointState = {
  * Generate unique robot instance ID
  */
 export function generateRobotId(): string {
-  return `robot_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  return generateSecureId('robot');
 }
 
 /**

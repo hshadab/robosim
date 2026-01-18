@@ -9,6 +9,7 @@
  */
 
 import type { Vector3D } from '../types';
+import { generateSecureId } from './crypto';
 
 // API Configuration
 export interface AIImageConfig {
@@ -391,7 +392,7 @@ export async function createAIObject(
   });
 
   return {
-    id: `ai_obj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    id: generateSecureId('ai_obj'),
     name,
     type: options.type || 'cube',
     texture,

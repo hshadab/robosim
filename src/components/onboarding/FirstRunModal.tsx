@@ -158,19 +158,25 @@ export const FirstRunModal: React.FC<FirstRunModalProps> = ({
 
 /**
  * Hook to manage first-run state
- * NOTE: Tutorial modal is disabled - always returns showModal: false
  */
 export const useFirstRun = () => {
-  // Tutorial modal disabled - never show
-  const showModal = false;
-  const hasChecked = true;
+  const [showModal, setShowModal] = useState(false);
+  const [hasChecked, setHasChecked] = useState(false);
+
+  useEffect(() => {
+    const hasCompleted = localStorage.getItem(STORAGE_KEY);
+    setShowModal(!hasCompleted);
+    setHasChecked(true);
+  }, []);
 
   const markComplete = () => {
     localStorage.setItem(STORAGE_KEY, 'true');
+    setShowModal(false);
   };
 
   const resetOnboarding = () => {
     localStorage.removeItem(STORAGE_KEY);
+    setShowModal(true);
   };
 
   return {

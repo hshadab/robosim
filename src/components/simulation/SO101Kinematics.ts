@@ -2,6 +2,15 @@
  * SO-101 Robot Arm Kinematics
  * Forward and Inverse kinematics calculations for the LeRobot / The Robot Studio arm
  *
+ * @deprecated This module uses a simplified 2D planar model for FK calculations.
+ * For accurate kinematics, use `SO101KinematicsURDF.ts` which implements proper
+ * 4x4 homogeneous transform matrices derived from the official URDF.
+ *
+ * This file is retained for:
+ * - Joint position visualization (calculateJointPositions)
+ * - Joint limits (SO101_LIMITS) - will be moved to src/config/so101Limits.ts
+ * - Workspace bounds (getWorkspaceBounds)
+ *
  * Joint structure (6-DOF):
  * - base (shoulder_pan): Rotation around Y axis
  * - shoulder (shoulder_lift): Rotation around Z axis (perpendicular to arm plane)

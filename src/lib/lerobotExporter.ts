@@ -278,12 +278,14 @@ function episodesToTabular(episodes: Episode[], fps: number): {
 
       // Compute joint velocities from position delta
       // Use recorded velocities if available, otherwise estimate from position delta
+      // NOTE: Internal sim uses deg/s, LeRobot expects rad/s - convert on export
       let velocity: number[];
       if (frame.observation.jointVelocities && frame.observation.jointVelocities.length === 6) {
-        // Use recorded velocities (already in rad/s or normalized)
+        // Recorded velocities are in deg/s (sim internal units)
+        // Convert to rad/s for LeRobot compatibility
         velocity = frame.observation.jointVelocities.map((v, idx) => {
-          if (idx === 5) return v; // Gripper velocity already normalized
-          return v * DEG_TO_RAD; // Convert deg/s to rad/s
+          if (idx === 5) return v; // Gripper velocity: normalized 0-1, no conversion
+          return v * DEG_TO_RAD; // Joint velocities: deg/s → rad/s
         });
       } else if (prevState) {
         // Estimate velocity from position delta: v = (pos - prevPos) / dt

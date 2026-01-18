@@ -46,7 +46,7 @@ import {
   CHALLENGES,
 } from '../config/environments';
 import { DEFAULT_HUMANOID_STATE } from '../components/simulation/defaults';
-// Temporarily commented - disabled for debugging
+// NOTE: Floor constraint feature disabled - uncomment when re-enabling
 // import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
 import { preventSelfCollision } from '../lib/selfCollision';
 import { generateSecureId } from '../lib/crypto';

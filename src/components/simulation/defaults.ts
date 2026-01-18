@@ -1,4 +1,4 @@
-import type { DroneConfig, DroneState, HumanoidState, WheeledRobotConfig } from '../../types';
+import type { DroneConfig, DroneState, HumanoidState, WheeledRobotConfig, WheeledRobotState } from '../../types';
 
 // Shared configuration for drone component
 export const DRONE_CONFIG: DroneConfig = {
@@ -27,6 +27,16 @@ export const WHEELED_ROBOT_CONFIG: WheeledRobotConfig = {
   bodyWidth: 0.12,
   bodyLength: 0.15,
   bodyHeight: 0.05,
+};
+
+export const DEFAULT_WHEELED_STATE: WheeledRobotState = {
+  leftWheelSpeed: 0,
+  rightWheelSpeed: 0,
+  position: { x: 0, y: 0, z: 0 },
+  heading: 0,
+  velocity: 0,
+  angularVelocity: 0,
+  servoHead: 90, // Head servo centered
 };
 
 // Humanoid defaults/dimensions reused by component and store

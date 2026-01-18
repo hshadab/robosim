@@ -9,6 +9,8 @@
  * - Sensor noise characteristics
  */
 
+import { generateSecureId } from './crypto';
+
 /**
  * Per-joint physics parameters
  */
@@ -169,7 +171,7 @@ export interface CalibrationSession {
  */
 export function createCalibrationSession(robotId: string): CalibrationSession {
   return {
-    id: `cal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: generateSecureId('cal'),
     robotId,
     createdAt: new Date().toISOString(),
     measurements: {

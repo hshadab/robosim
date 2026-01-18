@@ -11,10 +11,30 @@
 
 import type { JointState, Vector3D } from '../types';
 import {
-  calculateSO101GripperPosition,
+  calculateGripperPositionURDF,
+  type JointAngles,
+} from '../components/simulation/SO101KinematicsURDF';
+// DEPRECATED: The simplified planar FK model is no longer used.
+// Use SO101KinematicsURDF for accurate URDF-based forward kinematics.
+import {
   calculateJointPositions,
   SO101_LIMITS,
 } from '../components/simulation/SO101Kinematics';
+
+/**
+ * Wrapper to convert JointState to URDF FK format and call accurate FK
+ * Uses the URDF-based transform matrices for precise position calculation
+ */
+function calculateSO101GripperPosition(joints: JointState): [number, number, number] {
+  const angles: JointAngles = {
+    base: joints.base,
+    shoulder: joints.shoulder,
+    elbow: joints.elbow,
+    wrist: joints.wrist,
+    wristRoll: joints.wristRoll,
+  };
+  return calculateGripperPositionURDF(angles);
+}
 
 // Types for IK configuration
 export interface IKConfig {
@@ -167,8 +187,9 @@ function computeJacobian(joints: JointState, delta = 0.1): number[][] {
     const perturbedPos = calculateSO101GripperPosition(perturbedState);
 
     // Compute partial derivatives (position change / joint change)
+    // Units: meters per degree (consistent with joint angles in degrees)
     for (let i = 0; i < numOutputs; i++) {
-      jacobian[i][j] = (perturbedPos[i] - currentPos[i]) / (delta * Math.PI / 180);
+      jacobian[i][j] = (perturbedPos[i] - currentPos[i]) / delta;
     }
   }
 
@@ -334,9 +355,9 @@ function solveDLS(
     // Compute joint update: dq = J_pinv * error
     const dq = matvec(jPinv, errorVec);
 
-    // Apply update with step size (convert to degrees)
+    // Apply update with step size (dq is already in degrees since Jacobian is m/deg)
     for (let j = 0; j < 5; j++) {
-      joints[j] += config.stepSize * dq[j] * (180 / Math.PI);
+      joints[j] += config.stepSize * dq[j];
     }
 
     // Clamp to joint limits

@@ -6,31 +6,32 @@
  */
 
 import { useAppStore } from '../stores/useAppStore';
-import type { JointState } from '../types';
+import type { JointState, Vector3D, ConsoleMessage as BaseConsoleMessage } from '../types';
 import { scheduleFrame } from './animationUtils';
 
-// Types for the API
-export interface Vector3 {
-  x: number;
-  y: number;
-  z: number;
-}
+// Re-export Vector3D as Vector3 for API compatibility
+export type Vector3 = Vector3D;
 
+// Sensor data types for the robot API
 export interface SensorData {
   ultrasonic: number;
   ir: { left: boolean; center: boolean; right: boolean };
-  gps: Vector3;
-  accelerometer: Vector3;
-  gyroscope: Vector3;
+  gps: Vector3D;
+  accelerometer: Vector3D;
+  gyroscope: Vector3D;
   imu: { roll: number; pitch: number; yaw: number };
   touch: { front: boolean; left: boolean; right: boolean; back: boolean };
 }
 
+// Re-export ConsoleMessage (simplified version without id for API use)
 export interface ConsoleMessage {
   type: 'log' | 'error' | 'warn' | 'info';
   message: string;
   timestamp: Date;
 }
+
+// Note: For full ConsoleMessage with id, import BaseConsoleMessage from '../types'
+export type { BaseConsoleMessage };
 
 // Animation helper - smoothly animate to target joints
 const animateToJoints = (

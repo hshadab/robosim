@@ -7,6 +7,7 @@
 
 import type { JointState } from '../types';
 import { createLogger } from './logger';
+import { generateSecureId } from './crypto';
 
 const log = createLogger('PlaceExamples');
 
@@ -260,7 +261,7 @@ Key: Calculate base angle for both pickup AND place positions using atan2(z, x).
  * Log a place attempt
  */
 export function logPlaceAttempt(attempt: Omit<PlaceExample, 'id' | 'timestamp' | 'success'>): string {
-  const id = `place-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const id = generateSecureId('place');
 
   const example: PlaceExample = {
     id,

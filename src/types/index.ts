@@ -70,6 +70,20 @@ export interface Transform {
   rotation: Vector3Tuple | QuaternionTuple;
 }
 
+// =============================================================================
+// Vector Conversion Utilities
+// =============================================================================
+
+/** Convert Vector3D to Vector3Tuple */
+export function vector3DToTuple(v: Vector3D): Vector3Tuple {
+  return [v.x, v.y, v.z];
+}
+
+/** Convert Vector3Tuple to Vector3D */
+export function tupleToVector3D(t: Vector3Tuple): Vector3D {
+  return { x: t[0], y: t[1], z: t[2] };
+}
+
 // Wheeled Robot Types
 export interface WheeledRobotState {
   leftWheelSpeed: number;     // -255 to 255 (PWM)

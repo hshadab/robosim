@@ -107,3 +107,9 @@ export const hasCsmApiKey = () => hasApiKey('csm');
 export const getGeminiApiKey = () => getApiKey('gemini');
 export const setGeminiApiKey = (key: string | null) => setApiKey('gemini', key);
 export const hasGeminiApiKey = () => hasApiKey('gemini');
+
+// Claude API key convenience functions
+export const getClaudeApiKey = () => getApiKey('claude');
+export const setClaudeApiKey = (key: string | null) => setApiKey('claude', key);
+export const hasClaudeApiKey = () => hasApiKey('claude');
+export const clearClaudeApiKey = () => clearApiKey('claude');

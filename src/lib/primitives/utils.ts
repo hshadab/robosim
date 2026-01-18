@@ -3,11 +3,10 @@
  */
 
 import type { SceneObject } from './types';
+import { OBJECT_COLORS } from '../../config/colors';
 
-/**
- * Color names that can be used to identify objects
- */
-export const OBJECT_COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'] as const;
+// Re-export for backwards compatibility
+export { OBJECT_COLORS };
 
 /**
  * Find an object in the scene by name, type, or color reference

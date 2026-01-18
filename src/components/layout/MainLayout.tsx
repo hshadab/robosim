@@ -6,7 +6,8 @@ import { MinimalTrainFlow } from '../controls/MinimalTrainFlow';
 import { ToolsDrawer } from '../controls/ToolsDrawer';
 import { CodeEditor, ArduinoEmulatorPanel } from '../editor';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
-import { FirstRunModal, useFirstRun } from '../onboarding/FirstRunModal';
+import { FirstRunModal, useFirstRun, OnboardingHint } from '../onboarding';
+import { useOnboardingGuide } from '../../hooks/useOnboardingGuide';
 import { Bot, Code, Gamepad2, BookOpen, LogOut, Play, Square, Save, Settings, Brain, Database, Mic, Eye, Box, Sparkles, FileText, Clock, CheckCircle, AlertCircle, Menu, X, Sliders } from 'lucide-react';
 import { Button, Select } from '../common';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -32,16 +33,18 @@ export const MainLayout: React.FC = () => {
     isAnimating,
   } = useAppStore();
   const { showModal, markComplete } = useFirstRun();
+  const { startGuide } = useOnboardingGuide();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
 
   const handleStartTutorial = useCallback(() => {
     markComplete();
+    startGuide(); // Start the guided onboarding
     setActiveTab('simulate');
     // Trigger tutorial opening in SimulateTab
     setTriggerTutorial(true);
     setTimeout(() => setTriggerTutorial(false), 100);
-  }, [markComplete]);
+  }, [markComplete, startGuide]);
 
   const handleSkipOnboarding = useCallback(() => {
     markComplete();
@@ -248,6 +251,9 @@ export const MainLayout: React.FC = () => {
           onSkip={handleSkipOnboarding}
         />
       )}
+
+      {/* Onboarding Hint Banner */}
+      <OnboardingHint />
     </div>
   );
 };
@@ -528,87 +534,29 @@ const LearnTab: React.FC = () => {
 };
 
 const DocsTab: React.FC = () => {
-  const robots = [
-    {
-      id: 'so101',
-      name: 'SO-101 Robot Arm',
-      manufacturer: 'The Robot Company',
-      status: 'available',
-      description: '6-DOF articulated robot arm with gripper. Perfect for pick and place, assembly, and learning robotics.',
-      specs: [
-        { label: 'Degrees of Freedom', value: '6 (+ gripper)' },
-        { label: 'Reach', value: '~300mm' },
-        { label: 'Payload', value: '~100g' },
-        { label: 'Control', value: 'Position, Velocity' },
-        { label: 'Interface', value: 'Serial, LeRobot' },
-      ],
-      features: [
-        'Inverse Kinematics (click-to-move)',
-        'Keyboard & Gamepad teleoperation',
-        'Hand tracking control',
-        'AI Chat programming',
-        'LeRobot policy loading',
-        'Hardware export (Arduino, Python)',
-      ],
-    },
-    {
-      id: 'wheeled',
-      name: 'Wheeled Robot',
-      manufacturer: 'Generic',
-      status: 'coming_soon',
-      description: 'Differential drive mobile robot with sensors. Great for navigation, line following, and obstacle avoidance.',
-      specs: [
-        { label: 'Drive Type', value: 'Differential (2WD)' },
-        { label: 'Sensors', value: 'Ultrasonic, IR' },
-        { label: 'Speed', value: 'Variable' },
-        { label: 'Control', value: 'Velocity' },
-      ],
-      features: [
-        'Line following',
-        'Obstacle avoidance',
-        'Waypoint navigation',
-        'Sensor simulation',
-      ],
-    },
-    {
-      id: 'drone',
-      name: 'Quadcopter Drone',
-      manufacturer: 'Generic',
-      status: 'coming_soon',
-      description: 'Simulated quadcopter for learning drone programming and autonomous flight.',
-      specs: [
-        { label: 'Type', value: 'Quadcopter' },
-        { label: 'Control', value: 'Attitude, Position' },
-        { label: 'Sensors', value: 'IMU, Altimeter' },
-        { label: 'Modes', value: 'Manual, Auto' },
-      ],
-      features: [
-        'Takeoff/Landing',
-        'Waypoint missions',
-        'Altitude hold',
-        'Position control',
-      ],
-    },
-    {
-      id: 'humanoid',
-      name: 'Humanoid Robot',
-      manufacturer: 'Generic',
-      status: 'coming_soon',
-      description: 'Bipedal humanoid robot for advanced robotics research and education.',
-      specs: [
-        { label: 'Degrees of Freedom', value: '22+' },
-        { label: 'Height', value: '~50cm' },
-        { label: 'Control', value: 'Joint, Walking' },
-        { label: 'Balance', value: 'Simulated' },
-      ],
-      features: [
-        'Walking gaits',
-        'Gesture control',
-        'Balance control',
-        'Full body IK',
-      ],
-    },
-  ];
+  // Only show SO-101 as it's the fully supported robot
+  const so101 = {
+    id: 'so101',
+    name: 'SO-101 Robot Arm',
+    manufacturer: 'The Robot Company / LeRobot',
+    description: '6-DOF articulated robot arm with gripper. The open-source standard for desktop robotics and imitation learning.',
+    specs: [
+      { label: 'Degrees of Freedom', value: '6 (+ gripper)' },
+      { label: 'Reach', value: '~300mm' },
+      { label: 'Payload', value: '~100g' },
+      { label: 'Motors', value: 'STS3215 serial servos' },
+      { label: 'Interface', value: 'Serial USB, LeRobot' },
+      { label: 'Cost', value: '~$300 DIY kit' },
+    ],
+    features: [
+      'Batch demo generation (50 demos in 5 min)',
+      'LeRobot format export for training',
+      'HuggingFace Hub upload',
+      'Inverse Kinematics (click-to-move)',
+      'AI Chat control (Claude)',
+      'Web Serial for real hardware',
+    ],
+  };
 
   const aiFeatures = [
     {
@@ -663,93 +611,76 @@ const DocsTab: React.FC = () => {
           Complete reference for all robots, features, and APIs in RoboSim
         </p>
 
-        {/* Robots Section */}
+        {/* Robot Section - SO-101 Only */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
             <Bot className="w-6 h-6 text-blue-400" />
-            Supported Robots
+            Supported Robot
           </h2>
 
-          <div className="grid gap-6">
-            {robots.map((robot) => (
-              <div
-                key={robot.id}
-                className={`bg-slate-800/50 rounded-xl border transition ${
-                  robot.status === 'available'
-                    ? 'border-green-500/30 hover:border-green-500/50'
-                    : 'border-slate-700/50 opacity-75'
-                }`}
-              >
-                {/* Header */}
-                <div className="p-6 border-b border-slate-700/50">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-white">{robot.name}</h3>
-                        {robot.status === 'available' ? (
-                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-                            <CheckCircle className="w-3 h-3" />
-                            Available
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                            <Clock className="w-3 h-3" />
-                            Coming Soon
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-500">{robot.manufacturer}</p>
-                    </div>
+          <div className="bg-slate-800/50 rounded-xl border border-green-500/30 hover:border-green-500/50 transition">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-700/50">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-white">{so101.name}</h3>
+                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
+                      <CheckCircle className="w-3 h-3" />
+                      Fully Supported
+                    </span>
                   </div>
-                  <p className="text-slate-400 mt-3">{robot.description}</p>
+                  <p className="text-sm text-slate-500">{so101.manufacturer}</p>
                 </div>
-
-                {/* Specs & Features */}
-                <div className="p-6 grid md:grid-cols-2 gap-6">
-                  {/* Specifications */}
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
-                      Specifications
-                    </h4>
-                    <div className="space-y-2">
-                      {robot.specs.map((spec, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-slate-500">{spec.label}</span>
-                          <span className="text-white font-medium">{spec.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
-                      Features
-                    </h4>
-                    <ul className="space-y-1">
-                      {robot.features.map((feature, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-400">
-                          <CheckCircle className={`w-3 h-3 ${robot.status === 'available' ? 'text-green-400' : 'text-slate-600'}`} />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Coming Soon Notice */}
-                {robot.status === 'coming_soon' && (
-                  <div className="px-6 pb-6">
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-center gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                      <p className="text-sm text-amber-300">
-                        This robot is currently in development. Basic simulation is available, but full feature support is coming soon.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-            ))}
+              <p className="text-slate-400 mt-3">{so101.description}</p>
+            </div>
+
+            {/* Specs & Features */}
+            <div className="p-6 grid md:grid-cols-2 gap-6">
+              {/* Specifications */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
+                  Specifications
+                </h4>
+                <div className="space-y-2">
+                  {so101.specs.map((spec, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-slate-500">{spec.label}</span>
+                      <span className="text-white font-medium">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Features */}
+              <div>
+                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
+                  Key Features
+                </h4>
+                <ul className="space-y-1">
+                  {so101.features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-slate-400">
+                      <CheckCircle className="w-3 h-3 text-green-400" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="px-6 pb-6">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <p className="text-sm text-blue-300">
+                  <strong>Get Started:</strong> The SO-101 is the reference platform for LeRobot imitation learning.
+                  Build one yourself or purchase a kit from{' '}
+                  <a href="https://huggingface.co/lerobot" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
+                    huggingface.co/lerobot
+                  </a>
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 

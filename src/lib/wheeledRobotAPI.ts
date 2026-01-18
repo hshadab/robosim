@@ -5,21 +5,15 @@
 
 import { useAppStore } from '../stores/useAppStore';
 import type { WheeledRobotState, ConsoleMessage } from '../types';
+import { generateSecureId } from './crypto';
+import { DEFAULT_WHEELED_STATE } from '../components/simulation/defaults';
+
+// Re-export for backwards compatibility
+export { DEFAULT_WHEELED_STATE };
 
 // Track running state
 let isRunning = false;
 let shouldStop = false;
-
-// Default initial state
-export const DEFAULT_WHEELED_STATE: WheeledRobotState = {
-  leftWheelSpeed: 0,
-  rightWheelSpeed: 0,
-  position: { x: 0, y: 0, z: 0 },
-  heading: 0,
-  velocity: 0,
-  angularVelocity: 0,
-  servoHead: 0,
-};
 
 export const createWheeledRobotAPI = (
   addConsoleMessage: (msg: ConsoleMessage) => void
@@ -27,7 +21,7 @@ export const createWheeledRobotAPI = (
   const print = (...args: unknown[]) => {
     const message = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     addConsoleMessage({
-      id: `msg-${Date.now()}-${Math.random()}`,
+      id: generateSecureId('msg'),
       type: 'log',
       message,
       timestamp: new Date(),

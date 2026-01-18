@@ -7,6 +7,7 @@
 
 import { useAppStore } from '../stores/useAppStore';
 import { createLogger } from './logger';
+import { generateSecureId } from './crypto';
 
 const log = createLogger('ContactEvents');
 
@@ -79,7 +80,7 @@ let graspStartTimes: Map<string, number> = new Map();
  * Start a new contact recording session
  */
 export function startContactSession(userCommand?: string): string {
-  const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  const sessionId = generateSecureId('session');
 
   currentSession = {
     id: sessionId,
@@ -156,7 +157,7 @@ export function clearSessions(): void {
 export function recordContactEvent(event: Omit<ContactEvent, 'id' | 'timestamp'>): ContactEvent {
   const fullEvent: ContactEvent = {
     ...event,
-    id: `event-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+    id: generateSecureId('event'),
     timestamp: Date.now(),
   };
 

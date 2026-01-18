@@ -6,6 +6,7 @@
 import { useAppStore } from '../stores/useAppStore';
 import type { DroneState, ConsoleMessage } from '../types';
 import { DEFAULT_DRONE_STATE } from '../components/simulation/defaults';
+import { generateSecureId } from './crypto';
 
 // Track running state
 let isRunning = false;
@@ -17,7 +18,7 @@ export const createDroneAPI = (
   const print = (...args: unknown[]) => {
     const message = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     addConsoleMessage({
-      id: `msg-${Date.now()}-${Math.random()}`,
+      id: generateSecureId('msg'),
       type: 'log',
       message,
       timestamp: new Date(),
