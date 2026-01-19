@@ -65,6 +65,48 @@ export const FAILURE_THRESHOLDS = {
 };
 
 /**
+ * Failure category descriptions and suggested fixes
+ */
+export const FAILURE_CATEGORIES: Record<FailureCategory, { description: string; suggestedFix: string }> = {
+  ik_unreachable: {
+    description: 'Position is outside robot workspace',
+    suggestedFix: 'Try positions closer to robot base (X: 0.12-0.18m)',
+  },
+  grasp_missed: {
+    description: 'Gripper closed but missed the object',
+    suggestedFix: 'Adjust approach to get gripper closer to object center',
+  },
+  object_slipped: {
+    description: 'Object was grasped but slipped during lift',
+    suggestedFix: 'Close gripper more firmly and lift more slowly',
+  },
+  collision_detected: {
+    description: 'Robot collided with table or obstacle',
+    suggestedFix: 'Use higher approach position to avoid collision',
+  },
+  timeout: {
+    description: 'Operation took too long',
+    suggestedFix: 'Simplify motion sequence or reduce animation duration',
+  },
+  physics_unstable: {
+    description: 'Physics simulation became unstable',
+    suggestedFix: 'Move more slowly and avoid sudden movements',
+  },
+  gripper_timing: {
+    description: 'Gripper closed too fast for physics detection',
+    suggestedFix: 'Use _duration: 800 or higher for gripper close',
+  },
+  approach_failed: {
+    description: 'Could not reach approach position',
+    suggestedFix: 'Use different base angle or higher approach height',
+  },
+  unknown: {
+    description: 'Unclassified failure',
+    suggestedFix: 'Check object position and try different approach',
+  },
+};
+
+/**
  * Analyze a failed pickup attempt and categorize the failure
  */
 export function analyzeFailure(params: {

@@ -277,6 +277,9 @@ export function getGripperFeedback(): GripperFeedback {
   return { ...currentFeedback };
 }
 
+// Alias for backwards compatibility
+export const getCurrentFeedback = getGripperFeedback;
+
 /**
  * Check if object is being held securely
  */

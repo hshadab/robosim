@@ -11,12 +11,15 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:unit": "vitest run src/test/*.test.ts",
+    "test:pipeline": "vitest run src/test/pipeline/*.test.ts",
+    "test:validation": "vitest run src/test/validation/*.test.ts",
+    "test:data": "vitest run src/test/pipeline/*.test.ts src/test/validation/*.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test smoke.spec.ts",
     "test:e2e:full": "playwright test demo-pickup.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "test:all": "npm run test:unit && npm run test:e2e:smoke"
+    "test:all": "npm run test:unit && npm run test:data && npm run test:e2e:smoke"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.1",
@@ -48,6 +51,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/ui": "^4.0.17",
     "autoprefixer": "^10.4.22",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

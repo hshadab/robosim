@@ -206,7 +206,7 @@ async function runTest() {
       const apiKeyInput = await page.$('input[placeholder*="sk-ant"]');
       if (apiKeyInput) {
         console.log('   Found API key input, filling...');
-        await apiKeyInput.fill('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');
+        await apiKeyInput.fill(process.env.ANTHROPIC_API_KEY || 'your-api-key-here');
         await wait(500);
 
         // Click Continue button

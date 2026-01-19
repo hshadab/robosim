@@ -5,7 +5,7 @@ import { spawn, execSync } from 'child_process';
 import { rename, access } from 'fs/promises';
 import { constants } from 'fs';
 
-const API_KEY = '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';
+const API_KEY = process.env.ANTHROPIC_API_KEY || 'your-api-key-here';
 const PROJECT_DIR = '/home/hshadab/robotics-simulation';
 const ENV_PATH = `${PROJECT_DIR}/.env`;
 const ENV_BACKUP = `${PROJECT_DIR}/.env.e2e-backup`;
