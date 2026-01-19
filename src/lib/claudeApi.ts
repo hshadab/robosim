@@ -1014,7 +1014,9 @@ async function handlePickUpCommand(
   // that are close to the target position. Use their proven joint sequences.
   // This expands coverage from ~30% to ~70% of the workspace.
 
-  const verifiedMatch = findClosestVerifiedPickup(objType, [objX, objY, objZ], 0.04); // 4cm threshold
+  // Use 1.0cm threshold - very tight matching ensures base-angle-only adaptation works
+  // Positions >1cm away fall through to IK which handles reach differences properly
+  const verifiedMatch = findClosestVerifiedPickup(objType, [objX, objY, objZ], 0.01); // 1cm threshold
 
   if (verifiedMatch) {
     const { example, distance: matchDistance } = verifiedMatch;
