@@ -2308,36 +2308,41 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-slate-400 border-b border-slate-700">
-                    <th className="text-left py-2 pr-2"></th>
-                    <th className="text-center py-2 px-2 text-xs">Isaac Sim</th>
-                    <th className="text-center py-2 px-2 text-xs">MuJoCo</th>
-                    <th className="text-center py-2 px-2 text-purple-400 text-xs">RoboSim</th>
+                    <th className="text-left py-2 pr-1"></th>
+                    <th className="text-center py-2 px-1 text-xs">Isaac Sim</th>
+                    <th className="text-center py-2 px-1 text-xs">MuJoCo</th>
+                    <th className="text-center py-2 px-1 text-xs">LuckyRobots</th>
+                    <th className="text-center py-2 px-1 text-purple-400 text-xs">RoboSim</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-300 text-xs">
                   <tr className="border-b border-slate-700/50">
-                    <td className="py-2 pr-2 text-slate-400">GPU Required</td>
-                    <td className="text-center py-2 px-2">RTX 3080+</td>
-                    <td className="text-center py-2 px-2">Optional</td>
-                    <td className="text-center py-2 px-2 text-green-400">None</td>
+                    <td className="py-2 pr-1 text-slate-400">GPU</td>
+                    <td className="text-center py-2 px-1">RTX 3080+</td>
+                    <td className="text-center py-2 px-1">Optional</td>
+                    <td className="text-center py-2 px-1">Required</td>
+                    <td className="text-center py-2 px-1 text-green-400">None</td>
                   </tr>
                   <tr className="border-b border-slate-700/50">
-                    <td className="py-2 pr-2 text-slate-400">Setup</td>
-                    <td className="text-center py-2 px-2">Hours</td>
-                    <td className="text-center py-2 px-2">30+ min</td>
-                    <td className="text-center py-2 px-2 text-green-400">0 min</td>
+                    <td className="py-2 pr-1 text-slate-400">Setup</td>
+                    <td className="text-center py-2 px-1">Hours</td>
+                    <td className="text-center py-2 px-1">30+ min</td>
+                    <td className="text-center py-2 px-1">30+ min</td>
+                    <td className="text-center py-2 px-1 text-green-400">0 min</td>
                   </tr>
                   <tr className="border-b border-slate-700/50">
-                    <td className="py-2 pr-2 text-slate-400">50 Demos</td>
-                    <td className="text-center py-2 px-2">Manual</td>
-                    <td className="text-center py-2 px-2">Scripted</td>
-                    <td className="text-center py-2 px-2 text-green-400">5 min</td>
+                    <td className="py-2 pr-1 text-slate-400">50 Demos</td>
+                    <td className="text-center py-2 px-1">Manual</td>
+                    <td className="text-center py-2 px-1">Scripted</td>
+                    <td className="text-center py-2 px-1">Scripted</td>
+                    <td className="text-center py-2 px-1 text-green-400">5 min</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-2 text-slate-400">LeRobot</td>
-                    <td className="text-center py-2 px-2">Convert</td>
-                    <td className="text-center py-2 px-2">Convert</td>
-                    <td className="text-center py-2 px-2 text-green-400">Native</td>
+                    <td className="py-2 pr-1 text-slate-400">LeRobot</td>
+                    <td className="text-center py-2 px-1">Convert</td>
+                    <td className="text-center py-2 px-1">Convert</td>
+                    <td className="text-center py-2 px-1">Convert</td>
+                    <td className="text-center py-2 px-1 text-green-400">Native</td>
                   </tr>
                 </tbody>
               </table>
