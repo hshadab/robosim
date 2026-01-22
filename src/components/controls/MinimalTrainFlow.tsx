@@ -524,7 +524,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
           break;
         }
         attempts++;
-        log.warn('[BatchDemo] WebGL context lost, waiting for recovery (attempt ${attempts}/${maxAttempts})...`);
+        log.warn(`[BatchDemo] WebGL context lost, waiting for recovery (attempt ${attempts}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 1500));
       }
       if (attempts >= maxAttempts) {
