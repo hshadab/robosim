@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateJawPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+import { SO101_JOINT_LIMITS } from '../config/so101Limits';
 
 // Position variety configuration (should match MinimalTrainFlow.tsx)
 const BATCH_POSITIONS = [
@@ -218,26 +219,18 @@ describe('Full Demo Episode Structure', () => {
 
 describe('Data Quality Verification', () => {
   it('all joint values should be within valid ranges', () => {
-    const JOINT_LIMITS = {
-      base: { min: -180, max: 180 },
-      shoulder: { min: -90, max: 90 },
-      elbow: { min: -90, max: 135 },
-      wrist: { min: -90, max: 90 },
-      wristRoll: { min: -180, max: 180 },
-      gripper: { min: 0, max: 100 },
-    };
-
+    // Use centralized SO-101 joint limits
     for (const pos of BATCH_POSITIONS) {
       const joints = calculateGraspJoints(pos);
 
-      expect(joints.base).toBeGreaterThanOrEqual(JOINT_LIMITS.base.min);
-      expect(joints.base).toBeLessThanOrEqual(JOINT_LIMITS.base.max);
-      expect(joints.shoulder).toBeGreaterThanOrEqual(JOINT_LIMITS.shoulder.min);
-      expect(joints.shoulder).toBeLessThanOrEqual(JOINT_LIMITS.shoulder.max);
-      expect(joints.elbow).toBeGreaterThanOrEqual(JOINT_LIMITS.elbow.min);
-      expect(joints.elbow).toBeLessThanOrEqual(JOINT_LIMITS.elbow.max);
-      expect(joints.wrist).toBeGreaterThanOrEqual(JOINT_LIMITS.wrist.min);
-      expect(joints.wrist).toBeLessThanOrEqual(JOINT_LIMITS.wrist.max);
+      expect(joints.base).toBeGreaterThanOrEqual(SO101_JOINT_LIMITS.base.min);
+      expect(joints.base).toBeLessThanOrEqual(SO101_JOINT_LIMITS.base.max);
+      expect(joints.shoulder).toBeGreaterThanOrEqual(SO101_JOINT_LIMITS.shoulder.min);
+      expect(joints.shoulder).toBeLessThanOrEqual(SO101_JOINT_LIMITS.shoulder.max);
+      expect(joints.elbow).toBeGreaterThanOrEqual(SO101_JOINT_LIMITS.elbow.min);
+      expect(joints.elbow).toBeLessThanOrEqual(SO101_JOINT_LIMITS.elbow.max);
+      expect(joints.wrist).toBeGreaterThanOrEqual(SO101_JOINT_LIMITS.wrist.min);
+      expect(joints.wrist).toBeLessThanOrEqual(SO101_JOINT_LIMITS.wrist.max);
     }
   });
 

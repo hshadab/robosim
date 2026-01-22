@@ -336,7 +336,7 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => (rehydratedState, error) => {
         // Called after rehydration completes
-        console.log('[Auth] onRehydrateStorage called', {
+        log.debug('onRehydrateStorage called', {
           hasState: !!rehydratedState,
           isAuthenticated: rehydratedState?.isAuthenticated,
           userId: rehydratedState?.user?.id,
@@ -348,15 +348,15 @@ export const useAuthStore = create<AuthState>()(
           const isTestMode = rehydratedState.isAuthenticated &&
             rehydratedState.user?.id?.startsWith('mock-');
 
-          console.log('[Auth] isTestMode:', isTestMode);
+          log.debug('Auth mode check', { isTestMode });
 
           if (isTestMode) {
             // Test mode: just mark as not loading, don't call Supabase
             useAuthStore.setState({ isLoading: false });
-            console.log('[Auth] Test mode - skipping Supabase init');
+            log.debug('Test mode - skipping Supabase init');
           } else {
             // Normal mode: initialize with Supabase
-            console.log('[Auth] Normal mode - calling initialize');
+            log.debug('Normal mode - calling initialize');
             rehydratedState.initialize();
           }
         }

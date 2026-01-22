@@ -6,6 +6,7 @@
  */
 
 import { createLogger } from './logger';
+import { GRIPPER, IK, TIMING } from '../config/gripperConstants';
 
 const log = createLogger('FailureAnalysis');
 
@@ -57,9 +58,9 @@ const MAX_RECENT_FAILURES = 10;
  * Thresholds for failure classification
  */
 export const FAILURE_THRESHOLDS = {
-  IK_ERROR_MAX: 0.04,           // 4cm - beyond this, IK is unreachable
-  GRASP_DISTANCE_MAX: 0.04,     // 4cm - gripper grab radius
-  GRIPPER_CLOSE_MIN_MS: 800,    // Minimum gripper close time for physics
+  IK_ERROR_MAX: IK.FALLBACK_THRESHOLD_M,  // 4cm - beyond this, IK is unreachable
+  GRASP_DISTANCE_MAX: GRIPPER.GRAB_RADIUS_M,  // 4cm - gripper grab radius
+  GRIPPER_CLOSE_MIN_MS: TIMING.GRIPPER_STEP_MS,  // Minimum gripper close time for physics
   CONTACT_DURATION_MIN_MS: 100, // Minimum contact to consider "had contact"
   LIFT_HEIGHT_MIN: 0.02,        // 2cm - minimum lift to consider successful
 };
@@ -94,7 +95,7 @@ export const FAILURE_CATEGORIES: Record<FailureCategory, { description: string; 
   },
   gripper_timing: {
     description: 'Gripper closed too fast for physics detection',
-    suggestedFix: 'Use _duration: 800 or higher for gripper close',
+    suggestedFix: `Use _duration: ${TIMING.GRIPPER_STEP_MS} or higher for gripper close`,
   },
   approach_failed: {
     description: 'Could not reach approach position',
@@ -179,7 +180,7 @@ export function analyzeFailure(params: {
     return {
       category: 'gripper_timing',
       details: { gripperCloseDuration },
-      suggestedFix: `Gripper closed in ${gripperCloseDuration}ms - needs ${FAILURE_THRESHOLDS.GRIPPER_CLOSE_MIN_MS}ms minimum. Use { _gripperOnly: true, _duration: 800 }.`,
+      suggestedFix: `Gripper closed in ${gripperCloseDuration}ms - needs ${FAILURE_THRESHOLDS.GRIPPER_CLOSE_MIN_MS}ms minimum. Use { _gripperOnly: true, _duration: ${TIMING.GRIPPER_STEP_MS} }.`,
       timestamp: Date.now(),
     };
   }
@@ -358,7 +359,7 @@ export function getSuggestedAdjustments(
 
   // If gripper timing issues
   if (stats.gripper_timing >= 1) {
-    suggestions.push('Always use _duration: 800 for gripper close steps');
+    suggestions.push(`Always use _duration: ${TIMING.GRIPPER_STEP_MS} for gripper close steps`);
   }
 
   return suggestions;

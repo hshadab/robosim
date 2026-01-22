@@ -9,7 +9,7 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { RigidBody, CylinderCollider } from '@react-three/rapier';
 import type { JointState } from '../../types';
-import { SO101_DIMS } from './SO101Kinematics';
+import { SO101_DIMS } from '../../config/so101Dimensions';
 
 interface SO101ArmProps {
   joints: JointState;

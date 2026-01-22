@@ -28,20 +28,47 @@ export {
 // Re-export object matching utilities
 export {
   matchObjectToMessage,
-  findObjectByDescription,
 } from './objectMatching';
 
-// Re-export helper functions
+// Re-export findObjectByDescription from stackHandler
+export { findObjectByDescription } from './stackHandler';
+
+// Re-export IK calculation functions
 export {
-  parseAmount,
-  calculateBaseAngleForPosition,
   clampJoint,
   calculateGripperPos,
   calculateTipYForJawY,
   estimateJawY,
+  calculateBaseAngleForPosition,
+  solveIKForTarget,
+  calculateGraspJoints,
+  calculateApproachJoints,
+  calculateLiftJoints,
+} from './ikCalculations';
+
+// Re-export arm handler functions
+export {
+  parseAmount,
+  parseHeight,
+  parseJointTarget,
+  getHelpText as getArmHelpText,
+  simulateArmResponse,
+} from './armHandler';
+
+// Re-export helper functions (backward compatibility)
+export {
   getHelpText,
   describeState,
 } from './helpers';
+
+// Re-export pickup sequence handler
+export { handlePickUpCommand } from './pickupSequence';
+
+// Re-export stack handlers
+export { handleStackCommand, handleMoveToCommand } from './stackHandler';
+
+// Re-export multi-step handler
+export { handleMultiStepCommand } from './multiStepHandler';
 
 // Re-export API key management
 export {

@@ -13,6 +13,7 @@
  */
 
 import { SO101_CONSTRAINTS } from '../test/realisticData.test';
+import { TIMING } from '../config/gripperConstants';
 
 // Joint state interface (matches main types)
 export interface JointState {
@@ -94,7 +95,7 @@ const DEFAULT_CONSTRAINTS = {
     wristRoll: 600,
     gripper: 1000,
   },
-  minGripperCloseMs: 800,
+  minGripperCloseMs: TIMING.GRIPPER_STEP_MS,
   nearLimitMarginDeg: 5,
 };
 

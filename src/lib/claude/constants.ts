@@ -2,6 +2,9 @@
  * Constants for Claude API and robot control
  */
 
+import { SO101_JOINT_LIMITS } from '../../config/so101Limits';
+import { IK, JAW_OFFSET } from '../../config/gripperConstants';
+
 /** Shape/type synonyms for natural language matching */
 export const TYPE_ALIASES: Record<string, string[]> = {
   cube: ['cube', 'block', 'box', 'square'],
@@ -12,26 +15,23 @@ export const TYPE_ALIASES: Record<string, string[]> = {
 /** Common color words for object matching */
 export const COLOR_WORDS = ['red', 'blue', 'green', 'yellow', 'orange', 'white', 'black', 'pink', 'purple'];
 
-/** Joint limits for SO-101 (from robots.ts) */
-export const JOINT_LIMITS = {
-  base: { min: -110, max: 110 },
-  shoulder: { min: -100, max: 100 },
-  elbow: { min: -97, max: 97 },
-  wrist: { min: -95, max: 95 },
-  wristRoll: { min: -157, max: 163 },
-};
-
-/** IK error threshold - if error is larger than this, the position may not be reachable */
-export const IK_ERROR_THRESHOLD = 0.03; // 3cm
+/**
+ * Joint limits for SO-101 - re-exported from so101Limits.ts for backward compatibility
+ * @deprecated Import directly from '../../config/so101Limits' instead
+ */
+export const JOINT_LIMITS = SO101_JOINT_LIMITS;
 
 /**
- * JAW-TIP OFFSET CONSTANT
- * The jaw contact point is offset from gripper_frame_link in local gripper coordinates:
- * JAW_LOCAL_OFFSET = [-0.0079, 0, 0.0068] in gripper local space
- * When gripper is pointing down (wrist ~90°), the Z offset becomes a Y offset in world space
- * When gripper is horizontal (wrist ~0°), the Z offset becomes a horizontal offset
+ * IK error threshold - re-exported from gripperConstants.ts for backward compatibility
+ * @deprecated Import directly from '../../config/gripperConstants' instead
  */
-export const JAW_LOCAL_Z_OFFSET = 0.0068; // 6.8mm forward toward jaw tips in local gripper Z
+export const IK_ERROR_THRESHOLD = IK.ERROR_THRESHOLD_M;
+
+/**
+ * JAW-TIP OFFSET CONSTANT - re-exported from gripperConstants.ts for backward compatibility
+ * @deprecated Import directly from '../../config/gripperConstants' instead
+ */
+export const JAW_LOCAL_Z_OFFSET = JAW_OFFSET.LOCAL_Z;
 
 /** Claude API response format instruction */
 export const CLAUDE_RESPONSE_FORMAT = `

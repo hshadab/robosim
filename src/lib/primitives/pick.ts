@@ -7,6 +7,7 @@
 import type { ActionPrimitive, ActionParams, Phase, RobotState, SuccessCriteria } from './types';
 import { findObject, calculateIK } from './utils';
 import { createLogger } from '../logger';
+import { TIMING } from '../../config/gripperConstants';
 
 const log = createLogger('PickPrimitive');
 
@@ -93,7 +94,7 @@ export const PickPrimitive: ActionPrimitive = {
           wristRoll,
           gripper: 100, // Open gripper
         },
-        duration: Math.round(800 / speedMultiplier),
+        duration: Math.round(TIMING.GRIPPER_STEP_MS / speedMultiplier),
         successCriteria: {
           positionTolerance: 0.05, // 5cm tolerance
         },
@@ -117,7 +118,7 @@ export const PickPrimitive: ActionPrimitive = {
         joints: {
           gripper: 0, // Close gripper
         },
-        duration: 800, // Fixed timing for physics contact detection
+        duration: TIMING.GRIPPER_STEP_MS, // Fixed timing for physics contact detection
         flags: {
           gripperOnly: true,
           waitForContact: true,

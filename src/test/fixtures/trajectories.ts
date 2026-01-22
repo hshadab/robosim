@@ -137,15 +137,11 @@ export const INVALID_TRAJECTORIES: Record<string, Trajectory> = {
   },
 };
 
-// SO-101 joint limits for validation
-export const SO101_JOINT_LIMITS = {
-  base: { min: -110, max: 110 },
-  shoulder: { min: -100, max: 100 },
-  elbow: { min: -97, max: 97 },
-  wrist: { min: -95, max: 95 },
-  wristRoll: { min: -157, max: 163 },
-  gripper: { min: 0, max: 100 },
-};
+/**
+ * SO-101 joint limits for validation
+ * Re-exported from centralized so101Limits.ts for backward compatibility
+ */
+export { SO101_JOINT_LIMITS } from '../../config/so101Limits';
 
 // SO-101 max velocities in degrees per second
 export const SO101_MAX_VELOCITIES = {

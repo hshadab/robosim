@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateGripperPositionURDF } from '../components/simulation/SO101KinematicsURDF';
+import { SO101_JOINT_LIMITS, clampJointValue } from '../config/so101Limits';
 
 interface JointAngles {
   base: number;
@@ -15,16 +16,16 @@ interface JointAngles {
   wristRoll: number;
 }
 
-// Joint limits
+// Use centralized joint limits (no wristRoll limit needed for these tests)
 const JOINT_LIMITS = {
-  base: { min: -110, max: 110 },
-  shoulder: { min: -100, max: 100 },
-  elbow: { min: -97, max: 97 },
-  wrist: { min: -95, max: 95 },
+  base: SO101_JOINT_LIMITS.base,
+  shoulder: SO101_JOINT_LIMITS.shoulder,
+  elbow: SO101_JOINT_LIMITS.elbow,
+  wrist: SO101_JOINT_LIMITS.wrist,
 };
 
 function clampJoint(name: keyof typeof JOINT_LIMITS, value: number): number {
-  return Math.max(JOINT_LIMITS[name].min, Math.min(JOINT_LIMITS[name].max, value));
+  return clampJointValue(name as keyof typeof SO101_JOINT_LIMITS, value);
 }
 
 describe('Horizontal Grasp Configurations', () => {

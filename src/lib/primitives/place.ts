@@ -7,6 +7,7 @@
 import type { ActionPrimitive, ActionParams, Phase, RobotState, SuccessCriteria } from './types';
 import { findObject, calculateIK } from './utils';
 import { createLogger } from '../logger';
+import { TIMING } from '../../config/gripperConstants';
 
 const log = createLogger('PlacePrimitive');
 
@@ -104,7 +105,7 @@ export const PlacePrimitive: ActionPrimitive = {
           wristRoll: currentWristRoll,
           gripper: 0, // Keep gripper closed
         },
-        duration: Math.round(800 / speedMultiplier),
+        duration: Math.round(TIMING.GRIPPER_STEP_MS / speedMultiplier),
       },
       {
         name: 'lower',

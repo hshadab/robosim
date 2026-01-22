@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import URDFLoader from 'urdf-loader';
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier';
 import type { JointState } from '../../types';
-import { SO101_DIMS } from './SO101Kinematics';
+import { SO101_DIMS } from '../../config/so101Dimensions';
 import { RealisticGripperPhysics } from './RealisticGripperPhysics';
 import { GraspManager } from './GraspManager';
 import { useAppStore } from '../../stores/useAppStore';

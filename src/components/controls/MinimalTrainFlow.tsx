@@ -484,7 +484,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
   // Uses proven pickup configuration matching handleDemoPickUp (x=0.16, z=0.01)
   const handleBatchDemos = useCallback(async (taskType: 'pickup' | 'stack' | 'place' = 'pickup') => {
     if (isDemoRunning || isAnimating || isLLMLoading) {
-      console.log('[BatchDemo] Blocked - already running:', { isDemoRunning, isAnimating, isLLMLoading });
+      log.info('[BatchDemo] Blocked - already running:', { isDemoRunning, isAnimating, isLLMLoading });
       return;
     }
 
@@ -509,7 +509,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     const demoScale = 0.03; // 3cm cube
 
     console.log(`[BatchDemo] ========== STARTING ${BATCH_COUNT} DEMOS ==========`);
-    console.log('[BatchDemo] Cube scale:', demoScale, '(3cm)');
+    log.info('[BatchDemo] Cube scale:', demoScale, '(3cm)');
     console.log(`[BatchDemo] Tier: ${tier}, Demos remaining: ${getDemosRemaining(tier)}`);
 
     // Check WebGL context health before starting - wait for recovery if needed
@@ -520,15 +520,15 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       while (attempts < maxAttempts) {
         const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
         if (gl && !gl.isContextLost()) {
-          console.log('[BatchDemo] WebGL context healthy ✓');
+          log.info('[BatchDemo] WebGL context healthy ✓');
           break;
         }
         attempts++;
-        console.warn(`[BatchDemo] WebGL context lost, waiting for recovery (attempt ${attempts}/${maxAttempts})...`);
+        log.warn('[BatchDemo] WebGL context lost, waiting for recovery (attempt ${attempts}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 1500));
       }
       if (attempts >= maxAttempts) {
-        console.error('[BatchDemo] WebGL context not recovered after max attempts');
+        log.error('[BatchDemo] WebGL context not recovered after max attempts');
         setError('WebGL not available. Try refreshing the page.');
         setIsDemoRunning(false);
         return;
@@ -536,18 +536,18 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
     }
 
     // Brief startup delay to let rendering settle after any context recovery
-    console.log('[BatchDemo] Startup delay 800ms...');
+    log.info('[BatchDemo] Startup delay 800ms...');
     await new Promise(r => setTimeout(r, 800));
 
     // Check for Claude API key - required for LLM-driven demos
     const claudeApiKey = getClaudeApiKey();
     if (!claudeApiKey) {
-      console.error('[BatchDemo] No Claude API key found - LLM-driven demos require an API key');
+      log.error('[BatchDemo] No Claude API key found - LLM-driven demos require an API key');
       setError('Claude API key required for AI-driven demos. Add your key in Settings.');
       setIsDemoRunning(false);
       return;
     }
-    console.log('[BatchDemo] Claude API key found ✓');
+    log.info('[BatchDemo] Claude API key found ✓');
 
     // Varied natural language prompts for realistic training data
     // Prompt generator based on task type - includes coordinates for place task
@@ -830,7 +830,7 @@ export const MinimalTrainFlow: React.FC<MinimalTrainFlowProps> = ({ onOpenDrawer
       for (let i = 0; i < BATCH_COUNT; i++) {
         // Check for abort at start of each demo
         if (abortRef.current.aborted) {
-          console.log('[BatchDemo] ABORTED by user');
+          log.info('[BatchDemo] ABORTED by user');
           break;
         }
 
