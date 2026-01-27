@@ -3,6 +3,18 @@
  *
  * Contains inverse kinematics functions for the SO-101 robot arm.
  * Extracted from claudeApi.ts for better modularity.
+ *
+ * Coordinate conventions:
+ * - X axis: right (positive) / left (negative) from robot base
+ * - Y axis: up (positive) from ground plane
+ * - Z axis: forward (positive) from robot base
+ * - Base angle: 0° points toward +X, 90° toward +Z (counter-clockwise from above)
+ * - All joint angles in degrees, positions in meters
+ *
+ * The solver uses a damped least-squares (Levenberg-Marquardt) numerical IK
+ * approach via a Web Worker. Multiple seed configurations are tried to avoid
+ * local minima. The jaw-tip offset is accounted for so the gripper's contact
+ * point (not the wrist frame) reaches the target.
  */
 
 import { loggers } from '../logger';
@@ -119,16 +131,26 @@ export async function solveIKForTarget(
 }
 
 /**
- * Calculate grasp position using LeRobot-style configurations
+ * Calculate optimal grasp joint angles for a target object position.
+ *
+ * Uses a multi-strategy approach to find the best IK solution:
+ * - Strategy 0: Direct targeting at object height
+ * - Strategy 1: Horizontal grasp for low objects (Y < 8cm)
+ * - Strategy 2: Angled grasps at 30°/45°/60° wrist angles
+ *
+ * Each strategy tries multiple target positions and scores results by a
+ * combined metric of IK error + jaw-to-object vertical distance.
  *
  * Based on real SO-101 training data from HuggingFace (lerobot/svla_so101_pickplace):
- *   - shoulder_lift: -99 to -86 (pointing strongly downward)
- *   - elbow_flex: 73 to 100 (bent)
- *   - wrist_flex: ~75 (STEEP angle, NOT horizontal!)
- *   - wrist_roll: -48 to +10
+ * real grasps use TOP-DOWN approach with steep wrist (~75°). The jaw contact
+ * point is offset from gripper_frame by {@link JAW_LOCAL_Z_OFFSET}.
  *
- * Key insight: Real robot grasps use TOP-DOWN approach with steep wrist (~75),
- * NOT horizontal side approach. The jaw contact point is offset from gripper_frame.
+ * @param objX - Object X position in meters
+ * @param objY - Object Y position in meters (grasp height, not necessarily center)
+ * @param objZ - Object Z position in meters
+ * @param baseAngle - Optional fixed base angle in degrees; if undefined, IK chooses freely
+ * @param forceSideGrasp - If true, penalizes high wrist angles to prefer horizontal approach
+ * @returns Joint angles, IK error (meters), and achieved gripper Y position
  */
 export async function calculateGraspJoints(
   objX: number,
@@ -265,9 +287,26 @@ export async function calculateGraspJoints(
 }
 
 /**
- * Calculate approach position DERIVED from grasp joints for smooth vertical descent
- * Instead of independent IK (which can find different arm configurations causing sweep),
- * we derive approach from grasp by raising the shoulder to lift the arm while keeping similar shape
+ * Calculate approach position DERIVED from grasp joints for smooth vertical descent.
+ *
+ * Instead of independent IK (which can find different arm configurations causing
+ * lateral sweep), this derives the approach pose from the grasp pose by adjusting
+ * shoulder/elbow/wrist offsets to raise the end-effector while maintaining a similar
+ * arm shape. This ensures the descent path is nearly vertical.
+ *
+ * For side approach (horizontal grasp), the offset is radial (away from base)
+ * rather than vertical.
+ *
+ * Falls back to independent IK if the derived approach is too low (< 4cm above grasp).
+ *
+ * @param objX - Object X position in meters
+ * @param objY - Object Y position in meters
+ * @param objZ - Object Z position in meters
+ * @param baseAngle - Fixed base angle in degrees (same as grasp to prevent spinning)
+ * @param graspAchievedY - Actual Y position achieved by the grasp IK solution
+ * @param graspJoints - Joint angles from the grasp solution (used to derive approach)
+ * @param forceSideApproach - If true, approach from the side rather than above
+ * @returns Joint angles and IK error (meters)
  */
 export async function calculateApproachJoints(
   objX: number,

@@ -1,818 +1,52 @@
 /**
  * LeRobotDataset v3.0 Exporter
  *
- * Exports RoboSim recordings to HuggingFace LeRobot format:
- * - Parquet files for tabular data (states, actions, timestamps)
- * - MP4 videos for camera observations
- * - JSON metadata files
- *
- * Format spec: https://huggingface.co/docs/lerobot/en/lerobot-dataset-v3
+ * Orchestrates the LeRobot export pipeline. Submodules:
+ * - lerobot/metadata.ts — info.json, stats, tasks, episodes metadata
+ * - lerobot/dataConversion.ts — tabular conversion, Parquet data, stats helpers
+ * - lerobot/documentation.ts — README generation
  */
 
 import type { Episode } from './datasetExporter';
 import { episodesToParquetFormat, writeParquetFilePure, validateParquetData, generateConversionScript } from './parquetWriter';
 import { checkBatchQuality, DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, LENIENT_THRESHOLDS, type QualityThresholds, type QualityGateResult } from './qualityGates';
-import type { ImageAugmentationConfig } from './imageAugmentation';
-import type { TimeWarpConfig } from './trajectoryAugmentation';
-import type { PhysicsIdentification } from './systemIdentification';
-import type { ActionCalibrationConfig } from './actionCalibration';
-import type { SimCameraConfig } from '../types';
+
+// Re-export everything from submodules for backward compatibility
+export {
+  generateInfoJson,
+  generateStatsJson,
+  generateTasksJsonl,
+  generateEpisodesJsonl,
+  episodesToParquetData,
+  createSimpleParquetBlob,
+  type LeRobotCameraView,
+  type MultiCameraVideoBlobs,
+  type LeRobotDatasetInfo,
+  type SimToRealMetadata,
+  type FeatureInfo,
+  type ExportOptions,
+  type ExportResult,
+  type LeRobotStats,
+  CAMERA_POSITION_TO_LEROBOT,
+} from './lerobot';
+
+import {
+  generateInfoJson,
+  generateStatsJson,
+  generateTasksJsonl,
+  generateEpisodesJsonl,
+  episodesToParquetData,
+  type LeRobotCameraView,
+  type MultiCameraVideoBlobs,
+  type ExportOptions,
+  type ExportResult,
+} from './lerobot';
+
+import { generateReadme } from './lerobot/documentation';
 
 // Re-export quality gates for convenience
 export { DEFAULT_THRESHOLDS, STRICT_THRESHOLDS, LENIENT_THRESHOLDS, checkBatchQuality };
 export type { QualityThresholds, QualityGateResult };
-
-/**
- * LeRobot camera view names - standard naming convention
- * Maps to physical camera positions on real robots
- */
-export type LeRobotCameraView =
-  | 'cam_high'     // Main overhead/workspace camera
-  | 'cam_wrist'    // Gripper/wrist-mounted camera
-  | 'cam_left'     // Left side camera
-  | 'cam_right';   // Right side camera
-
-/**
- * Map RoboSim camera positions to LeRobot view names
- */
-export const CAMERA_POSITION_TO_LEROBOT: Record<string, LeRobotCameraView> = {
-  'overhead': 'cam_high',
-  'gripper': 'cam_wrist',
-  'wrist': 'cam_wrist',
-  'base': 'cam_high',  // Base camera treated as workspace view
-};
-
-/**
- * Video blobs for multiple camera views
- */
-export interface MultiCameraVideoBlobs {
-  cam_high?: Blob[];    // Episode videos for main camera
-  cam_wrist?: Blob[];   // Episode videos for wrist camera
-  cam_left?: Blob[];    // Episode videos for left camera
-  cam_right?: Blob[];   // Episode videos for right camera
-}
-
-// LeRobot dataset structure
-export interface LeRobotDatasetInfo {
-  codebase_version: string;
-  robot_type: string;
-  fps: number;
-  features: Record<string, FeatureInfo>;
-  splits: {
-    train: string;
-  };
-  total_episodes: number;
-  total_frames: number;
-  total_tasks: number;
-  total_videos: number;
-  total_chunks: number;
-  chunks_size: number;
-  data_path: string;
-  video_path: string;
-  // RoboSim specific
-  robosim_version: string;
-  robot_id: string;
-  // Sim-to-real transfer metadata
-  simToReal?: SimToRealMetadata;
-}
-
-/**
- * Sim-to-real transfer metadata for reproducibility and calibration
- */
-export interface SimToRealMetadata {
-  // Camera configuration used for image capture
-  cameraConfig?: SimCameraConfig;
-  // Camera intrinsics matrix (K matrix) for calibration
-  cameraIntrinsics?: {
-    fx: number;           // Focal length x (pixels)
-    fy: number;           // Focal length y (pixels)
-    cx: number;           // Principal point x (pixels)
-    cy: number;           // Principal point y (pixels)
-    width: number;        // Image width
-    height: number;       // Image height
-    distortion: number[]; // [k1, k2, p1, p2, k3]
-  };
-  // Physics identification used in simulation
-  physicsIdentification?: PhysicsIdentification;
-  // Action calibration for servo mapping
-  actionCalibration?: ActionCalibrationConfig;
-  // Augmentation settings applied during generation
-  augmentation?: {
-    imageAugmentation?: Partial<ImageAugmentationConfig>;
-    trajectoryAugmentation?: Partial<TimeWarpConfig>;
-    augmentedVersionsPerEpisode?: number;
-  };
-  // Domain randomization settings
-  domainRandomization?: {
-    enabled: boolean;
-    visualRandomization: boolean;
-    motionVariation: boolean;
-    recoveryBehaviors: boolean;
-  };
-}
-
-interface FeatureInfo {
-  dtype: string;
-  shape: number[];
-  names?: string[] | null;
-}
-
-export type LeRobotStats = Record<string, {
-    min: number[];
-    max: number[];
-    mean: number[];
-    std: number[];
-  }>;
-
-interface LeRobotEpisodeMeta {
-  episode_index: number;
-  tasks: string;
-  length: number;
-  /** Free-form natural language instruction for language-conditioned learning (RT-1, OpenVLA) */
-  language_instruction?: string;
-}
-
-// SO-101 joint mapping to LeRobot names
-const SO101_JOINT_NAMES = [
-  'shoulder_pan',
-  'shoulder_lift',
-  'elbow_flex',
-  'wrist_flex',
-  'wrist_roll',
-  'gripper',
-];
-
-// Feature definitions for different robots
-const ROBOT_FEATURES: Record<string, Record<string, FeatureInfo>> = {
-  'so-101': {
-    'observation.state': {
-      dtype: 'float32',
-      shape: [6],
-      names: SO101_JOINT_NAMES,
-    },
-    'observation.velocity': {
-      dtype: 'float32',
-      shape: [6],
-      names: SO101_JOINT_NAMES.map(n => `${n}_velocity`),
-    },
-    'action': {
-      dtype: 'float32',
-      shape: [6],
-      names: SO101_JOINT_NAMES,
-    },
-    'episode_index': {
-      dtype: 'int64',
-      shape: [1],
-      names: null,
-    },
-    'frame_index': {
-      dtype: 'int64',
-      shape: [1],
-      names: null,
-    },
-    'timestamp': {
-      dtype: 'float32',
-      shape: [1],
-      names: null,
-    },
-    'next.done': {
-      dtype: 'bool',
-      shape: [1],
-      names: null,
-    },
-    'task_index': {
-      dtype: 'int64',
-      shape: [1],
-      names: null,
-    },
-  },
-};
-
-// Default features for unknown robots
-const DEFAULT_FEATURES: Record<string, FeatureInfo> = {
-  'observation.state': {
-    dtype: 'float32',
-    shape: [6],
-    names: null,
-  },
-  'observation.velocity': {
-    dtype: 'float32',
-    shape: [6],
-    names: null,
-  },
-  'action': {
-    dtype: 'float32',
-    shape: [6],
-    names: null,
-  },
-  'episode_index': {
-    dtype: 'int64',
-    shape: [1],
-    names: null,
-  },
-  'frame_index': {
-    dtype: 'int64',
-    shape: [1],
-    names: null,
-  },
-  'timestamp': {
-    dtype: 'float32',
-    shape: [1],
-    names: null,
-  },
-  'next.done': {
-    dtype: 'bool',
-    shape: [1],
-    names: null,
-  },
-  'task_index': {
-    dtype: 'int64',
-    shape: [1],
-    names: null,
-  },
-};
-
-/**
- * Convert RoboSim episodes to LeRobot tabular format
- * Includes joint velocity estimation from position deltas
- */
-
-function episodesToTabular(episodes: Episode[], fps: number): {
-  rows: LeRobotRow[];
-  stats: LeRobotStats;
-} {
-  const rows: LeRobotRow[] = [];
-  const dt = 1.0 / fps; // Time delta between frames
-
-  // Track min/max/sum/sumSq for proper stats calculation
-  const stateStats = { min: [] as number[], max: [] as number[], sum: [] as number[], sumSq: [] as number[], count: 0 };
-  const actionStats = { min: [] as number[], max: [] as number[], sum: [] as number[], sumSq: [] as number[], count: 0 };
-  const velocityStats = { min: [] as number[], max: [] as number[], sum: [] as number[], sumSq: [] as number[], count: 0 };
-
-  for (let episodeIdx = 0; episodeIdx < episodes.length; episodeIdx++) {
-    const episode = episodes[episodeIdx];
-    const taskIndex = 0; // Single task for now
-
-    let prevState: number[] | null = null;
-
-    for (let frameIdx = 0; frameIdx < episode.frames.length; frameIdx++) {
-      const frame = episode.frames[frameIdx];
-      const timestamp = frame.timestamp / 1000; // Convert ms to seconds
-
-      // Get observation state (pad to 6 values for SO-101)
-      // CRITICAL: Convert from degrees to radians for LeRobot compatibility
-      // LeRobot/real robots use radians, but our UI uses degrees
-      const DEG_TO_RAD = Math.PI / 180;
-      const stateInDegrees = padArray(frame.observation.jointPositions, 6);
-      const actionInDegrees = padArray(frame.action.jointTargets, 6);
-
-      // Convert all joints to radians (gripper stays as percentage 0-100 → 0-1)
-      const state = stateInDegrees.map((val, idx) => {
-        if (idx === 5) return val / 100; // Gripper: 0-100% → 0-1
-        return val * DEG_TO_RAD; // Joint angles: degrees → radians
-      });
-      const action = actionInDegrees.map((val, idx) => {
-        if (idx === 5) return val / 100; // Gripper: 0-100% → 0-1
-        return val * DEG_TO_RAD; // Joint angles: degrees → radians
-      });
-
-      // Compute joint velocities from position delta
-      // Use recorded velocities if available, otherwise estimate from position delta
-      // NOTE: Internal sim uses deg/s, LeRobot expects rad/s - convert on export
-      let velocity: number[];
-      if (frame.observation.jointVelocities && frame.observation.jointVelocities.length === 6) {
-        // Recorded velocities are in deg/s (sim internal units)
-        // Convert to rad/s for LeRobot compatibility
-        velocity = frame.observation.jointVelocities.map((v, idx) => {
-          if (idx === 5) return v; // Gripper velocity: normalized 0-1, no conversion
-          return v * DEG_TO_RAD; // Joint velocities: deg/s → rad/s
-        });
-      } else if (prevState) {
-        // Estimate velocity from position delta: v = (pos - prevPos) / dt
-        velocity = state.map((pos, idx) => (pos - prevState![idx]) / dt);
-      } else {
-        // First frame: zero velocity
-        velocity = new Array(6).fill(0);
-      }
-
-      // Update stats
-      updateStats(stateStats, state);
-      updateStats(actionStats, action);
-      updateStats(velocityStats, velocity);
-
-      rows.push({
-        'observation.state': state,
-        'observation.velocity': velocity,
-        'action': action,
-        'episode_index': episodeIdx,
-        'frame_index': frameIdx,
-        'timestamp': timestamp,
-        'next.done': frame.done,
-        'task_index': taskIndex,
-      });
-
-      prevState = state;
-    }
-  }
-
-  // Calculate final stats with proper standard deviation
-  const stats: LeRobotStats = {
-    'observation.state': finalizeStats(stateStats),
-    'observation.velocity': finalizeStats(velocityStats),
-    'action': finalizeStats(actionStats),
-  };
-
-  return { rows, stats };
-}
-
-interface LeRobotRow {
-  'observation.state': number[];
-  'observation.velocity': number[];
-  'action': number[];
-  'episode_index': number;
-  'frame_index': number;
-  'timestamp': number;
-  'next.done': boolean;
-  'task_index': number;
-}
-
-function padArray(arr: number[], length: number): number[] {
-  const result = [...arr];
-  while (result.length < length) {
-    result.push(0);
-  }
-  return result.slice(0, length);
-}
-
-function updateStats(stats: { min: number[]; max: number[]; sum: number[]; sumSq: number[]; count: number }, values: number[]) {
-  if (stats.count === 0) {
-    stats.min = [...values];
-    stats.max = [...values];
-    stats.sum = [...values];
-    stats.sumSq = values.map(v => v * v);
-  } else {
-    for (let i = 0; i < values.length; i++) {
-      stats.min[i] = Math.min(stats.min[i], values[i]);
-      stats.max[i] = Math.max(stats.max[i], values[i]);
-      stats.sum[i] += values[i];
-      stats.sumSq[i] += values[i] * values[i];
-    }
-  }
-  stats.count++;
-}
-
-function finalizeStats(stats: { min: number[]; max: number[]; sum: number[]; sumSq: number[]; count: number }) {
-  const mean = stats.sum.map(s => s / stats.count);
-  // Proper standard deviation calculation: std = sqrt(E[X^2] - E[X]^2)
-  const std = stats.sumSq.map((sq, i) => {
-    const variance = (sq / stats.count) - (mean[i] * mean[i]);
-    return Math.sqrt(Math.max(0, variance)); // Ensure non-negative due to floating point
-  });
-
-  return {
-    min: stats.min,
-    max: stats.max,
-    mean,
-    std,
-  };
-}
-
-/**
- * Generate info.json for LeRobot dataset
- * Supports multiple camera views for proper sim-to-real transfer
- */
-export function generateInfoJson(
-  episodes: Episode[],
-  robotId: string,
-  fps = 30,
-  hasVideo = false,
-  simToReal?: ExportOptions['simToReal'],
-  cameraViews?: LeRobotCameraView[]
-): LeRobotDatasetInfo {
-  const totalFrames = episodes.reduce((sum, ep) => sum + ep.frames.length, 0);
-  const features = { ...(ROBOT_FEATURES[robotId] || DEFAULT_FEATURES) };
-
-  // Determine which camera views to include
-  const views = cameraViews ?? (hasVideo ? ['cam_high'] as LeRobotCameraView[] : []);
-
-  // Add video features for each camera view
-  for (const view of views) {
-    features[`observation.images.${view}`] = {
-      dtype: 'video',
-      shape: [480, 640, 3],
-      names: ['height', 'width', 'channels'],
-    };
-  }
-
-  // Build sim-to-real metadata if provided
-  // Compute camera intrinsics from FOV and resolution if camera config is provided
-  const computeIntrinsics = (cam: SimCameraConfig) => {
-    const [width, height] = cam.resolution;
-    const fovRadians = (cam.fov * Math.PI) / 180;
-    const fy = height / (2 * Math.tan(fovRadians / 2));
-    const fx = fy; // Assuming square pixels
-    return {
-      fx,
-      fy,
-      cx: width / 2,
-      cy: height / 2,
-      width,
-      height,
-      distortion: [0, 0, 0, 0, 0], // No distortion in simulation
-    };
-  };
-
-  const simToRealMetadata: SimToRealMetadata | undefined = simToReal ? {
-    cameraConfig: simToReal.cameraConfig,
-    // Auto-compute camera intrinsics from FOV and resolution
-    cameraIntrinsics: simToReal.cameraConfig ? computeIntrinsics(simToReal.cameraConfig) : undefined,
-    physicsIdentification: simToReal.physicsIdentification,
-    actionCalibration: simToReal.actionCalibration,
-    augmentation: (simToReal.imageAugmentation?.enabled || simToReal.trajectoryAugmentation?.enabled) ? {
-      imageAugmentation: simToReal.imageAugmentation?.enabled ? simToReal.imageAugmentation.config : undefined,
-      trajectoryAugmentation: simToReal.trajectoryAugmentation?.enabled ? simToReal.trajectoryAugmentation.config : undefined,
-      augmentedVersionsPerEpisode: simToReal.imageAugmentation?.versionsPerEpisode,
-    } : undefined,
-    domainRandomization: simToReal.domainRandomization,
-  } : undefined;
-
-  // Calculate total videos: episodes × camera views
-  const totalVideos = views.length > 0 ? episodes.length * views.length : 0;
-
-  // Video path pattern - LeRobot uses {view} placeholder for multi-camera
-  const videoPaths = views.map(v => `videos/observation.images.${v}/episode_{episode:06d}.mp4`);
-  const videoPath = videoPaths.length > 0 ? videoPaths[0] : '';
-
-  return {
-    codebase_version: '0.4.2',
-    robot_type: robotId,
-    fps,
-    features,
-    splits: {
-      train: `0:${episodes.length}`,
-    },
-    total_episodes: episodes.length,
-    total_frames: totalFrames,
-    total_tasks: 1,
-    total_videos: totalVideos,
-    total_chunks: 1,
-    chunks_size: 1000,
-    data_path: 'data/chunk-{chunk:03d}/episode_{episode:06d}.parquet',
-    video_path: videoPath,
-    robosim_version: '1.0.0',
-    robot_id: robotId,
-    simToReal: simToRealMetadata,
-  };
-}
-
-/**
- * Generate stats.json for LeRobot dataset
- */
-export function generateStatsJson(episodes: Episode[], fps: number): LeRobotStats {
-  const { stats } = episodesToTabular(episodes, fps);
-  return stats;
-}
-
-/**
- * Generate tasks.jsonl content
- */
-export function generateTasksJsonl(episodes: Episode[]): string {
-  // Collect unique tasks
-  const tasks = new Set<string>();
-  for (const episode of episodes) {
-    tasks.add(episode.metadata.task || 'default_task');
-  }
-
-  const lines: string[] = [];
-  let taskIndex = 0;
-  for (const task of tasks) {
-    lines.push(JSON.stringify({ task_index: taskIndex, task }));
-    taskIndex++;
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Generate episodes.jsonl content
- * Includes language_instruction for language-conditioned imitation learning
- */
-export function generateEpisodesJsonl(episodes: Episode[]): string {
-  const lines: string[] = [];
-
-  for (let i = 0; i < episodes.length; i++) {
-    const episode = episodes[i];
-    const meta: LeRobotEpisodeMeta = {
-      episode_index: i,
-      tasks: episode.metadata.task || 'default_task',
-      length: episode.frames.length,
-    };
-
-    // Include language instruction if provided (key for RT-1, OpenVLA, etc.)
-    if (episode.metadata.languageInstruction) {
-      meta.language_instruction = episode.metadata.languageInstruction;
-    }
-
-    lines.push(JSON.stringify(meta));
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Convert episodes to Parquet-compatible row format
- * Returns data that can be written to Parquet
- * Includes observation.velocity for sim-to-real transfer
- */
-export function episodesToParquetData(episodes: Episode[], fps = 30): {
-  columns: Record<string, unknown[]>;
-  schema: Record<string, string>;
-} {
-  const { rows } = episodesToTabular(episodes, fps);
-
-  // Transpose rows to columns for Parquet
-  const columns: Record<string, unknown[]> = {
-    'observation.state': [],
-    'observation.velocity': [],
-    'action': [],
-    'episode_index': [],
-    'frame_index': [],
-    'timestamp': [],
-    'next.done': [],
-    'task_index': [],
-  };
-
-  for (const row of rows) {
-    columns['observation.state'].push(row['observation.state']);
-    columns['observation.velocity'].push(row['observation.velocity']);
-    columns['action'].push(row['action']);
-    columns['episode_index'].push(row['episode_index']);
-    columns['frame_index'].push(row['frame_index']);
-    columns['timestamp'].push(row['timestamp']);
-    columns['next.done'].push(row['next.done']);
-    columns['task_index'].push(row['task_index']);
-  }
-
-  const schema = {
-    'observation.state': 'list<float>',
-    'observation.velocity': 'list<float>',
-    'action': 'list<float>',
-    'episode_index': 'int64',
-    'frame_index': 'int64',
-    'timestamp': 'float',
-    'next.done': 'bool',
-    'task_index': 'int64',
-  };
-
-  return { columns, schema };
-}
-
-/**
- * Create a simple Parquet-like binary format
- * Since parquet-wasm is complex, we'll create a simpler format
- * that can be converted to Parquet later, or use Apache Arrow
- */
-export function createSimpleParquetBlob(episodes: Episode[], fps = 30): Blob {
-  const { columns } = episodesToParquetData(episodes, fps);
-
-  // For now, export as JSON that matches Parquet column structure
-  // This can be converted to actual Parquet using Python or Arrow.js
-  const data = {
-    format: 'lerobot-compatible',
-    version: '3.0',
-    columns,
-  };
-
-  return new Blob([JSON.stringify(data)], { type: 'application/json' });
-}
-
-/**
- * Generate HuggingFace Dataset Card (README.md) with YAML front matter
- * This follows the HuggingFace dataset card spec for proper Hub integration
- * Supports multi-camera documentation
- */
-function generateReadme(datasetName: string, robotId: string, episodeCount: number, hasVideo: boolean, cameraViews?: LeRobotCameraView[]): string {
-  // Calculate approximate total frames (assume 30fps, 3s average)
-  const approxFrames = episodeCount * 90;
-  const views = cameraViews ?? (hasVideo ? ['cam_high' as LeRobotCameraView] : []);
-
-  // HuggingFace YAML front matter for dataset discovery
-  const yamlFrontMatter = `---
-# Dataset Card for ${datasetName}
-license: apache-2.0
-task_categories:
-  - robotics
-tags:
-  - lerobot
-  - sim-to-real
-  - imitation-learning
-  - robot-manipulation
-  - ${robotId}
-  - robosim${views.length > 1 ? '\n  - multi-camera' : ''}
-pretty_name: ${datasetName}
-size_categories:
-  - ${episodeCount < 100 ? 'n<1K' : episodeCount < 1000 ? '1K<n<10K' : '10K<n<100K'}
-configs:
-  - config_name: default
-    data_files:
-      - split: train
-        path: data/chunk-000/*.parquet
-dataset_info:
-  features:
-    - name: observation.state
-      dtype: float32
-      shape: [6]
-    - name: observation.velocity
-      dtype: float32
-      shape: [6]
-    - name: action
-      dtype: float32
-      shape: [6]
-    - name: timestamp
-      dtype: float32
-    - name: episode_index
-      dtype: int64
-    - name: frame_index
-      dtype: int64
-  splits:
-    - name: train
-      num_examples: ${approxFrames}
----
-
-# ${datasetName}`;
-
-  return `${yamlFrontMatter}
-
-A robotics dataset recorded with RoboSim, compatible with HuggingFace LeRobot.
-
-## Quick Start
-
-### 1. Convert to Parquet (Required)
-
-The episode files are in JSON format for browser compatibility. Convert to true Parquet:
-
-\`\`\`bash
-pip install pandas pyarrow
-python convert_to_parquet.py
-\`\`\`
-
-### 2. Use with LeRobot
-
-\`\`\`python
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
-
-# Load from local directory
-dataset = LeRobotDataset("path/to/${datasetName}")
-
-# Or upload to HuggingFace Hub first
-# huggingface-cli upload your-username/${datasetName} .
-# dataset = LeRobotDataset("your-username/${datasetName}")
-\`\`\`
-
-## Dataset Info
-
-| Property | Value |
-|----------|-------|
-| Robot | ${robotId} |
-| Episodes | ${episodeCount} |
-| Format | LeRobot v3.0 |
-| Video | ${hasVideo ? 'Yes' : 'No'} |
-
-## Structure
-
-\`\`\`
-${datasetName}/
-├── meta/
-│   ├── info.json          # Dataset configuration
-│   ├── stats.json         # Feature statistics
-│   ├── episodes.jsonl     # Episode metadata
-│   └── tasks.jsonl        # Task definitions
-├── data/
-│   └── chunk-000/
-│       └── episode_*.parquet  # Episode data
-${views.length > 0 ? `├── videos/\n${views.map(v => `│   └── observation.images.${v}/\n│       └── episode_*.mp4`).join('\n')}\n` : ''}├── convert_to_parquet.py  # Conversion script
-└── README.md
-\`\`\`
-
-## Training
-
-### With LeRobot
-
-\`\`\`bash
-# Train ACT policy (recommended for manipulation)
-python lerobot/scripts/train.py \\
-    dataset_repo_id=path/to/${datasetName} \\
-    policy=act_${robotId.replace('-', '_')} \\
-    training.num_epochs=2000
-
-# Or Diffusion Policy for more complex tasks
-python lerobot/scripts/train.py \\
-    dataset_repo_id=path/to/${datasetName} \\
-    policy=diffusion_${robotId.replace('-', '_')} \\
-    training.num_epochs=2000
-\`\`\`
-
-### With Google Colab (Free GPU)
-
-1. Open the [RoboSim Training Notebook](https://colab.research.google.com/github/hshadab/robosim/blob/main/notebooks/train_so101_colab.ipynb)
-2. Upload this dataset or enter your HuggingFace dataset ID
-3. Run all cells (~2 hours on free T4 GPU)
-
-## Sim-to-Real Transfer
-
-This dataset includes domain randomization for better real-world transfer:
-
-- **Visual randomization**: Varied lighting, textures, camera angles
-- **Image augmentation**: Gaussian noise, motion blur, brightness/contrast variation
-- **Motion variation**: Slight randomization in trajectory timing and targets
-
-### Deployment Tips
-
-1. **Camera calibration**: Match the simulation camera FOV and position
-2. **Action scaling**: Joint angles are in radians (LeRobot standard)
-3. **Gripper mapping**: Gripper values are normalized 0-1 (0=closed, 1=open)
-
-## Citation
-
-If you use this dataset, please cite RoboSim:
-
-\`\`\`bibtex
-@software{robosim2024,
-  title = {RoboSim: Browser-Based Robot Simulation for Imitation Learning},
-  author = {RoboSim Contributors},
-  year = {2024},
-  url = {https://github.com/hshadab/robosim}
-}
-\`\`\`
-
----
-*Generated by [RoboSim](https://robosim.dev) • LeRobot v3.0 Compatible*
-`;
-}
-
-export interface ExportOptions {
-  datasetName: string;
-  robotId: string;
-  fps?: number;
-  /** @deprecated Use multiCameraVideoBlobs instead for multi-camera support */
-  videoBlobs?: Blob[];
-  /**
-   * Multi-camera video blobs for LeRobot export
-   * Supports cam_high (overhead), cam_wrist (gripper), cam_left, cam_right
-   */
-  multiCameraVideoBlobs?: MultiCameraVideoBlobs;
-  /** Quality gate settings */
-  qualityGates?: {
-    enabled: boolean;
-    thresholds?: QualityThresholds;
-    /** If true, only export episodes that pass quality gates */
-    filterFailedEpisodes?: boolean;
-    /** If true, throw error if any episodes fail (when filterFailedEpisodes is false) */
-    blockOnFailure?: boolean;
-  };
-  /** Sim-to-real transfer settings */
-  simToReal?: {
-    /** Camera configuration used for capture */
-    cameraConfig?: SimCameraConfig;
-    /** Per-camera configurations for multi-camera setup */
-    cameraConfigs?: Partial<Record<LeRobotCameraView, SimCameraConfig>>;
-    /** Physics identification data */
-    physicsIdentification?: PhysicsIdentification;
-    /** Action calibration for real robot */
-    actionCalibration?: ActionCalibrationConfig;
-    /** Image augmentation settings */
-    imageAugmentation?: {
-      enabled: boolean;
-      config?: Partial<ImageAugmentationConfig>;
-      versionsPerEpisode?: number;
-    };
-    /** Trajectory augmentation settings */
-    trajectoryAugmentation?: {
-      enabled: boolean;
-      config?: Partial<TimeWarpConfig>;
-    };
-    /** Domain randomization settings used during generation */
-    domainRandomization?: {
-      enabled: boolean;
-      visualRandomization: boolean;
-      motionVariation: boolean;
-      recoveryBehaviors: boolean;
-    };
-  };
-}
-
-export interface ExportResult {
-  success: boolean;
-  exportedEpisodes: number;
-  skippedEpisodes: number;
-  qualityResults?: {
-    passed: number;
-    failed: number;
-    averageScore: number;
-    details: QualityGateResult[];
-  };
-  error?: string;
-}
 
 /**
  * Export full LeRobot dataset as a ZIP file with optional quality gates
@@ -836,7 +70,6 @@ export async function exportLeRobotDataset(
   fps?: number,
   videoBlobs?: Blob[]
 ): Promise<void | ExportResult> {
-  // Handle overload
   const options: ExportOptions = typeof datasetNameOrOptions === 'string'
     ? { datasetName: datasetNameOrOptions, robotId: robotId!, fps, videoBlobs }
     : datasetNameOrOptions;
@@ -850,11 +83,9 @@ export async function exportLeRobotDataset(
     qualityGates,
   } = options;
 
-  // Convert legacy videoBlobs to multiCameraVideoBlobs if needed
   const finalMultiCameraBlobs: MultiCameraVideoBlobs | undefined =
     multiCameraVideoBlobs ?? (videos ? { cam_high: videos } : undefined);
 
-  // Run quality gates if enabled
   let episodesToExport = episodes;
   let qualityResults: ExportResult['qualityResults'];
 
@@ -871,13 +102,11 @@ export async function exportLeRobotDataset(
 
     if (batchResult.summary.failed > 0) {
       if (qualityGates.filterFailedEpisodes) {
-        // Filter to only passed episodes
         episodesToExport = batchResult.passedEpisodes;
         console.warn(
           `Quality gates: Filtered ${batchResult.summary.failed} failed episodes, exporting ${batchResult.summary.passed}`
         );
       } else if (qualityGates.blockOnFailure) {
-        // Block export entirely
         const failureMessages = batchResult.results
           .filter(r => !r.passed)
           .flatMap(r => r.failures.map(f => f.message))
@@ -904,7 +133,6 @@ export async function exportLeRobotDataset(
     };
   }
 
-  // Original export logic with filtered episodes
   return exportLeRobotDatasetInternal(
     episodesToExport,
     datasetName,
@@ -929,11 +157,9 @@ async function exportLeRobotDatasetInternal(
   qualityResults?: ExportResult['qualityResults'],
   simToReal?: ExportOptions['simToReal']
 ): Promise<void | ExportResult> {
-  // We'll use JSZip to create the archive
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
 
-  // Determine which camera views have videos
   const cameraViews: LeRobotCameraView[] = [];
   if (multiCameraBlobs) {
     for (const view of ['cam_high', 'cam_wrist', 'cam_left', 'cam_right'] as LeRobotCameraView[]) {
@@ -944,26 +170,20 @@ async function exportLeRobotDatasetInternal(
   }
   const hasVideo = cameraViews.length > 0;
 
-  // meta/info.json - now includes sim-to-real metadata and multi-camera features
   const info = generateInfoJson(episodes, robotId, fps, hasVideo, simToReal, cameraViews);
   zip.file('meta/info.json', JSON.stringify(info, null, 2));
 
-  // meta/stats.json
   const stats = generateStatsJson(episodes, fps);
   zip.file('meta/stats.json', JSON.stringify(stats, null, 2));
 
-  // meta/tasks.jsonl
   const tasks = generateTasksJsonl(episodes);
   zip.file('meta/tasks.jsonl', tasks);
 
-  // meta/episodes.jsonl
   const episodesMeta = generateEpisodesJsonl(episodes);
   zip.file('meta/episodes.jsonl', episodesMeta);
 
-  // data/chunk-000/episode_XXXXXX.parquet - Real Parquet files
   for (let i = 0; i < episodes.length; i++) {
     try {
-      // Convert episode to Parquet format with normalized structure
       const normalizedEpisode = {
         frames: episodes[i].frames.map(f => ({
           timestamp: f.timestamp,
@@ -979,18 +199,15 @@ async function exportLeRobotDatasetInternal(
       };
       const parquetData = episodesToParquetFormat([normalizedEpisode], fps);
 
-      // Validate the data
       const validation = validateParquetData(parquetData);
       if (!validation.valid) {
         console.warn(`Episode ${i} validation warnings:`, validation.errors);
       }
 
-      // Write as Parquet binary
       const parquetBytes = await writeParquetFilePure(parquetData);
       const filename = `data/chunk-000/episode_${String(i).padStart(6, '0')}.parquet`;
       zip.file(filename, parquetBytes);
     } catch (error) {
-      // Fallback to JSON if Parquet fails
       console.warn(`Parquet write failed for episode ${i}, using JSON fallback:`, error);
       const episodeData = episodesToParquetData([episodes[i]], fps);
       const filename = `data/chunk-000/episode_${String(i).padStart(6, '0')}.json`;
@@ -998,7 +215,6 @@ async function exportLeRobotDatasetInternal(
     }
   }
 
-  // videos/observation.images.<view>/episode_XXXXXX.mp4 for each camera view
   if (multiCameraBlobs) {
     for (const view of cameraViews) {
       const viewBlobs = multiCameraBlobs[view];
@@ -1011,15 +227,12 @@ async function exportLeRobotDatasetInternal(
     }
   }
 
-  // Include Python conversion script for true Parquet format
   const conversionScript = generateConversionScript();
   zip.file('convert_to_parquet.py', conversionScript);
 
-  // Add README with usage instructions
   const readmeContent = generateReadme(datasetName, robotId, episodes.length, hasVideo, cameraViews);
   zip.file('README.md', readmeContent);
 
-  // Generate and download ZIP
   const blob = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(blob);
 
@@ -1032,7 +245,6 @@ async function exportLeRobotDatasetInternal(
 
   URL.revokeObjectURL(url);
 
-  // Return result if using options-based API
   if (returnResult) {
     return {
       success: true,
@@ -1051,8 +263,8 @@ export function exportMetadataOnly(
   robotId: string,
   fps = 30
 ): {
-  info: LeRobotDatasetInfo;
-  stats: LeRobotStats;
+  info: import('./lerobot').LeRobotDatasetInfo;
+  stats: import('./lerobot').LeRobotStats;
   tasks: string;
   episodes: string;
 } {
@@ -1090,13 +302,11 @@ export function validateForLeRobot(episodes: Episode[]): {
       warnings.push(`Episode ${i} has only ${episode.frames.length} frames (recommend >= 10)`);
     }
 
-    // Check for consistent joint count
     const jointCounts = new Set(episode.frames.map(f => f.observation.jointPositions.length));
     if (jointCounts.size > 1) {
       warnings.push(`Episode ${i} has inconsistent joint counts: ${[...jointCounts].join(', ')}`);
     }
 
-    // Check for missing done flag
     const lastFrame = episode.frames[episode.frames.length - 1];
     if (!lastFrame?.done) {
       warnings.push(`Episode ${i} last frame doesn't have done=true`);

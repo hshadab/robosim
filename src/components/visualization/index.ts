@@ -1,1 +1,1 @@
-export { RealTimePlot, CompactPlot } from './RealTimePlot';
+// Visualization components removed - RealTimePlot was unused

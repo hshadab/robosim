@@ -468,3 +468,39 @@ When adding new features:
 4. Build UI component in `src/components/`
 5. Export from index files
 6. Update this document if architectural decisions are made
+
+---
+
+## Monorepo Assessment
+
+The refactoring work (Phases 1–4) identified clear module boundaries that could become separate packages if the project grows. Below are the candidate packages and the current recommendation.
+
+### Identified Module Boundaries
+
+| Package | Contents | Key Exports |
+|---------|----------|-------------|
+| `@robosim/core` | `src/types/`, `src/config/`, `src/lib/logger.ts`, `src/lib/retry.ts`, `src/lib/circuitBreaker.ts` | Types, constants, shared utilities |
+| `@robosim/simulator` | `src/components/simulation/`, `src/lib/numericalIK.ts`, `src/lib/trajectoryPlanner.ts`, `src/lib/ikSolverWorker.ts` | Three.js scene, physics, robot models, IK solver |
+| `@robosim/llm` | `src/lib/claude/`, `src/lib/claudeApi.ts`, `src/hooks/useLLMChat.ts`, `src/lib/semanticState.ts` | Claude API, streaming, chat hook |
+| `@robosim/exporters` | `src/lib/exporters/`, `src/lib/lerobot/`, `src/lib/lerobotExporter.ts`, `src/lib/parquetWriter.ts` | LeRobot dataset, code export, Parquet |
+| `@robosim/image-to-3d` | `src/lib/imageTo3D/`, `src/lib/rodinImageTo3D.ts`, `src/lib/csmImageTo3D.ts`, `src/lib/falImageTo3D.ts` | Provider system, 3D model generation |
+
+### Dependency Graph
+
+```
+@robosim/core ← @robosim/simulator
+                ← @robosim/llm
+                ← @robosim/exporters
+                ← @robosim/image-to-3d
+```
+
+All packages depend on `core`; no circular dependencies exist between the other packages.
+
+### Recommendation: Defer Actual Split
+
+**Current Vite chunk splitting is sufficient.** The module boundaries documented above are enforced by directory structure and barrel exports. A monorepo split (e.g., via Turborepo or Nx) would add tooling overhead without clear benefit at the current project size.
+
+**When to revisit:**
+- If multiple applications need to share `@robosim/core` or `@robosim/simulator`
+- If CI build times exceed 5 minutes and parallelization would help
+- If independent versioning of packages becomes necessary

@@ -3,7 +3,7 @@
  * Provides browser-based ML models for vision and NLP tasks
  */
 
-import { pipeline, env } from '@huggingface/transformers';
+import { pipeline, env, type PipelineType, type Pipeline } from '@huggingface/transformers';
 
 // Configure transformers.js for browser use
 env.allowLocalModels = false;
@@ -33,26 +33,23 @@ export interface FeatureExtractionResult {
   embedding: number[];
 }
 
-// Cache for loaded pipelines - use unknown due to complex union types in transformers.js
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pipelineCache = new Map<string, any>();
+// Cache for loaded pipelines
+const pipelineCache = new Map<string, Pipeline>();
 
 /**
  * Get or create a pipeline (cached)
  */
 async function getPipeline(
-  task: string,
+  task: PipelineType,
   model?: string
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
+): Promise<Pipeline> {
   const cacheKey = `${task}:${model || 'default'}`;
 
   if (pipelineCache.has(cacheKey)) {
     return pipelineCache.get(cacheKey)!;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pipe = await pipeline(task as any, model);
+  const pipe = await pipeline(task, model);
   pipelineCache.set(cacheKey, pipe);
   return pipe;
 }
@@ -276,7 +273,7 @@ export async function preloadModels(
 
   for (const [task, model] of models) {
     onProgress?.(model, 0);
-    await getPipeline(task, model);
+    await getPipeline(task as PipelineType, model);
     onProgress?.(model, 100);
   }
 }

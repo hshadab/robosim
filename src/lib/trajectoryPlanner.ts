@@ -3,6 +3,17 @@
  *
  * Provides smooth motion path generation between joint configurations
  * using various interpolation methods.
+ *
+ * Motion planning approach:
+ * - Trajectories are defined as sequences of waypoints with timestamps.
+ * - Between waypoints, joints are interpolated using a selected easing function.
+ * - Supported profiles: linear, cubic ease-in-out, quintic ease-in-out,
+ *   trapezoidal velocity, and minimum-jerk (5th-order polynomial).
+ * - Duration is auto-computed from max joint displacement at 60°/s max velocity.
+ * - Velocities and accelerations are computed via central-difference numerical
+ *   differentiation (dt = 10ms).
+ * - The {@link TrajectoryExecutor} drives playback via requestAnimationFrame,
+ *   supporting pause/resume/stop.
  */
 
 import type { JointState } from '../types';

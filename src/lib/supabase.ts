@@ -18,6 +18,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/supabase';
+import { saveToLocal, loadFromLocal, queueForSync } from './offlineStorage';
+import { isOnline } from './connectivity';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -170,32 +172,50 @@ export interface UserProfile {
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   if (!isSupabaseConfigured) return null;
 
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-  if (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      // Fall back to cached profile when Supabase is unreachable
+      return loadFromLocal<UserProfile>(`profile:${userId}`);
+    }
+
+    // Cache successful fetches for offline use
+    saveToLocal(`profile:${userId}`, data);
+    return data as UserProfile;
+  } catch {
+    // Network error — use cached data
+    return loadFromLocal<UserProfile>(`profile:${userId}`);
   }
-
-  return data as UserProfile;
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<UserProfile>) {
   if (!isSupabaseConfigured) return null;
 
-  // Convert to database-compatible format
   const dbUpdates = {
     ...updates,
     updated_at: new Date().toISOString(),
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const query = supabase.from('user_profiles') as any;
-  const { data, error } = await query
+  if (!isOnline()) {
+    // Queue write for later sync
+    queueForSync({ table: 'user_profiles', type: 'update', payload: { id: userId, ...dbUpdates } });
+    // Optimistically update local cache
+    const cached = loadFromLocal<UserProfile>(`profile:${userId}`);
+    if (cached) {
+      const merged = { ...cached, ...dbUpdates } as UserProfile;
+      saveToLocal(`profile:${userId}`, merged);
+      return merged;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase.from('user_profiles')
     .update(dbUpdates)
     .eq('id', userId)
     .select()

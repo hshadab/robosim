@@ -1,9 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import type { JointState, JointSequenceStep, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState } from '../types';
-import { callClaudeAPI, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
+import { callClaudeAPI, callClaudeAPIStream, getClaudeApiKey, type FullRobotState, type ConversationMessage } from '../lib/claudeApi';
 import { robotContext } from '../lib/robotContext';
 import { createLogger } from '../lib/logger';
+import { timed } from '../lib/instrumentation';
 import { logPickupAttempt, markPickupSuccess, markPickupFailure, promoteToVerified } from '../lib/pickupExamples';
 import { startContactSession, endContactSession, startContactMonitoring } from '../lib/contactEvents';
 import { scheduleFrame } from '../lib/animationUtils';
@@ -318,32 +319,89 @@ export const useLLMChat = () => {
           objectCount: fullState.objects?.length || 0,
         });
 
-        const response = await callClaudeAPI(message, activeRobotType, fullState, apiKey || undefined, conversationHistory);
+        // Use streaming when API key is available for progressive token display
+        let response;
+        if (apiKey) {
+          let streamedText = '';
+          // Add a placeholder message for streaming tokens
+          addMessage({ role: 'assistant', content: '' });
+
+          response = await timed('LLM Stream', () => callClaudeAPIStream(message, activeRobotType, fullState, apiKey, conversationHistory, {
+            onToken: (token) => {
+              streamedText += token;
+              // Update the last message in-place with accumulated text
+              const msgs = useAppStore.getState().messages;
+              const updated = [...msgs];
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content: streamedText,
+              };
+              useAppStore.setState({ messages: updated });
+            },
+          }));
+
+          // Replace streaming text with the final parsed description
+          const msgs = useAppStore.getState().messages;
+          const updated = [...msgs];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: response.description,
+            codeGenerated: response.code,
+          };
+          useAppStore.setState({ messages: updated });
+        } else {
+          response = await timed('LLM Call', () => callClaudeAPI(message, activeRobotType, fullState, undefined, conversationHistory));
+        }
 
         log.debug('Got response', {
           action: response.action,
           hasJoints: !!response.joints,
         });
 
+        const wasStreamed = !!apiKey;
+
         if (response.action === 'error') {
-          addMessage({
-            role: 'assistant',
-            content: response.description || 'I could not understand that command.',
-            isError: true,
-          });
+          if (wasStreamed) {
+            // Update streaming placeholder with error
+            const msgs = useAppStore.getState().messages;
+            const updated = [...msgs];
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: response.description || 'I could not understand that command.',
+              isError: true,
+            };
+            useAppStore.setState({ messages: updated });
+          } else {
+            addMessage({
+              role: 'assistant',
+              content: response.description || 'I could not understand that command.',
+              isError: true,
+            });
+          }
           robotContext.emit({ type: 'error', timestamp: new Date(), details: response.description });
         } else if (response.action === 'query' && response.clarifyingQuestion) {
-          // LLM is asking for clarification
-          addMessage({
-            role: 'assistant',
-            content: response.clarifyingQuestion,
-          });
+          if (wasStreamed) {
+            const msgs = useAppStore.getState().messages;
+            const updated = [...msgs];
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: response.clarifyingQuestion,
+            };
+            useAppStore.setState({ messages: updated });
+          } else {
+            addMessage({
+              role: 'assistant',
+              content: response.clarifyingQuestion,
+            });
+          }
         } else {
-          addMessage({
-            role: 'assistant',
-            content: response.description,
-            codeGenerated: response.code,
-          });
+          if (!wasStreamed) {
+            addMessage({
+              role: 'assistant',
+              content: response.description,
+              codeGenerated: response.code,
+            });
+          }
 
           if (response.code) {
             setCode({ source: response.code, isGenerated: true });

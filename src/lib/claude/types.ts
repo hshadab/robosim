@@ -54,6 +54,14 @@ export interface ConversationMessage {
 export interface CallClaudeAPIOptions {
   /** Force real API call even for manipulation commands (for training data generation) */
   forceRealAPI?: boolean;
+  /** Enable streaming response */
+  stream?: boolean;
+}
+
+/** Streaming callback interface */
+export interface StreamCallbacks {
+  onToken?: (text: string) => void;
+  onComplete?: (response: ClaudeResponse) => void;
 }
 
 /** Joint angles for IK calculations */

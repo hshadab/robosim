@@ -24,8 +24,10 @@
 import type { JointState, ActiveRobotType, WheeledRobotState, DroneState, HumanoidState, SimObject } from '../types';
 import { SYSTEM_PROMPTS } from '../hooks/useLLMChat';
 import { generateSemanticState } from './semanticState';
+import Anthropic from '@anthropic-ai/sdk';
 import { API_CONFIG } from './config';
 import { loggers } from './logger';
+import { withRetry } from './retry';
 import { findSimilarPickups, getPickupStats } from './pickupExamples';
 import { generateFailureContext, getSuggestedAdjustments } from './failureAnalysis';
 
@@ -42,6 +44,7 @@ export type {
   FullRobotState,
   ConversationMessage,
   CallClaudeAPIOptions,
+  StreamCallbacks,
 } from './claude/types';
 
 import type {
@@ -49,6 +52,7 @@ import type {
   FullRobotState,
   ConversationMessage,
   CallClaudeAPIOptions,
+  StreamCallbacks,
 } from './claude/types';
 
 const log = loggers.claude;
@@ -215,29 +219,21 @@ export async function callClaudeAPI(
       },
     ];
 
-    const response = await fetch(`${API_CONFIG.CLAUDE.BASE_URL}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': API_CONFIG.CLAUDE.VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
+    const client = new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    });
+
+    const data = await withRetry(() =>
+      client.messages.create({
         model: API_CONFIG.CLAUDE.DEFAULT_MODEL,
         max_tokens: API_CONFIG.CLAUDE.MAX_TOKENS,
         system: buildSystemPrompt(robotType, fullState),
         messages,
-      }),
-    });
+      })
+    );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude API error: ${error}`);
-    }
-
-    const data = await response.json();
-    const content = data.content[0]?.text || '';
+    const content = data.content[0]?.type === 'text' ? data.content[0].text : '';
 
     // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -274,6 +270,79 @@ export async function callClaudeAPI(
       description: `Failed to connect to Claude: ${error instanceof Error ? error.message : 'Unknown error'}. Using demo mode.`,
     };
   }
+}
+
+/**
+ * Call the Claude API with streaming enabled.
+ * Tokens are delivered incrementally via callbacks; the final parsed
+ * ClaudeResponse is returned (and also delivered via onComplete).
+ */
+export async function callClaudeAPIStream(
+  message: string,
+  robotType: ActiveRobotType,
+  fullState: FullRobotState,
+  apiKey: string,
+  conversationHistory: ConversationMessage[] = [],
+  callbacks: StreamCallbacks = {},
+  options: CallClaudeAPIOptions = {}
+): Promise<ClaudeResponse> {
+  // Build messages array with conversation history
+  const recentHistory = conversationHistory.slice(-API_CONFIG.MAX_CONVERSATION_HISTORY);
+  const messages = [
+    ...recentHistory.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    })),
+    { role: 'user' as const, content: message },
+  ];
+
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+
+  let accumulated = '';
+
+  const stream = client.messages.stream({
+    model: API_CONFIG.CLAUDE.DEFAULT_MODEL,
+    max_tokens: API_CONFIG.CLAUDE.MAX_TOKENS,
+    system: buildSystemPrompt(robotType, fullState),
+    messages,
+  });
+
+  stream.on('text', (text) => {
+    accumulated += text;
+    callbacks.onToken?.(text);
+  });
+
+  const finalMessage = await stream.finalMessage();
+
+  // Use accumulated text or fall back to final message content
+  const content = accumulated || (finalMessage.content[0]?.type === 'text' ? finalMessage.content[0].text : '');
+
+  // Parse JSON from the complete response
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  let response: ClaudeResponse;
+
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      response = {
+        action: parsed.action || 'move',
+        description: parsed.description || content,
+        code: parsed.code,
+        joints: parsed.joints,
+        wheeledAction: parsed.wheeledAction,
+        droneAction: parsed.droneAction,
+        humanoidAction: parsed.humanoidAction,
+        duration: parsed.duration || 1000,
+      };
+    } catch {
+      response = { action: 'explain', description: content };
+    }
+  } else {
+    response = { action: 'explain', description: content };
+  }
+
+  callbacks.onComplete?.(response);
+  return response;
 }
 
 /**

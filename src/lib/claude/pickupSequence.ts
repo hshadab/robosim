@@ -2,7 +2,26 @@
  * Pickup Sequence Handler
  *
  * Handles pick-up commands for the SO-101 robot arm using IK-based control.
- * Extracted from claudeApi.ts for better modularity.
+ *
+ * Grasp strategy:
+ * 1. First checks for a verified (pre-computed) pickup example within 1cm of the
+ *    target object position. If found, adapts that sequence by rotating the base.
+ * 2. Otherwise, uses URDF-based numerical IK to compute approach, grasp, and lift
+ *    joint configurations.
+ *
+ * IK fallback logic (validation loop):
+ * - If the max IK error exceeds 4cm, retries with:
+ *   a) Different base angle offsets (±5°, ±10°)
+ *   b) Different grasp heights (±1cm, ±2cm)
+ *   c) Toggling side vs top-down grasp approach
+ * - After all retries, falls back to closest verified example if available.
+ *
+ * The resulting 5-step joint sequence:
+ * 1. Approach (above/beside object, gripper open)
+ * 2. Lower to grasp position (gripper still open)
+ * 3. Close gripper only (no arm movement)
+ * 4. Hold position (physics settle time)
+ * 5. Lift
  */
 
 import type { JointState, JointSequenceStep, SimObject } from '../../types';
