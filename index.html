@@ -13,7 +13,7 @@
       worker-src 'self' blob:;
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: blob: https:;
-      connect-src 'self' https://api.anthropic.com https://*.supabase.co https://huggingface.co https://*.huggingface.co https://api.fal.ai wss://*.supabase.co blob: https://cdn.jsdelivr.net https://storage.googleapis.com;
+      connect-src 'self' ws: wss: https://api.anthropic.com https://*.supabase.co https://huggingface.co https://*.huggingface.co https://api.fal.ai wss://*.supabase.co blob: https://cdn.jsdelivr.net https://storage.googleapis.com;
       font-src 'self' data:;
       media-src 'self' blob:;
       object-src 'none';
